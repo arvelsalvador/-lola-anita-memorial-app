@@ -78,49 +78,90 @@ class _GalleryImageTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Loading placeholder
-          Container(
-            color: Colors.grey[200],
-            child: const Center(
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.deepPurple,
-              ),
-            ),
-          ),
-          Image.asset(
-            item.path,
-            fit: BoxFit.cover,
-            cacheWidth: 300,
-            filterQuality: FilterQuality.low,
-            errorBuilder: (c, e, s) =>
-                const Icon(Icons.broken_image, size: 40, color: Colors.grey),
-          ),
-          // Label overlay
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              color: Colors.black.withOpacity(0.45),
-              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
-              child: Text(
-                item.label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
+    return GestureDetector(
+      // ← tap to open fullscreen
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => FullscreenImagePage(item: item)),
+        );
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Container(
+              color: Colors.grey[200],
+              child: const Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.deepPurple,
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
               ),
             ),
+            Image.asset(
+              item.path,
+              fit: BoxFit.cover,
+              cacheWidth: 300,
+              filterQuality: FilterQuality.low,
+              errorBuilder: (c, e, s) =>
+                  const Icon(Icons.broken_image, size: 40, color: Colors.grey),
+            ),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Container(
+                color: Colors.black.withOpacity(0.45),
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+                child: Text(
+                  item.label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ← New fullscreen page
+class FullscreenImagePage extends StatelessWidget {
+  final GalleryImageItem item;
+  const FullscreenImagePage({super.key, required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: Text(
+          item.label,
+          style: const TextStyle(color: Colors.white, fontSize: 14),
+        ),
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          // ← pinch to zoom!
+          minScale: 0.5,
+          maxScale: 4.0,
+          child: Image.asset(
+            item.path,
+            fit: BoxFit.contain,
+            errorBuilder: (c, e, s) =>
+                const Icon(Icons.broken_image, size: 80, color: Colors.grey),
           ),
-        ],
+        ),
       ),
     );
   }
