@@ -4,43 +4,43 @@ import 'package:nita/Pages/Story/Model/story_model.dart';
 class StoryController extends ChangeNotifier {
   static const StoryModel data = StoryModel(
     quote:
-        'The kitchen is where love becomes something you can taste. Cook with both hands and an open heart.',
-    quoteAttribution: '— Lola Remedios, always',
+        'Ang kusina ay kung saan ang pagmamahal ay nagiging lasa. Magluto gamit ang dalawang kamay at bukas na puso.',
+    quoteAttribution: '— Lola Remedios, palaging sinasabi',
     about:
-        'Lola Remedios lived every one of her 85 years with grace, laughter, and an unshakeable faith. '
-        'She was a devoted wife, a nurturing mother, and the heart of a family that spans three generations. '
-        'Her hands were always busy — cooking, sewing, or folding in prayer — and her home was always open.\n\n'
-        'She believed deeply that family is the greatest treasure, and she gave everything to build one filled with love.',
+        'Si Lola Remedios ay namuhay ng 85 taon na may biyaya, halakhak, at matibay na pananampalataya. '
+        'Isa siyang mapagmahal na asawa, mapag-arugang ina, at puso ng pamilyang umaabot sa tatlong henerasyon. '
+        'Laging abala ang kanyang mga kamay — nagluluto, nananahi, o nakatiklop sa panalangin — at ang kanyang tahanan ay laging bukas.\n\n'
+        'Malalim ang kanyang paniniwala na ang pamilya ang pinakamahalagang yaman, at ibinigay niya ang lahat upang bumuo ng tahanang puno ng pagmamahal.',
     timeline: [
       LifeEvent(
         year: '1938',
-        title: 'Born in Camarines Norte',
+        title: 'Ipinanganak sa Camarines Norte',
         description:
-            'The third of seven children, born in the province she always called home.',
+            'Ikatlo sa pitong magkakapatid, ipinanganak sa probinsyang mahal niya.',
       ),
       LifeEvent(
         year: '1961',
-        title: 'Married Lolo Ernesto',
+        title: 'Ikinasal kay Lolo Ernesto',
         description:
-            'A union of 54 years. Together they raised six children and loved endlessly.',
+            '54 na taon ng pagsasama. Magkasama nilang pinalaki ang anim na anak at nagmahalan ng walang hanggan.',
       ),
       LifeEvent(
         year: '1975',
-        title: 'First grandchild born',
+        title: 'Unang apo ay isinilang',
         description:
-            'She became Lola — a title she wore with more pride than any other.',
+            'Naging Lola siya — isang titulong ipinagmamalaki niya higit sa lahat.',
       ),
       LifeEvent(
         year: '1998',
-        title: 'Celebrated their anniversary',
+        title: 'Ipinagdiwang ang anibersaryo',
         description:
-            'The whole family gathered to honor 37 years of faithful love.',
+            'Nagtipon ang buong pamilya upang parangalan ang 37 taon ng tapat na pagmamahalan.',
       ),
       LifeEvent(
         year: '2023',
-        title: 'Peacefully at rest',
+        title: 'Mapayapang namahinga',
         description:
-            'Surrounded by family, she returned to God having lived a life full of grace.',
+            'Pinalibutan ng pamilya, siya ay nagbalik sa Diyos matapos ang isang buhay na puno ng biyaya.',
         isLast: true,
       ),
     ],

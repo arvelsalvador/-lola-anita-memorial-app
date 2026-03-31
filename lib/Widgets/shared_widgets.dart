@@ -97,15 +97,23 @@ class _PortraitRing extends StatelessWidget {
             end: Alignment.bottomRight,
           ),
         ),
-        child: Center(
-          child: Text(
-            initial,
-            style: const TextStyle(
-              fontFamily: 'Georgia',
-              fontSize: 44,
-              color: Color(0xFFFAF0E6),
-              fontWeight: FontWeight.w300,
-              letterSpacing: 2,
+        child: ClipOval(
+          child: Image.asset(
+            'assets/images/gallery/Nanay_dp.png',
+            fit: BoxFit.cover,
+            width: 104,
+            height: 104,
+            errorBuilder: (context, error, stackTrace) => Center(
+              child: Text(
+                initial,
+                style: const TextStyle(
+                  fontFamily: 'Georgia',
+                  fontSize: 44,
+                  color: Color(0xFFFAF0E6),
+                  fontWeight: FontWeight.w300,
+                  letterSpacing: 2,
+                ),
+              ),
             ),
           ),
         ),
@@ -129,6 +137,7 @@ class AppBottomNav extends StatelessWidget {
     (Icons.photo_library_outlined, Icons.photo_library_rounded, 'Gallery'),
     (Icons.auto_stories_outlined, Icons.auto_stories_rounded, 'Memories'),
     (Icons.favorite_outline_rounded, Icons.favorite_rounded, 'Tribute'),
+    (Icons.star_border_rounded, Icons.star_rounded, 'Favorites'),
   ];
 
   @override

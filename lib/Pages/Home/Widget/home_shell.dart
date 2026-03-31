@@ -5,6 +5,7 @@ import 'package:nita/Pages/Story/View/story_page.dart';
 import 'package:nita/Pages/Gallery/View/gallery_page.dart';
 import 'package:nita/Pages/Memories/View/memories_page.dart';
 import 'package:nita/Pages/Tributes/View/tribute_page.dart';
+import 'package:nita/Pages/Favorites/favorites_page.dart';
 
 /// Wraps each tab page with the shared hero header + a scrollable body.
 class HomeShell extends StatelessWidget {
@@ -27,6 +28,7 @@ class HomeShell extends StatelessWidget {
     GalleryPage(),
     MemoriesPage(),
     TributePage(),
+    FavoritesPage(),
   ];
 
   @override

@@ -1,38 +1,66 @@
 import 'package:flutter/material.dart';
-import 'package:nita/Pages/Gallery/Controller/gallery_controller.dart';
-import 'package:nita/Pages/Gallery/Widget/gallery_widget.dart';
-import 'package:nita/Widgets/shared_widgets.dart';
+import 'modern_gallery_page.dart';
+import 'dart:convert';
+import 'package:flutter/services.dart' show rootBundle;
 
-class GalleryPage extends StatelessWidget {
+class GalleryPage extends StatefulWidget {
   const GalleryPage({super.key});
 
   @override
+  State<GalleryPage> createState() => _GalleryPageState();
+}
+
+class _GalleryPageState extends State<GalleryPage> {
+  List<GalleryImageItem>? _images;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadImages();
+  }
+
+  Future<void> _loadImages() async {
+    final manifestContent = await rootBundle.loadString('AssetManifest.json');
+    final Map<String, dynamic> manifestMap = manifestContent.isNotEmpty
+        ? Map<String, dynamic>.from(jsonDecode(manifestContent))
+        : {};
+
+    final imagePaths = manifestMap.keys
+        .where(
+          (String key) =>
+              key.startsWith('assets/images/gallery/') &&
+              (key.endsWith('.jpg') || key.endsWith('.png')),
+        )
+        .toList();
+    imagePaths.sort();
+
+    List<GalleryImageItem> items = imagePaths.map((path) {
+      final fileName = path.split('/').last;
+      final match = RegExp(r'^[A-Za-z]+').firstMatch(fileName);
+      final group = match != null ? match.group(0)! : 'Other';
+      final label = fileName
+          .replaceAll(RegExp(r'[_\-.]'), ' ')
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .replaceAll(RegExp(r'\.[a-zA-Z]+$'), '')
+          .trim();
+      return GalleryImageItem(path: path, group: group, label: label);
+    }).toList();
+
+    setState(() {
+      _images = items;
+    });
+
+    // Precache first 9 visible images
+    for (int i = 0; i < items.length && i < 9; i++) {
+      await precacheImage(AssetImage(items[i].path), context);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final data = GalleryController.data;
-    return CustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-            child: const SectionLabel('A life in pictures'),
-          ),
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-          sliver: SliverGrid(
-            delegate: SliverChildBuilderDelegate(
-              (ctx, i) => PhotoTile(photo: data.photos[i]),
-              childCount: data.photos.length,
-            ),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 0.85,
-            ),
-          ),
-        ),
-      ],
-    );
+    if (_images == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return ModernGalleryPage(images: _images!);
   }
 }

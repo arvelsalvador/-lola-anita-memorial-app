@@ -6,7 +6,7 @@ class HomeController extends ChangeNotifier {
   int get selectedTab => _selectedTab;
 
   void selectTab(int index) {
-    if (_selectedTab != index) {
+    if (_selectedTab != index && index >= 0 && index <= 4) {
       _selectedTab = index;
       notifyListeners();
     }
