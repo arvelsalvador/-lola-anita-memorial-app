@@ -72,14 +72,13 @@ class _SplashPageState extends State<SplashPage>
                       end: Alignment.bottomRight,
                     ),
                   ),
-                  child: const Center(
-                    child: Text(
-                      'L',
-                      style: TextStyle(
-                        fontFamily: 'Georgia',
-                        fontSize: 40,
-                        color: Color(0xFFFAF0E6),
-                        fontWeight: FontWeight.w300,
+                  child: Center(
+                    child: ClipOval(
+                      child: Image.asset(
+                        'assets/images/gallery/Nanay_dp.png',
+                        width: 80,
+                        height: 80,
+                        fit: BoxFit.cover,
                       ),
                     ),
                   ),
