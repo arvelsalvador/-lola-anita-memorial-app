@@ -13,8 +13,8 @@ class Responsive {
       MediaQuery.sizeOf(context).width >= 1024;
 
   static double contentMaxWidth(BuildContext context) {
-    if (isDesktop(context)) return 900;
-    if (isTablet(context)) return 700;
+    if (isDesktop(context)) return 1050;
+    if (isTablet(context)) return 750;
     return double.infinity;
   }
 
