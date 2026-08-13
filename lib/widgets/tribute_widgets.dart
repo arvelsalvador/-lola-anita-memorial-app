@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/models/tribute_model.dart';
@@ -113,8 +114,43 @@ class FamilyQuoteCard extends StatelessWidget {
   }
 }
 
-class CandleSection extends StatelessWidget {
+class CandleSection extends StatefulWidget {
   const CandleSection({super.key});
+
+  @override
+  State<CandleSection> createState() => _CandleSectionState();
+}
+
+class _CandleSectionState extends State<CandleSection> {
+  int _localCount = 124;
+  bool _lit = false;
+  bool _loading = false;
+
+  Future<void> _lightCandle() async {
+    if (_lit) return;
+    setState(() {
+      _loading = true;
+      _lit = true;
+      _localCount++;
+    });
+
+    try {
+      final docRef = FirebaseFirestore.instance.collection('memorial').doc('anita_lumbao');
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final snapshot = await transaction.get(docRef);
+        if (!snapshot.exists) {
+          transaction.set(docRef, {'candleCount': _localCount});
+        } else {
+          final current = snapshot.data()?['candleCount'] ?? 124;
+          transaction.update(docRef, {'candleCount': current + 1});
+        }
+      });
+    } catch (_) {
+      // Fallback to local optimistic count
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -129,30 +165,50 @@ class CandleSection extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
       child: Column(
         children: [
-          const Text('🕯️', style: TextStyle(fontSize: 40)),
+          Text(_lit ? '🔥' : '🕯️', style: const TextStyle(fontSize: 40)),
           const SizedBox(height: 12),
           Text(
-            lang.t('candle_light'),
+            _lit ? 'Candle Lit in Her Memory' : lang.t('candle_light'),
             style: const TextStyle(
               fontFamily: 'Georgia',
               fontSize: 18,
               color: AppColors.warmDark,
             ),
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 6),
-          Text(
-            lang.t('candle_virtual'),
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppColors.warmMid,
-              letterSpacing: 0.5,
-            ),
+          StreamBuilder<DocumentSnapshot>(
+            stream: (() {
+              try {
+                return FirebaseFirestore.instance.collection('memorial').doc('anita_lumbao').snapshots();
+              } catch (_) {
+                return const Stream<DocumentSnapshot?>.empty() as Stream<DocumentSnapshot>;
+              }
+            })(),
+            builder: (context, snapshot) {
+              int count = _localCount;
+              if (snapshot.hasData && snapshot.data != null && snapshot.data!.exists) {
+                final data = snapshot.data!.data() as Map<String, dynamic>?;
+                if (data != null && data['candleCount'] != null) {
+                  count = data['candleCount'] as int;
+                }
+              }
+              return Text(
+                '$count ${lang.t('candle_virtual')}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.warmMid,
+                  letterSpacing: 0.5,
+                ),
+                textAlign: TextAlign.center,
+              );
+            },
           ),
           const SizedBox(height: 16),
           ElevatedButton(
-            onPressed: () {},
+            onPressed: _lit || _loading ? null : _lightCandle,
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.warmDark,
+              backgroundColor: _lit ? AppColors.gold : AppColors.warmDark,
               foregroundColor: const Color(0xFFFAF0E6),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(30),
@@ -161,7 +217,7 @@ class CandleSection extends StatelessWidget {
               elevation: 0,
             ),
             child: Text(
-              lang.t('candle_light'),
+              _lit ? '🕊️ Thank You' : lang.t('candle_light'),
               style: const TextStyle(fontSize: 13, letterSpacing: 1),
             ),
           ),

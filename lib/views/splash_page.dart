@@ -321,7 +321,7 @@ class _PortraitPhoto extends StatelessWidget {
         child: Center(
           child: ClipOval(
             child: Image.asset(
-              'assets/images/gallery/Nanay_dp.png',
+              'assets/images/gallery/Nanay_dp.jpg',
               width: size - 20,
               height: size - 20,
               fit: BoxFit.cover,

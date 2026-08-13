@@ -1,11 +1,11 @@
 {
-    "name": "nita",
-    "short_name": "nita",
+    "name": "Anita Daiz Lumbao - In Loving Memory",
+    "short_name": "Anita Memorial",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#FAF6F1",
+    "theme_color": "#2E1F17",
+    "description": "In Loving Memory of Anita Daiz Lumbao. Beloved grandmother, keeper of stories.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

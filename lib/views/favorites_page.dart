@@ -11,6 +11,7 @@ class FavoritesPage extends StatelessWidget {
     final lang = context.watch<LanguageProvider>();
 
     return CustomScrollView(
+      primary: false,
       slivers: [
         SliverToBoxAdapter(
           child: Padding(

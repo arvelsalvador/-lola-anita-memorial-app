@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:nita/core/constants/app_constants.dart';
+import 'package:nita/core/localization/language_provider.dart';
 
 class AppBottomNav extends StatelessWidget {
   final int selectedIndex;
@@ -11,76 +13,71 @@ class AppBottomNav extends StatelessWidget {
   });
 
   static const _items = [
-    (Icons.home_outlined, Icons.home_rounded, 'Home'),
-    (Icons.photo_library_outlined, Icons.photo_library_rounded, 'Gallery'),
-    (Icons.auto_stories_outlined, Icons.auto_stories_rounded, 'Memories'),
-    (Icons.favorite_outline_rounded, Icons.favorite_rounded, 'Tribute'),
-    (Icons.star_border_rounded, Icons.star_rounded, 'Favorites'),
+    (Icons.home_outlined, Icons.home_rounded, 'nav_home'),
+    (Icons.photo_library_outlined, Icons.photo_library_rounded, 'nav_gallery'),
+    (Icons.auto_stories_outlined, Icons.auto_stories_rounded, 'nav_memories'),
+    (Icons.favorite_outline_rounded, Icons.favorite_rounded, 'nav_tribute'),
+    (Icons.star_border_rounded, Icons.star_rounded, 'nav_favorites'),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.white,
-        border: Border(
-          top: BorderSide(color: AppColors.rose.withValues(alpha: 0.15), width: 0.5),
-        ),
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: AppColors.rose.withValues(alpha: 0.15), width: 0.5),
         boxShadow: [
           BoxShadow(
-            color: AppColors.warmDark.withValues(alpha: 0.06),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
+            color: AppColors.warmDark.withValues(alpha: 0.12),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            children: List.generate(_items.length, (i) {
-              final active = selectedIndex == i;
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () => onTap(i),
-                  behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+        child: Row(
+          children: List.generate(_items.length, (i) {
+            final active = selectedIndex == i;
+            return Expanded(
+              child: GestureDetector(
+                onTap: () => onTap(i),
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                  decoration: BoxDecoration(
+                    color: active ? AppColors.rose : Colors.transparent,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        _items[i].$2,
-                        color: active ? AppColors.rose : AppColors.muted,
-                        size: 22,
+                        active ? _items[i].$2 : _items[i].$1,
+                        color: active ? Colors.white : AppColors.muted,
+                        size: 20,
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       Text(
-                        _items[i].$3,
+                        lang.t(_items[i].$3),
                         style: TextStyle(
                           fontSize: 9,
                           letterSpacing: 0.5,
-                          color: active ? AppColors.rose : AppColors.muted,
+                          color: active ? Colors.white : AppColors.muted,
                           fontWeight: active
                               ? FontWeight.w600
                               : FontWeight.w400,
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: active ? 4 : 0,
-                        height: active ? 4 : 0,
-                        decoration: const BoxDecoration(
-                          color: AppColors.rose,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
                     ],
                   ),
                 ),
-              );
-            }),
-          ),
+              ),
+            );
+          }),
         ),
       ),
     );

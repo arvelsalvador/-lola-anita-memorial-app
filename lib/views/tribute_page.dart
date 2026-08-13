@@ -14,6 +14,7 @@ class TributePage extends StatelessWidget {
     final lang = context.watch<LanguageProvider>();
 
     return CustomScrollView(
+      primary: false,
       slivers: [
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),

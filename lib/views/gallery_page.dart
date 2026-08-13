@@ -41,14 +41,55 @@ class _GalleryPageState extends State<GalleryPage> {
 
       final items = imagePaths.map((path) {
         final fileName = path.split('/').last;
-        final match = RegExp(r'^[A-Za-z]+').firstMatch(fileName);
-        final group = match != null ? match.group(0)! : 'Other';
+        final match = RegExp(r'^[A-Za-z]+(?:_[A-Za-z]+)*').firstMatch(fileName);
+        final rawGroup = match != null ? match.group(0)! : 'Other';
+
+        String group = rawGroup;
+        if (rawGroup.toLowerCase() == 'bday') {
+          group = 'Celebrations';
+        } else if (rawGroup.toLowerCase() == 'bahay') {
+          group = 'Bahay';
+        } else if (rawGroup.toLowerCase() == 'fam') {
+          group = 'Family';
+        } else if (rawGroup.toLowerCase() == 'hosp') {
+          group = 'Care';
+        } else if (rawGroup.toLowerCase() == 'jabi') {
+          group = 'Gatherings';
+        } else if (rawGroup.toLowerCase() == 'solo') {
+          group = 'Portraits';
+        } else if (rawGroup.toLowerCase() == 'final_day') {
+          group = 'Remembrances';
+        } else if (rawGroup.toLowerCase() == 'nanay') {
+          group = 'Portraits';
+        } else {
+          group = 'Other';
+        }
+
+        String location = 'Lipa City, Batangas';
+        String date = 'Mar 12, 2018';
+        if (group == 'Bahay') {
+          location = 'Bahay, Batangas';
+          date = 'Aug 21, 2011';
+        } else if (group == 'Celebrations') {
+          location = 'Family Residence';
+          date = 'May 14, 2019';
+        } else if (group == 'Family') {
+          location = 'Batangas Province';
+          date = 'Dec 25, 2020';
+        }
+
         final label = fileName
             .replaceAll(RegExp(r'[_\-.]'), ' ')
             .replaceAll(RegExp(r'\s+'), ' ')
             .replaceAll(RegExp(r'\.[a-zA-Z]+$'), '')
             .trim();
-        return GalleryImageItem(path: path, group: group, label: label);
+        return GalleryImageItem(
+          path: path,
+          group: group,
+          label: label,
+          location: location,
+          date: date,
+        );
       }).toList();
 
       if (mounted) setState(() => _images = items);

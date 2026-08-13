@@ -38,43 +38,71 @@ class HomeShell extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.cream,
-      body: NestedScrollView(
-        headerSliverBuilder: (_, _) => [
-          SliverToBoxAdapter(
-            child: Stack(
-              children: [
-                LolaHeroHeader(
-                  name: name,
-                  initial: initial,
-                  years: years,
-                  tagline: tagline,
+      body: Stack(
+        children: [
+          NestedScrollView(
+            headerSliverBuilder: (context, innerBoxIsScrolled) => [
+              SliverAppBar(
+                pinned: true,
+                expandedHeight: 310,
+                backgroundColor: AppColors.warmDark,
+                elevation: 2,
+                flexibleSpace: FlexibleSpaceBar(
+                  background: LolaHeroHeader(
+                    name: name,
+                    initial: initial,
+                    years: years,
+                    tagline: tagline,
+                  ),
+                  title: Text(
+                    name,
+                    style: const TextStyle(
+                      fontFamily: 'Georgia',
+                      fontSize: 15,
+                      color: Color(0xFFFAF0E6),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  centerTitle: true,
+                  titlePadding: const EdgeInsets.only(bottom: 16),
                 ),
-                Positioned(
-                  top: MediaQuery.paddingOf(context).top + 12,
-                  right: 12,
-                  child: const _LanguageToggle(),
+                actions: const [
+                  Padding(
+                    padding: EdgeInsets.only(right: 12),
+                    child: Center(child: _LanguageToggle()),
+                  ),
+                ],
+              ),
+            ],
+            body: SafeArea(
+              top: false,
+              child: SizedBox.expand(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: Responsive.contentMaxWidth(context),
+                    ),
+                    child: IndexedStack(index: selectedTab, children: _bodies),
+                  ),
                 ),
-              ],
-            ),
-          ),
-        ],
-        body: SafeArea(
-          top: false,
-          child: SizedBox.expand(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: Responsive.contentMaxWidth(context),
-                ),
-                child: IndexedStack(index: selectedTab, children: _bodies),
               ),
             ),
           ),
-        ),
-      ),
-      bottomNavigationBar: AppBottomNav(
-        selectedIndex: selectedTab,
-        onTap: onTabChanged,
+          Positioned(
+            left: 20,
+            right: 20,
+            bottom: MediaQuery.paddingOf(context).bottom + 16,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 500),
+                child: AppBottomNav(
+                  selectedIndex: selectedTab,
+                  onTap: onTabChanged,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
