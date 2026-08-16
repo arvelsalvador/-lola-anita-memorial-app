@@ -33,6 +33,9 @@ class HomeShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final expandedHeight = (screenHeight * 0.92).clamp(520.0, 700.0);
+
     return Scaffold(
       backgroundColor: AppColors.cream,
       body: Stack(
@@ -42,12 +45,12 @@ class HomeShell extends StatelessWidget {
               return [
                 SliverAppBar(
                   pinned: true,
-                  expandedHeight: 330,
-                  backgroundColor: AppColors.cream,
+                  expandedHeight: expandedHeight,
+                  backgroundColor: AppColors.warmDark,
                   elevation: 0,
                   scrolledUnderElevation: 0,
                   surfaceTintColor: Colors.transparent,
-                  clipBehavior: Clip.none,
+                  clipBehavior: Clip.hardEdge,
                   flexibleSpace: FlexibleSpaceBar(
                     collapseMode: CollapseMode.parallax,
                     background: Stack(
@@ -62,13 +65,9 @@ class HomeShell extends StatelessWidget {
                           curve: Curves.easeInOut,
                           child: ClipRect(
                             child: BackdropFilter(
-                              filter: ImageFilter.blur(
-                                sigmaX: 12,
-                                sigmaY: 12,
-                              ),
+                              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
                               child: Container(
-                                color: AppColors.cream
-                                    .withValues(alpha: 0.55),
+                                color: AppColors.cream.withValues(alpha: 0.55),
                               ),
                             ),
                           ),

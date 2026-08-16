@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nita/app.dart';
 import 'package:nita/views/home_page.dart';
 import 'package:nita/views/splash_page.dart';
+import 'package:nita/views/story_page.dart';
 import 'package:nita/widgets/bottom_nav.dart';
 
 void main() {
@@ -12,6 +13,13 @@ void main() {
   Finder navLabel(String text) => find.descendant(
         of: find.byType(AppBottomNav),
         matching: find.text(text),
+      );
+
+  // The hero header repeats the Story tab's quote, so quote assertions
+  // must be scoped to the StoryPage body to stay unambiguous.
+  Finder storyQuote(String text) => find.descendant(
+        of: find.byType(StoryPage),
+        matching: find.textContaining(text),
       );
 
   testWidgets('App smoke test', (WidgetTester tester) async {
@@ -63,7 +71,7 @@ void main() {
     expect(find.byType(HomePage), findsOneWidget);
 
     // The Story tab shows the Tagalog quote by default.
-    expect(find.textContaining('Ang kusina ay kung saan'), findsOneWidget);
+    expect(storyQuote('Ang kusina ay kung saan'), findsOneWidget);
 
     // Switch to English via the language toggle. Fixed-duration pumps only
     // (the gallery spinners animate forever, so pumpAndSettle would time out).
@@ -75,7 +83,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     // The same quote is now in English.
-    expect(find.textContaining('The kitchen is where love becomes flavor'),
+    expect(storyQuote('The kitchen is where love becomes flavor'),
         findsOneWidget);
 
     // Page content follows too — Memories tab shows English items.
@@ -97,7 +105,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
 
     // Home/Story tab
-    expect(find.textContaining('Ang kusina ay kung saan'), findsOneWidget);
+    expect(storyQuote('Ang kusina ay kung saan'), findsOneWidget);
 
     // Memories tab
     await tester.tap(navLabel('Mga Alaala'));
@@ -140,7 +148,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     // Home/Story tab
-    expect(find.textContaining('The kitchen is where love becomes flavor'),
+    expect(storyQuote('The kitchen is where love becomes flavor'),
         findsOneWidget);
 
     // Memories tab
@@ -180,7 +188,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     // Story quote in Bicol.
-    expect(find.textContaining('An kusina iyo kun saen'), findsOneWidget);
+    expect(storyQuote('An kusina iyo kun saen'), findsOneWidget);
 
     // Memories tab in Bicol.
     await tester.tap(navLabel('Mga Alaala'));
