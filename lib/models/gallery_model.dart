@@ -3,10 +3,9 @@ class GalleryImageItem {
   final String group;
   final String label;
 
-  /// Optional — not yet populated by the filename parser in
-  /// gallery_page.dart. Card falls back to [label] when these are null.
-  /// Wire these up once you decide on a filename convention (e.g.
-  /// `Bahay_LipaCityBatangas_2011-08-21.jpg`) or a separate manifest.
+  /// Localization keys resolved via `LanguageProvider.t(...)`. Populated by
+  /// the filename parser in gallery_page.dart. When null, the widgets fall
+  /// back to 'loc_lipa' / 'date_1'.
   final String? location;
   final String? date;
 

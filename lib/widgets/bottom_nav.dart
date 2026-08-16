@@ -24,11 +24,14 @@ class AppBottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
 
-    return Container(
+    return DecoratedBox(
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: AppColors.rose.withValues(alpha: 0.15), width: 0.5),
+        border: Border.all(
+          color: AppColors.rose.withValues(alpha: 0.15),
+          width: 0.5,
+        ),
         boxShadow: [
           BoxShadow(
             color: AppColors.warmDark.withValues(alpha: 0.12),
@@ -46,8 +49,13 @@ class AppBottomNav extends StatelessWidget {
               child: GestureDetector(
                 onTap: () => onTap(i),
                 behavior: HitTestBehavior.opaque,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 6,
+                    horizontal: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: active ? AppColors.rose : Colors.transparent,
                     borderRadius: BorderRadius.circular(24),

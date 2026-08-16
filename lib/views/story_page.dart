@@ -22,7 +22,10 @@ class StoryPage extends StatelessWidget {
             delegate: SliverChildListDelegate([
               SectionLabel(lang.t('section_her_words')),
               const SizedBox(height: 12),
-              QuoteCard(quote: data.quote, attribution: data.quoteAttribution),
+              QuoteCard(
+                quote: lang.t(data.quoteKey),
+                attribution: lang.t(data.quoteAttributionKey),
+              ),
               const SizedBox(height: 24),
               SectionLabel(lang.t('section_her_journey')),
               const SizedBox(height: 12),
@@ -30,7 +33,7 @@ class StoryPage extends StatelessWidget {
               const SizedBox(height: 24),
               SectionLabel(lang.t('section_about_her')),
               const SizedBox(height: 12),
-              AboutCard(text: data.about),
+              AboutCard(text: lang.t(data.aboutKey)),
               const SizedBox(height: 32),
             ]),
           ),

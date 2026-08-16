@@ -1,19 +1,19 @@
 class TributeModel {
-  final String tributeMessage;
+  final String tributeMessageKey;
   final List<FamilyQuote> familyQuotes;
 
   const TributeModel({
-    required this.tributeMessage,
+    required this.tributeMessageKey,
     required this.familyQuotes,
   });
 }
 
 class FamilyQuote {
-  final String quote;
-  final String name;
+  final String quoteKey;
+  final String nameKey;
 
   const FamilyQuote({
-    required this.quote,
-    required this.name,
+    required this.quoteKey,
+    required this.nameKey,
   });
 }

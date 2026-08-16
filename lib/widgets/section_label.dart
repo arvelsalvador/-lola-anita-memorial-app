@@ -23,7 +23,14 @@ class SectionLabel extends StatelessWidget {
           color: AppColors.gold.withValues(alpha: 0.8),
         ),
         const SizedBox(width: 8),
-        Text(text.toUpperCase(), style: AppTextStyles.sectionLabel),
+        Flexible(
+          child: Text(
+            text.toUpperCase(),
+            style: AppTextStyles.sectionLabel,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
         const SizedBox(width: 10),
         Expanded(
           child: Container(

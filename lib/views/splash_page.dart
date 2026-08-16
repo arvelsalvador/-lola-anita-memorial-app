@@ -327,7 +327,7 @@ class _PortraitPhoto extends StatelessWidget {
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) => const Center(
                 child: Text(
-                  'L',
+                  'A',
                   style: TextStyle(
                     fontFamily: 'Georgia',
                     fontSize: 40,

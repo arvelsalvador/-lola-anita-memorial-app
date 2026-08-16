@@ -44,38 +44,37 @@ class _GalleryPageState extends State<GalleryPage> {
         final match = RegExp(r'^[A-Za-z]+(?:_[A-Za-z]+)*').firstMatch(fileName);
         final rawGroup = match != null ? match.group(0)! : 'Other';
 
-        String group = rawGroup;
-        if (rawGroup.toLowerCase() == 'bday') {
-          group = 'Celebrations';
-        } else if (rawGroup.toLowerCase() == 'bahay') {
-          group = 'Bahay';
-        } else if (rawGroup.toLowerCase() == 'fam') {
-          group = 'Family';
-        } else if (rawGroup.toLowerCase() == 'hosp') {
-          group = 'Care';
-        } else if (rawGroup.toLowerCase() == 'jabi') {
-          group = 'Gatherings';
-        } else if (rawGroup.toLowerCase() == 'solo') {
-          group = 'Portraits';
-        } else if (rawGroup.toLowerCase() == 'final_day') {
-          group = 'Remembrances';
-        } else if (rawGroup.toLowerCase() == 'nanay') {
-          group = 'Portraits';
-        } else {
-          group = 'Other';
+        String group = 'group_other';
+        switch (rawGroup.toLowerCase()) {
+          case 'bday':
+            group = 'group_celebrations';
+          case 'bahay':
+            group = 'group_bahay';
+          case 'fam':
+            group = 'group_family';
+          case 'hosp':
+            group = 'group_care';
+          case 'jabi':
+            group = 'group_gatherings';
+          case 'solo':
+          case 'nanay':
+          case 'nanay_halfbody':
+            group = 'group_portraits';
+          case 'final_day':
+            group = 'group_remembrances';
         }
 
-        String location = 'Lipa City, Batangas';
-        String date = 'Mar 12, 2018';
-        if (group == 'Bahay') {
-          location = 'Bahay, Batangas';
-          date = 'Aug 21, 2011';
-        } else if (group == 'Celebrations') {
-          location = 'Family Residence';
-          date = 'May 14, 2019';
-        } else if (group == 'Family') {
-          location = 'Batangas Province';
-          date = 'Dec 25, 2020';
+        String location = 'loc_lipa';
+        String date = 'date_1';
+        if (group == 'group_bahay') {
+          location = 'loc_bahay';
+          date = 'date_2';
+        } else if (group == 'group_celebrations') {
+          location = 'loc_family_residence';
+          date = 'date_3';
+        } else if (group == 'group_family') {
+          location = 'loc_batangas_province';
+          date = 'date_4';
         }
 
         final label = fileName

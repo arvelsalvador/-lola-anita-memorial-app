@@ -1,14 +1,14 @@
 class StoryModel {
-  final String quote;
-  final String quoteAttribution;
-  final String about;
+  final String quoteKey;
+  final String quoteAttributionKey;
+  final String aboutKey;
   final String favorites;
   final List<LifeEvent> timeline;
 
   const StoryModel({
-    required this.quote,
-    required this.quoteAttribution,
-    required this.about,
+    required this.quoteKey,
+    required this.quoteAttributionKey,
+    required this.aboutKey,
     required this.favorites,
     required this.timeline,
   });
@@ -16,14 +16,14 @@ class StoryModel {
 
 class LifeEvent {
   final String year;
-  final String title;
-  final String description;
+  final String titleKey;
+  final String descriptionKey;
   final bool isLast;
 
   const LifeEvent({
     required this.year,
-    required this.title,
-    required this.description,
+    required this.titleKey,
+    required this.descriptionKey,
     this.isLast = false,
   });
 }

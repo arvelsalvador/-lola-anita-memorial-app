@@ -14,9 +14,9 @@ class HomeController extends ChangeNotifier {
 
   static const HomeModel grandmother = HomeModel(
     name: 'Anita Daiz Lumbao',
-    initial: 'L',
+    initial: 'A',
     birthYear: 1940,
     passingYear: 2025,
-    tagline: 'Beloved grandmother, keeper of stories',
+    tagline: 'Isang mahal na Ina, Lola, at haligi ng Pamilya',
   );
 }

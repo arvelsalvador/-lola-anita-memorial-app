@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:nita/core/constants/app_constants.dart';
+import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/models/story_model.dart';
 
 class QuoteCard extends StatelessWidget {
@@ -81,6 +83,7 @@ class TimelineWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
     return Column(
       children: List.generate(events.length, (i) {
         final e = events[i];
@@ -167,9 +170,9 @@ class TimelineWidget extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(e.title, style: AppTextStyles.serifHeading),
+                      Text(lang.t(e.titleKey), style: AppTextStyles.serifHeading),
                       const SizedBox(height: 4),
-                      Text(e.description, style: AppTextStyles.caption),
+                      Text(lang.t(e.descriptionKey), style: AppTextStyles.caption),
                     ],
                   ),
                 ),

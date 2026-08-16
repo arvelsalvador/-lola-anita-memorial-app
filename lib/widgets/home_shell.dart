@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:nita/core/constants/app_constants.dart';
@@ -14,16 +16,11 @@ import 'package:nita/widgets/bottom_nav.dart';
 class HomeShell extends StatelessWidget {
   final int selectedTab;
   final ValueChanged<int> onTabChanged;
-  final String name, initial, years, tagline;
 
   const HomeShell({
     super.key,
     required this.selectedTab,
     required this.onTabChanged,
-    required this.name,
-    required this.initial,
-    required this.years,
-    required this.tagline,
   });
 
   static final List<Widget> _bodies = [
@@ -41,42 +38,73 @@ class HomeShell extends StatelessWidget {
       body: Stack(
         children: [
           NestedScrollView(
-            headerSliverBuilder: (context, innerBoxIsScrolled) => [
-              SliverAppBar(
-                pinned: true,
-                expandedHeight: 310,
-                backgroundColor: AppColors.warmDark,
-                elevation: 2,
-                flexibleSpace: FlexibleSpaceBar(
-                  background: LolaHeroHeader(
-                    name: name,
-                    initial: initial,
-                    years: years,
-                    tagline: tagline,
-                  ),
-                  title: Text(
-                    name,
-                    style: const TextStyle(
-                      fontFamily: 'Georgia',
-                      fontSize: 15,
-                      color: Color(0xFFFAF0E6),
-                      fontWeight: FontWeight.w600,
+            headerSliverBuilder: (context, innerBoxIsScrolled) {
+              return [
+                SliverAppBar(
+                  pinned: true,
+                  expandedHeight: 330,
+                  backgroundColor: AppColors.cream,
+                  elevation: 0,
+                  scrolledUnderElevation: 0,
+                  surfaceTintColor: Colors.transparent,
+                  clipBehavior: Clip.none,
+                  flexibleSpace: FlexibleSpaceBar(
+                    collapseMode: CollapseMode.parallax,
+                    background: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        const LolaHeroHeader(),
+                        // Frosted-glass overlay: blurs the photo and whatever
+                        // content has scrolled under the header once collapsed.
+                        AnimatedOpacity(
+                          opacity: innerBoxIsScrolled ? 1 : 0,
+                          duration: const Duration(milliseconds: 350),
+                          curve: Curves.easeInOut,
+                          child: ClipRect(
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(
+                                sigmaX: 12,
+                                sigmaY: 12,
+                              ),
+                              child: Container(
+                                color: AppColors.cream
+                                    .withValues(alpha: 0.55),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  centerTitle: true,
-                  titlePadding: const EdgeInsets.only(bottom: 16),
+                  actions: const [
+                    Padding(
+                      padding: EdgeInsets.only(right: 12),
+                      child: Center(child: _LanguageToggle()),
+                    ),
+                  ],
                 ),
-                actions: const [
-                  Padding(
-                    padding: EdgeInsets.only(right: 12),
-                    child: Center(child: _LanguageToggle()),
+                // Gold hairline that fades in beneath the collapsed header.
+                SliverToBoxAdapter(
+                  child: AnimatedOpacity(
+                    opacity: innerBoxIsScrolled ? 1 : 0,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                    child: Container(
+                      height: 1,
+                      color: AppColors.gold.withValues(alpha: 0.55),
+                    ),
                   ),
-                ],
-              ),
-            ],
+                ),
+              ];
+            },
             body: SafeArea(
               top: false,
-              child: SizedBox.expand(
+              child: Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  color: AppColors.cream,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+                ),
                 child: Center(
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
@@ -88,6 +116,8 @@ class HomeShell extends StatelessWidget {
               ),
             ),
           ),
+
+          // Floating bottom navigation.
           Positioned(
             left: 20,
             right: 20,
@@ -135,17 +165,19 @@ class _LanguageToggle extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (!lang.isBicol) ...[
+                Text(
+                  lang.isEnglish ? '🇬🇧' : '🇵🇭',
+                  style: const TextStyle(fontSize: 14),
+                ),
+                const SizedBox(width: 4),
+              ],
               Text(
-                lang.isEnglish ? '🇬🇧' : '🇵🇭',
-                style: const TextStyle(fontSize: 14),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                lang.isEnglish ? 'EN' : 'TL',
-                style: const TextStyle(
+                lang.isEnglish ? 'EN' : (lang.isTagalog ? 'TL' : 'BC'),
+                style: TextStyle(
                   fontSize: 11,
-                  color: Color(0xFFFAF0E6),
-                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFFFAF0E6),
+                  fontWeight: lang.isBicol ? FontWeight.w400 : FontWeight.w600,
                   letterSpacing: 0.5,
                 ),
               ),
@@ -182,21 +214,31 @@ class _LanguageSheet extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           _LangOption(
-            flag: '🇬🇧',
-            label: 'English',
-            selected: lang.isEnglish,
-            onTap: () {
-              lang.setLanguage(AppLanguage.english);
-              Navigator.pop(context);
-            },
-          ),
-          const SizedBox(height: 8),
-          _LangOption(
             flag: '🇵🇭',
             label: 'Tagalog',
             selected: lang.isTagalog,
             onTap: () {
               lang.setLanguage(AppLanguage.tagalog);
+              Navigator.pop(context);
+            },
+          ),
+          const SizedBox(height: 8),
+          _LangOption(
+            flag: 'BC',
+            label: 'Bicol',
+            selected: lang.isBicol,
+            onTap: () {
+              lang.setLanguage(AppLanguage.bicol);
+              Navigator.pop(context);
+            },
+          ),
+          const SizedBox(height: 8),
+          _LangOption(
+            flag: '🇬🇧',
+            label: 'English',
+            selected: lang.isEnglish,
+            onTap: () {
+              lang.setLanguage(AppLanguage.english);
               Navigator.pop(context);
             },
           ),
@@ -222,6 +264,8 @@ class _LangOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isPlainCode = flag.runes.every((r) => r < 0x1F000);
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -237,7 +281,13 @@ class _LangOption extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Text(flag, style: const TextStyle(fontSize: 24)),
+            Text(
+              flag,
+              style: TextStyle(
+                fontSize: isPlainCode ? 15 : 24,
+                letterSpacing: isPlainCode ? 0.5 : 0,
+              ),
+            ),
             const SizedBox(width: 12),
             Text(
               label,

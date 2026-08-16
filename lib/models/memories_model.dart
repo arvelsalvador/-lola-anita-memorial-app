@@ -5,12 +5,12 @@ class MemoriesModel {
 
 class MemoryItem {
   final String icon;
-  final String title;
-  final String body;
+  final String titleKey;
+  final String bodyKey;
 
   const MemoryItem({
     required this.icon,
-    required this.title,
-    required this.body,
+    required this.titleKey,
+    required this.bodyKey,
   });
 }

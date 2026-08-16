@@ -22,7 +22,7 @@ class TributePage extends StatelessWidget {
             delegate: SliverChildListDelegate([
               SectionLabel(lang.t('section_final_tribute')),
               const SizedBox(height: 12),
-              TributeMainCard(message: data.tributeMessage),
+              TributeMainCard(message: lang.t(data.tributeMessageKey)),
               const SizedBox(height: 20),
               SectionLabel(lang.t('section_words_family')),
               const SizedBox(height: 12),

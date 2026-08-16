@@ -7,6 +7,7 @@ class AppColors {
   static const warmDeep = Color(0xFF4A2E22);
   static const rose = Color(0xFFC4836A);
   static const roseLight = Color(0xFFF5E6DF);
+  static const terracotta = Color(0xFFCB6A4B);
   static const gold = Color(0xFFC9A96E);
   static const goldLight = Color(0xFFF0E4C8);
   static const cream = Color(0xFFFAF6F1);
