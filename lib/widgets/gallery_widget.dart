@@ -71,8 +71,10 @@ class _GalleryGridViewState extends State<GalleryGridView> {
     final lang = context.watch<LanguageProvider>();
     final images = _filtered;
 
+    // primary: true so this scrollable attaches to the NestedScrollView and
+    // drives the hero header away when scrolling.
     return CustomScrollView(
-      primary: false,
+      primary: true,
       slivers: [
         SliverToBoxAdapter(child: _header(lang)),
         SliverToBoxAdapter(child: _chips(lang)),

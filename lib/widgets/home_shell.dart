@@ -1,5 +1,3 @@
-import 'dart:ui' show ImageFilter;
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:nita/core/constants/app_constants.dart';
@@ -13,7 +11,7 @@ import 'package:nita/views/favorites_page.dart';
 import 'package:nita/widgets/hero_header.dart';
 import 'package:nita/widgets/bottom_nav.dart';
 
-class HomeShell extends StatelessWidget {
+class HomeShell extends StatefulWidget {
   final int selectedTab;
   final ValueChanged<int> onTabChanged;
 
@@ -22,6 +20,30 @@ class HomeShell extends StatelessWidget {
     required this.selectedTab,
     required this.onTabChanged,
   });
+
+  @override
+  State<HomeShell> createState() => _HomeShellState();
+}
+
+class _HomeShellState extends State<HomeShell> {
+  // Whether the page content is scrolled back to the very top. The hero
+  // collapses to zero height as soon as the content scrolls at all, and stays
+  // hidden while scrolling — it only expands again at the very top, so it
+  // never pops back in mid-scroll.
+  bool _atTop = true;
+
+  bool _handleScrollNotification(ScrollNotification notification) {
+    // This listener sits inside the NestedScrollView body, so it only sees
+    // notifications from the page scrollables below it (the outer header
+    // scrollable's notifications bubble up the other way).
+    if (notification is ScrollUpdateNotification) {
+      final atTop = notification.metrics.pixels <= 1.0;
+      if (atTop != _atTop) {
+        setState(() => _atTop = atTop);
+      }
+    }
+    return false;
+  }
 
   static final List<Widget> _bodies = [
     const StoryPage(),
@@ -34,104 +56,147 @@ class HomeShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.sizeOf(context).height;
-    final expandedHeight = (screenHeight * 0.92).clamp(520.0, 700.0);
+    final expandedHeight = (screenHeight * 0.46).clamp(400.0, 540.0);
 
     return Scaffold(
       backgroundColor: AppColors.cream,
-      body: Stack(
+      body: Column(
         children: [
-          NestedScrollView(
-            headerSliverBuilder: (context, innerBoxIsScrolled) {
-              return [
-                SliverAppBar(
-                  pinned: true,
-                  expandedHeight: expandedHeight,
-                  backgroundColor: AppColors.warmDark,
-                  elevation: 0,
-                  scrolledUnderElevation: 0,
-                  surfaceTintColor: Colors.transparent,
-                  clipBehavior: Clip.hardEdge,
-                  flexibleSpace: FlexibleSpaceBar(
-                    collapseMode: CollapseMode.parallax,
-                    background: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        const LolaHeroHeader(),
-                        // Frosted-glass overlay: blurs the photo and whatever
-                        // content has scrolled under the header once collapsed.
-                        AnimatedOpacity(
-                          opacity: innerBoxIsScrolled ? 1 : 0,
-                          duration: const Duration(milliseconds: 350),
-                          curve: Curves.easeInOut,
-                          child: ClipRect(
-                            child: BackdropFilter(
-                              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                              child: Container(
-                                color: AppColors.cream.withValues(alpha: 0.55),
-                              ),
+          // Slim brand bar (logo + language toggle) that stays fixed at the
+          // top while the hero below scrolls away.
+          const _TopBar(),
+          Expanded(
+            child: Stack(
+              children: [
+                NestedScrollView(
+                  headerSliverBuilder: (context, _) {
+                    return [
+                      // The hero collapses to zero height as soon as the page
+                      // content scrolls (see _handleScrollNotification) and
+                      // only expands again at the very top, so it never pops
+                      // back in mid-scroll. The hero keeps its full height via
+                      // OverflowBox and is clipped, so the portrait never
+                      // squishes during the collapse animation.
+                      SliverToBoxAdapter(
+                        child: ClipRect(
+                          child: AnimatedContainer(
+                            key: const ValueKey('hero-collapse'),
+                            duration: const Duration(milliseconds: 280),
+                            curve: Curves.easeOutCubic,
+                            height: _atTop ? expandedHeight : 0,
+                            color: AppColors.warmDark,
+                            child: OverflowBox(
+                              alignment: Alignment.topCenter,
+                              maxHeight: expandedHeight,
+                              child: const LolaHeroHeader(),
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  actions: const [
-                    Padding(
-                      padding: EdgeInsets.only(right: 12),
-                      child: Center(child: _LanguageToggle()),
-                    ),
-                  ],
-                ),
-                // Gold hairline that fades in beneath the collapsed header.
-                SliverToBoxAdapter(
-                  child: AnimatedOpacity(
-                    opacity: innerBoxIsScrolled ? 1 : 0,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
+                      ),
+                    ];
+                  },
+                  body: SafeArea(
+                    top: false,
                     child: Container(
-                      height: 1,
-                      color: AppColors.gold.withValues(alpha: 0.55),
+                      width: double.infinity,
+                      decoration: const BoxDecoration(
+                        color: AppColors.cream,
+                        borderRadius:
+                            BorderRadius.vertical(top: Radius.circular(26)),
+                      ),
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: Responsive.contentMaxWidth(context),
+                          ),
+                          child: NotificationListener<ScrollNotification>(
+                            onNotification: _handleScrollNotification,
+                            child: IndexedStack(
+                              index: widget.selectedTab,
+                              children: _bodies,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ];
-            },
-            body: SafeArea(
-              top: false,
-              child: Container(
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: AppColors.cream,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-                ),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: Responsive.contentMaxWidth(context),
-                    ),
-                    child: IndexedStack(index: selectedTab, children: _bodies),
-                  ),
-                ),
-              ),
-            ),
-          ),
 
-          // Floating bottom navigation.
-          Positioned(
-            left: 20,
-            right: 20,
-            bottom: MediaQuery.paddingOf(context).bottom + 16,
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 500),
-                child: AppBottomNav(
-                  selectedIndex: selectedTab,
-                  onTap: onTabChanged,
+                // Floating bottom navigation.
+                Positioned(
+                  left: 20,
+                  right: 20,
+                  bottom: MediaQuery.paddingOf(context).bottom + 16,
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 500),
+                      child: AppBottomNav(
+                        selectedIndex: widget.selectedTab,
+                        onTap: widget.onTabChanged,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Slim fixed top bar: leaf logo + "nanay anita" on the left, language
+/// toggle on the right, with a thin gold divider underneath. Stays at the
+/// top while the hero section scrolls away.
+class _TopBar extends StatelessWidget {
+  const _TopBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFF1C1713),
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              height: 52,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.eco,
+                      size: 22,
+                      color: AppColors.goldLight,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'nanay anita',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.8,
+                        color: AppColors.goldLight,
+                        fontFamily: 'Georgia',
+                        fontFamilyFallback: ['Times New Roman', 'serif'],
+                      ),
+                    ),
+                    const Spacer(),
+                    const _LanguageToggle(),
+                  ],
+                ),
+              ),
+            ),
+            // Thin gold divider between the brand bar and the hero.
+            Container(
+              height: 1,
+              color: AppColors.gold.withValues(alpha: 0.55),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -146,7 +211,13 @@ class _LanguageToggle extends StatelessWidget {
 
     return Material(
       color: Colors.white.withValues(alpha: 0.15),
-      borderRadius: BorderRadius.circular(20),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: AppColors.gold.withValues(alpha: 0.65),
+          width: 1,
+        ),
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: () {

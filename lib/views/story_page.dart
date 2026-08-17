@@ -13,11 +13,13 @@ class StoryPage extends StatelessWidget {
     final data = StoryController.data;
     final lang = context.watch<LanguageProvider>();
 
+    // primary: true so this scrollable attaches to the NestedScrollView and
+    // drives the hero header away when scrolling.
     return CustomScrollView(
-      primary: false,
+      primary: true,
       slivers: [
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
               SectionLabel(lang.t('section_her_words')),
@@ -26,11 +28,11 @@ class StoryPage extends StatelessWidget {
                 quote: lang.t(data.quoteKey),
                 attribution: lang.t(data.quoteAttributionKey),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
               SectionLabel(lang.t('section_her_journey')),
               const SizedBox(height: 12),
               TimelineWidget(events: data.timeline),
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
               SectionLabel(lang.t('section_about_her')),
               const SizedBox(height: 12),
               AboutCard(text: lang.t(data.aboutKey)),

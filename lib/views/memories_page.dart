@@ -13,12 +13,14 @@ class MemoriesPage extends StatelessWidget {
     final data = MemoriesController.data;
     final lang = context.watch<LanguageProvider>();
 
+    // primary: true so this scrollable attaches to the NestedScrollView and
+    // drives the hero header away when scrolling.
     return CustomScrollView(
-      primary: false,
+      primary: true,
       slivers: [
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
             child: SectionLabel(lang.t('section_cherished_memories')),
           ),
         ),

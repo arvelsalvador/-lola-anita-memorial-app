@@ -18,6 +18,13 @@ class QuoteCard extends StatelessWidget {
           color: AppColors.gold.withValues(alpha: 0.25),
           width: 0.6,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.gold.withValues(alpha: 0.10),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       padding: const EdgeInsets.fromLTRB(24, 26, 24, 22),
       child: Column(

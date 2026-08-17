@@ -1,111 +1,132 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:nita/core/constants/app_constants.dart';
+import 'package:nita/core/localization/language_provider.dart';
 
 class LolaHeroHeader extends StatelessWidget {
   const LolaHeroHeader({super.key});
 
   static const _photoAsset = 'assets/images/gallery/Nanay_dp.jpg';
+  static const _backgroundAsset =
+      'assets/images/gallery/memorial_header_background_raw.jpg';
   static const _maxContentWidth = 720.0;
   static const _sidePad = 18.0;
-  static const _gapLogo = 14.0;
+  // Top spacing inside the hero (the brand bar above it handles the status
+  // bar, so this is just a small breathing gap).
+  static const _topPad = 16.0;
   static const _gapPhoto = 16.0;
   static const _nameBlock = 50.0;
   static const _gapName = 6.0;
   static const _yearsBlock = 28.0;
-  static const _gapYears = 12.0;
+  static const _gapYears = 10.0;
   static const _taglineBlock = 44.0;
-  static const _gapTagline = 14.0;
-  static const _bottomPad = 34.0;
+  static const _bottomPad = 22.0;
+  // Memorial frame PNG (converted from the user's Frame.jpg): a square image
+  // with a transparent hole. Measured from the image (1920×1920), the hole is
+  // an ellipse that's slightly larger at the bottom (memorial-frame taper):
+  // max semi-axes ≈ 0.361 (horizontal) and 0.380 (vertical) of the frame
+  // width. The photo is clipped to that ellipse + 3% overscan so it fills the
+  // hole with no background gap, and stays well inside the frame's outer edge
+  // (~0.41 of the width minimum). The frame PNG is the ONLY framing — the
+  // photo underneath is kept plain (no border, no glow), since an extra gold
+  // ring there showed through and made the frame look doubled.
+  static const _frameAsset = 'assets/images/gallery/Frame.png';
+  static const _frameScale = 1.35;
+  static const _holeRxFrac = 0.361; // of frameWidth, measured
+  static const _holeRyFrac = 0.380; // of frameWidth, measured (bottom)
+  static const _photoOverscan = 1.03;
 
-  static double _quoteCardHeight(double quoteFont) =>
-      40 + 20 + 4 + 4 * quoteFont * 1.3 + 10 + 1 + 8 + 20;
+  // Fallback fonts kick in on platforms (Android/Web) where 'Georgia'
+  // isn't registered as an asset font, so text never silently disappears.
+  static const _serifFallback = ['Times New Roman', 'serif'];
 
   @override
   Widget build(BuildContext context) {
-    final topPad = MediaQuery.paddingOf(context).top;
+    final lang = context.watch<LanguageProvider>();
 
     return Container(
       color: AppColors.warmDark,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final narrow = constraints.maxWidth < 380;
-          final quoteFont = narrow ? 17.0 : 21.0;
           final taglineFont = narrow ? 14.0 : 16.0;
           final nameFont = narrow ? 36.0 : 42.0;
-          final attributionFont = narrow ? 13.0 : 15.0;
 
-          final statusTop = topPad + 12.0;
-          final fixed = _gapLogo +
+          final statusTop = _topPad;
+          final fixed =
               _gapPhoto +
               _nameBlock +
               _gapName +
               _yearsBlock +
               _gapYears +
               _taglineBlock +
-              _gapTagline +
-              _quoteCardHeight(quoteFont) +
               _bottomPad;
+          // The portrait now includes the frame image, which is wider than the
+          // photo, so divide by _frameScale to recover the photo circle size.
           final circleSize =
-              (constraints.maxHeight - statusTop - fixed).clamp(110.0, 192.0);
+              ((constraints.maxHeight - statusTop - fixed) / _frameScale)
+                  .clamp(100.0, 150.0);
 
           return Stack(
             fit: StackFit.expand,
             children: [
+              // Full-bleed background image.
+              Image.asset(
+                _backgroundAsset,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) =>
+                    const SizedBox.shrink(),
+              ),
+              // Warm dark scrim over the image so the cream text and gold
+              // frame stay readable; darker toward the bottom where the name
+              // and tagline sit.
               const DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Color(0xFF1A100D),
-                      AppColors.warmDark,
-                      Color(0xFF2F1D18),
+                      Color(0x4D1A100D), // ~30% at top
+                      Color(0x8C2E1F17), // ~55% mid
+                      Color(0xE61A100D), // ~90% bottom
                     ],
                   ),
                 ),
               ),
 
               Align(
-                alignment: Alignment.topCenter,
+                alignment: Alignment.center,
                 child: MediaQuery.withClampedTextScaling(
                   maxScaleFactor: 1.25,
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.topCenter,
                     child: SizedBox(
-                      width: (constraints.maxWidth - 2 * _sidePad)
-                          .clamp(0.0, _maxContentWidth - 2 * _sidePad),
+                      width: (constraints.maxWidth - 2 * _sidePad).clamp(
+                        0.0,
+                        _maxContentWidth - 2 * _sidePad,
+                      ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           SizedBox(height: statusTop),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: const Text(
-                              'nita',
-                              style: TextStyle(
-                                fontSize: 26,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.8,
-                                color: AppColors.goldLight,
-                                fontFamily: 'Georgia',
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: _gapLogo),
                           _portrait(circleSize),
                           const SizedBox(height: _gapPhoto),
                           _name(nameFont),
                           const SizedBox(height: _gapName),
-                          Text(
-                            '1940 • 2025',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontFamily: 'Georgia',
-                              fontSize: 18,
-                              letterSpacing: 2,
-                              color: const Color(0xFFF0E4C8).withValues(
-                                alpha: 0.9,
+                          Semantics(
+                            label: 'Lived from 1940 to 2025',
+                            child: Text(
+                              '1940 • 2025',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontFamily: 'Georgia',
+                                fontFamilyFallback: _serifFallback,
+                                fontSize: 18,
+                                letterSpacing: 2,
+                                color: const Color(
+                                  0xFFF0E4C8,
+                                ).withValues(alpha: 0.9),
                               ),
                             ),
                           ),
@@ -113,20 +134,23 @@ class LolaHeroHeader extends StatelessWidget {
                           SizedBox(
                             height: _taglineBlock,
                             child: Text(
-                              'Beloved grandmother, keeper of stories',
+                              // Localized tagline — add 'hero_tagline' to each
+                              // language map (english/tagalog/bicol) so this
+                              // switches along with the EN/TL/BC toggle.
+                              lang.t('hero_tagline'),
                               textAlign: TextAlign.center,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontFamily: 'Georgia',
+                                fontFamilyFallback: _serifFallback,
                                 fontSize: taglineFont,
                                 fontStyle: FontStyle.italic,
                                 color: AppColors.cream.withValues(alpha: 0.82),
                               ),
                             ),
                           ),
-                          const SizedBox(height: _gapTagline),
-                          _quoteCard(quoteFont, attributionFont),
+                          const SizedBox(height: _bottomPad),
                         ],
                       ),
                     ),
@@ -141,32 +165,45 @@ class LolaHeroHeader extends StatelessWidget {
   }
 
   Widget _portrait(double size) {
-    return Container(
-      width: size,
-      height: size,
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: AppColors.gold, width: 3.5),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.gold.withValues(alpha: 0.33),
-            blurRadius: 24,
-            spreadRadius: 2,
-          ),
-        ],
+    final frameWidth = size * _frameScale;
+    return Semantics(
+      label: 'Photo of Anita Daiz Lumbao',
+      image: true,
+      child: SizedBox(
+        width: frameWidth,
+        height: frameWidth,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            _photoOval(size),
+            // Memorial frame PNG with a transparent hole — the photo shows
+            // through it and the frame's own gold ring wraps the photo edge.
+            Positioned.fill(
+              child: Image.asset(
+                _frameAsset,
+                fit: BoxFit.fill,
+                errorBuilder: (context, error, stackTrace) =>
+                    const SizedBox.shrink(),
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _photoOval(double size) {
+    final frameWidth = size * _frameScale;
+    return SizedBox(
+      width: frameWidth * 2 * _holeRxFrac * _photoOverscan,
+      height: frameWidth * 2 * _holeRyFrac * _photoOverscan,
       child: ClipOval(
         child: Image.asset(
           _photoAsset,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) => Container(
             color: AppColors.warmMid,
-            child: const Icon(
-              Icons.person,
-              size: 70,
-              color: AppColors.cream,
-            ),
+            child: const Icon(Icons.person, size: 70, color: AppColors.cream),
           ),
         ),
       ),
@@ -174,84 +211,27 @@ class LolaHeroHeader extends StatelessWidget {
   }
 
   Widget _name(double fontSize) {
-    return SizedBox(
-      height: _nameBlock,
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Text(
-          'Anita Daiz Lumbao',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontFamily: 'Georgia',
-            fontSize: fontSize,
-            fontWeight: FontWeight.w400,
-            color: AppColors.cream,
-            height: 1.1,
+    return Semantics(
+      header: true,
+      child: SizedBox(
+        height: _nameBlock,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            'Anita Daiz Lumbao',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: 'Georgia',
+              fontFamilyFallback: _serifFallback,
+              fontSize: fontSize,
+              fontWeight: FontWeight.w400,
+              color: AppColors.cream,
+              height: 1.1,
+            ),
           ),
         ),
       ),
     );
   }
-
-  Widget _quoteCard(double quoteFont, double attributionFont) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF2E7DE),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.gold, width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          const Text(
-            '“',
-            style: TextStyle(
-              fontFamily: 'Georgia',
-              fontSize: 40,
-              color: AppColors.warmDeep,
-              height: 0.5,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Ang kusina ay kung saan ang\npagmamahal ay nagiging lasa.\nMagluto gamit ang dalawang kamay\nat bukas na puso.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: 'Georgia',
-              fontSize: quoteFont,
-              fontStyle: FontStyle.italic,
-              color: AppColors.textDark,
-              height: 1.3,
-            ),
-          ),
-          const SizedBox(height: 10),
-          const Divider(
-            thickness: 1,
-            color: AppColors.gold,
-            indent: 30,
-            endIndent: 30,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '— Nanay Nita, palaging sinasabi',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: 'Georgia',
-              fontSize: attributionFont,
-              color: AppColors.muted,
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
+
