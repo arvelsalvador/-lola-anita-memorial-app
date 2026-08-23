@@ -1,6 +1,6 @@
 name: nita
 description: "A new Flutter project."
-publish_to: 'none'
+publish_to: "none"
 
 version: 1.0.0+1
 
@@ -10,12 +10,16 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  visibility_detector: ^0.4.0+2
   cupertino_icons: ^1.0.8
   provider: ^6.1.5+1
   transparent_image: ^2.0.1
   firebase_core: ^4.13.0
   cloud_firestore: ^6.8.0
   flutter_staggered_grid_view: ^0.7.0
+  flutter_animate: ^4.5.0
+  shimmer: ^3.0.0
+  google_fonts: ^6.2.1
   audioplayers: ^6.7.1
 
 dev_dependencies:
@@ -28,5 +32,13 @@ flutter:
 
   assets:
     - assets/images/
-    - assets/images/gallery/
+    - assets/images/Editing images/
+    - assets/images/Family DP/
+    - assets/images/gallery/Bahay/
+    - assets/images/gallery/Bday/
+    - assets/images/gallery/Family picture with nanay/
+    - assets/images/gallery/Final days/
+    - assets/images/gallery/Hospital/
+    - assets/images/gallery/Jollibee/
+    - assets/images/gallery/Solo/
     - assets/audio/

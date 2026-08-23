@@ -9,13 +9,15 @@ void main() {
     expect(
       enKeys,
       tlKeys,
-      reason: 'Missing in EN: ${tlKeys.difference(enKeys).join(', ')}\n'
+      reason:
+          'Missing in EN: ${tlKeys.difference(enKeys).join(', ')}\n'
           'Missing in TL: ${enKeys.difference(tlKeys).join(', ')}',
     );
     expect(
       enKeys,
       biKeys,
-      reason: 'Missing in EN: ${biKeys.difference(enKeys).join(', ')}\n'
+      reason:
+          'Missing in EN: ${biKeys.difference(enKeys).join(', ')}\n'
           'Missing in BI: ${enKeys.difference(biKeys).join(', ')}',
     );
   });
@@ -23,15 +25,27 @@ void main() {
   test('No key resolves to its raw key in any language', () {
     final provider = LanguageProvider();
     for (final key in LanguageProvider.en.keys) {
-      expect(provider.t(key), isNot(key), reason: 'EN missing translation for $key');
+      expect(
+        provider.t(key),
+        isNot(key),
+        reason: 'EN missing translation for $key',
+      );
     }
     provider.setLanguage(AppLanguage.tagalog);
     for (final key in LanguageProvider.tl.keys) {
-      expect(provider.t(key), isNot(key), reason: 'TL missing translation for $key');
+      expect(
+        provider.t(key),
+        isNot(key),
+        reason: 'TL missing translation for $key',
+      );
     }
     provider.setLanguage(AppLanguage.bicol);
     for (final key in LanguageProvider.bi.keys) {
-      expect(provider.t(key), isNot(key), reason: 'BI missing translation for $key');
+      expect(
+        provider.t(key),
+        isNot(key),
+        reason: 'BI missing translation for $key',
+      );
     }
   });
 

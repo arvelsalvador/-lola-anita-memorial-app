@@ -1,19 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:nita/controllers/favorites_controller.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
+import 'package:nita/widgets/ornamental_card.dart';
+
+IconData _sectionIcon(String key) => switch (key) {
+  'spa' => Icons.spa_rounded,
+  'music' => Icons.music_note_rounded,
+  'tv' => Icons.tv_rounded,
+  'heart' => Icons.favorite_rounded,
+  _ => Icons.favorite_rounded,
+};
 
 class FavoritesPage extends StatelessWidget {
-  const FavoritesPage({super.key});
+  final ScrollController? controller;
+  const FavoritesPage({super.key, this.controller});
 
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
 
-    // primary: true so this scrollable attaches to the NestedScrollView and
-    // drives the hero header away when scrolling.
     return CustomScrollView(
-      primary: true,
+      controller: controller,
+      primary: false,
       slivers: [
         SliverToBoxAdapter(
           child: Padding(
@@ -46,36 +56,12 @@ class FavoritesPage extends StatelessWidget {
               LayoutBuilder(
                 builder: (context, constraints) {
                   final sections = [
-                    _FavoritesSection(
-                      icon: Icons.spa_rounded,
-                      title: lang.t('section_hobbies'),
-                      items: const [
-                        'fav_hobby_1',
-                        'fav_hobby_2',
-                        'fav_hobby_3',
-                        'fav_hobby_4',
-                        'fav_hobby_5',
-                      ],
-                    ),
-                    _FavoritesSection(
-                      icon: Icons.music_note_rounded,
-                      title: lang.t('section_music'),
-                      items: const [
-                        'fav_music_1',
-                        'fav_music_2',
-                        'fav_music_3',
-                      ],
-                    ),
-                    _FavoritesSection(
-                      icon: Icons.tv_rounded,
-                      title: lang.t('section_tv_shows'),
-                      items: const ['fav_tv_1', 'fav_tv_2', 'fav_tv_3'],
-                    ),
-                    _FavoritesSection(
-                      icon: Icons.favorite_rounded,
-                      title: lang.t('section_more'),
-                      items: const ['fav_more_1', 'fav_more_2', 'fav_more_3'],
-                    ),
+                    for (final section in FavoritesController.data.sections)
+                      _FavoritesSection(
+                        icon: _sectionIcon(section.iconKey),
+                        title: lang.t(section.titleKey),
+                        items: section.itemKeys,
+                      ),
                   ];
 
                   if (constraints.maxWidth < 620) {
@@ -125,22 +111,14 @@ class _FavoritesSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.gold.withValues(alpha: 0.18),
-          width: 0.6,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.warmDark.withValues(alpha: 0.06),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
+    return OrnamentalCard(
+      radius: 16,
+      borderColor: AppColors.gold,
+      borderAlpha: 0.18,
+      borderWidth: 0.6,
+      shadowOpacity: 0.06,
+      shadowBlur: 18,
+      shadowOffset: const Offset(0, 8),
       padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,15 +1,17 @@
 {
-  "$schema": "https://opencode.ai",
-  "model": "opencode-zen/deepseek-v4-flash-free",
+  "$schema": "https://opencode.ai/config.json",
+  "model": "opencode/deepseek-v4-flash-free",
   "provider": {
-    "opencode-zen": {
+    "opencode": {
       "models": {
         "deepseek-v4-flash-free": {
+          "name": "DeepSeek V4 Flash Free",
           "options": {
             "reasoning_effort": "high"
           }
         },
-        "deepseek v4 flash free": {
+        "mimo-v2.5-free": {
+          "name": "MiMo V2.5 Free",
           "options": {
             "reasoning_effort": "high"
           }

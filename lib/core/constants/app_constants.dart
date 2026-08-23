@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
   AppColors._();
+  static const Color viewerBackground = Color(0xFF17110D);
   static const warmDark = Color(0xFF2E1F17);
   static const warmMid = Color(0xFF6B4C3B);
   static const warmDeep = Color(0xFF4A2E22);
   static const rose = Color(0xFFC4836A);
+  static const roseDeep = Color(0xFF6B3524);
   static const roseLight = Color(0xFFF5E6DF);
   static const terracotta = Color(0xFFCB6A4B);
   static const gold = Color(0xFFC9A96E);
@@ -16,30 +19,31 @@ class AppColors {
   static const muted = Color(0xFF8C7267);
 }
 
+class AppAssets {
+  AppAssets._();
+  static const String nanayPortrait = 'assets/images/Family DP/Nanay_dp.jpg';
+}
+
 class AppTextStyles {
   AppTextStyles._();
 
-  static const serifDisplay = TextStyle(
-    fontFamily: 'Georgia',
+  static final serifDisplay = GoogleFonts.inter(
     fontSize: 28,
-    color: Color(0xFFFAF0E6),
+    color: const Color(0xFFFAF0E6),
     fontWeight: FontWeight.w300,
     letterSpacing: 2,
   );
-  static const serifHeading = TextStyle(
-    fontFamily: 'Georgia',
+  static final serifHeading = GoogleFonts.inter(
     fontSize: 15,
     fontWeight: FontWeight.w600,
     color: AppColors.textDark,
   );
-  static const serifBody = TextStyle(
-    fontFamily: 'Georgia',
+  static final serifBody = GoogleFonts.inter(
     fontSize: 14,
     color: AppColors.warmMid,
     height: 1.8,
   );
-  static const serifItalic = TextStyle(
-    fontFamily: 'Georgia',
+  static final serifItalic = GoogleFonts.inter(
     fontStyle: FontStyle.italic,
     fontSize: 16,
     color: AppColors.textDark,

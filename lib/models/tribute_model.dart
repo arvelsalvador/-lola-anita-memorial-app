@@ -12,8 +12,5 @@ class FamilyQuote {
   final String quoteKey;
   final String nameKey;
 
-  const FamilyQuote({
-    required this.quoteKey,
-    required this.nameKey,
-  });
+  const FamilyQuote({required this.quoteKey, required this.nameKey});
 }

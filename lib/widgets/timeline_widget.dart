@@ -2,88 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
-import 'package:nita/models/story_model.dart';
+import 'package:nita/models/home_model.dart';
 
-class QuoteCard extends StatelessWidget {
-  final String quote, attribution;
-  const QuoteCard({super.key, required this.quote, required this.attribution});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.goldLight.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: AppColors.gold.withValues(alpha: 0.25),
-          width: 0.6,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.gold.withValues(alpha: 0.10),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.fromLTRB(24, 26, 24, 22),
-      child: Column(
-        children: [
-          Text(
-            '\u201C',
-            style: TextStyle(
-              fontFamily: 'Georgia',
-              fontSize: 40,
-              color: AppColors.gold,
-              height: 0.6,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            quote,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.serifItalic,
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 24,
-                height: 1,
-                color: AppColors.gold.withValues(alpha: 0.4),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Icon(
-                  Icons.circle,
-                  size: 4,
-                  color: AppColors.gold.withValues(alpha: 0.5),
-                ),
-              ),
-              Container(
-                width: 24,
-                height: 1,
-                color: AppColors.gold.withValues(alpha: 0.4),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            attribution,
-            style: const TextStyle(
-              fontSize: 11,
-              color: AppColors.muted,
-              letterSpacing: 0.5,
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
+/// Vertical timeline of life events: year rail with dot markers (a leaf
+/// medallion on the first event) and the event title + description.
 class TimelineWidget extends StatelessWidget {
   final List<LifeEvent> events;
   const TimelineWidget({super.key, required this.events});
@@ -177,9 +99,15 @@ class TimelineWidget extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(lang.t(e.titleKey), style: AppTextStyles.serifHeading),
+                      Text(
+                        lang.t(e.titleKey),
+                        style: AppTextStyles.serifHeading,
+                      ),
                       const SizedBox(height: 4),
-                      Text(lang.t(e.descriptionKey), style: AppTextStyles.caption),
+                      Text(
+                        lang.t(e.descriptionKey),
+                        style: AppTextStyles.caption,
+                      ),
                     ],
                   ),
                 ),
@@ -188,27 +116,6 @@ class TimelineWidget extends StatelessWidget {
           ),
         );
       }),
-    );
-  }
-}
-
-class AboutCard extends StatelessWidget {
-  final String text;
-  const AboutCard({super.key, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.rose.withValues(alpha: 0.12),
-          width: 0.5,
-        ),
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Text(text, style: AppTextStyles.serifBody),
     );
   }
 }

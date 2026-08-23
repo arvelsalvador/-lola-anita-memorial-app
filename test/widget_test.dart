@@ -2,25 +2,46 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:nita/app.dart';
+import 'package:nita/views/family_page.dart';
 import 'package:nita/views/home_page.dart';
 import 'package:nita/views/splash_page.dart';
-import 'package:nita/views/story_page.dart';
-import 'package:nita/widgets/bottom_nav.dart';
+import 'package:nita/widgets/app_bottom_nav.dart';
 
 void main() {
-  // The header's "Memories" CTA shares its label with the bottom nav, so
-  // tab taps must be scoped to the nav bar to stay unambiguous.
-  Finder navLabel(String text) => find.descendant(
-        of: find.byType(AppBottomNav),
-        matching: find.text(text),
-      );
+  // Nav taps must be scoped to the nav bar so the Family page's own title
+  // doesn't make the label ambiguous.
+  Finder navLabel(String text) =>
+      find.descendant(of: find.byType(AppBottomNav), matching: find.text(text));
+
+  // The Family tab is blank for now, so its title is scoped to the page.
+  Finder familyTitle(String text) =>
+      find.descendant(of: find.byType(FamilyPage), matching: find.text(text));
 
   // The hero header repeats the Story tab's quote, so quote assertions
   // must be scoped to the StoryPage body to stay unambiguous.
   Finder storyQuote(String text) => find.descendant(
-        of: find.byType(StoryPage),
-        matching: find.textContaining(text),
-      );
+    of: find.byType(StoryPage),
+    matching: find.textContaining(text),
+  );
+
+  // The memory cards now live on the home (Story) tab, below the story
+  // content — outside the test viewport. Sliver lists build lazily, so
+  // scroll the Story page until the expected title is on screen before
+  // asserting on it.
+  Future<void> expectMemoriesTitle(WidgetTester tester, String text) async {
+    final storyScroll = find
+        .descendant(
+          of: find.byType(StoryPage),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    await tester.scrollUntilVisible(
+      find.text(text),
+      200,
+      scrollable: storyScroll,
+    );
+    expect(find.text(text), findsOneWidget);
+  }
 
   testWidgets('App smoke test', (WidgetTester tester) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -33,8 +54,9 @@ void main() {
     await tester.pump(const Duration(seconds: 8));
   });
 
-  testWidgets('Home shell tabs render without layout/scroll errors',
-      (WidgetTester tester) async {
+  testWidgets('Home shell tabs render without layout/scroll errors', (
+    WidgetTester tester,
+  ) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -51,13 +73,17 @@ void main() {
     // Pump through frames for every tab to surface any layout exception.
     for (var i = 0; i < 5; i++) {
       await tester.pump(const Duration(milliseconds: 300));
-      expect(tester.takeException(), isNull,
-          reason: 'No exception expected on tab $i');
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'No exception expected on tab $i',
+      );
     }
   });
 
-  testWidgets('Content is Tagalog by default and translates to English',
-      (WidgetTester tester) async {
+  testWidgets('Content is Tagalog by default and translates to English', (
+    WidgetTester tester,
+  ) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -83,18 +109,26 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     // The same quote is now in English.
-    expect(storyQuote('The kitchen is where love becomes flavor'),
-        findsOneWidget);
+    expect(
+      storyQuote('The kitchen is where love becomes flavor'),
+      findsOneWidget,
+    );
 
-    // Page content follows too — Memories tab shows English items.
-    await tester.tap(navLabel('Memories'));
+    // The memories on the home page follow too — English items.
+    await expectMemoriesTitle(tester, 'Sunday Kare-Kare');
+    expect(tester.takeException(), isNull);
+
+    // The Family tab shows the family name and search bar.
+    await tester.tap(navLabel('Family'));
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('Sunday Kare-Kare'), findsOneWidget);
+    expect(familyTitle('The Lumbao Family'), findsOneWidget);
+    expect(find.text('Search for a family member'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('All tabs render Tagalog content by default',
-      (WidgetTester tester) async {
+  testWidgets('All tabs render Tagalog content by default', (
+    WidgetTester tester,
+  ) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -107,10 +141,14 @@ void main() {
     // Home/Story tab
     expect(storyQuote('Ang kusina ay kung saan'), findsOneWidget);
 
-    // Memories tab
-    await tester.tap(navLabel('Mga Alaala'));
+    // Memories section on the home tab
+    await expectMemoriesTitle(tester, 'Lingguhang Kare-Kare');
+
+    // Family tab: family name + search bar in Tagalog
+    await tester.tap(navLabel('Pamilya'));
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('Lingguhang Kare-Kare'), findsOneWidget);
+    expect(familyTitle('Ang Pamilyang Lumbao'), findsOneWidget);
+    expect(find.text('Maghanap ng kapamilya'), findsOneWidget);
 
     // Tribute tab
     await tester.tap(find.text('Pagkilala'));
@@ -128,8 +166,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Toggling to English translates every tab',
-      (WidgetTester tester) async {
+  testWidgets('Toggling to English translates every tab', (
+    WidgetTester tester,
+  ) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -148,13 +187,19 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     // Home/Story tab
-    expect(storyQuote('The kitchen is where love becomes flavor'),
-        findsOneWidget);
+    expect(
+      storyQuote('The kitchen is where love becomes flavor'),
+      findsOneWidget,
+    );
 
-    // Memories tab
-    await tester.tap(navLabel('Memories'));
+    // Memories section on the home tab
+    await expectMemoriesTitle(tester, 'Sunday Kare-Kare');
+
+    // Family tab: family name + search bar in English
+    await tester.tap(navLabel('Family'));
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('Sunday Kare-Kare'), findsOneWidget);
+    expect(familyTitle('The Lumbao Family'), findsOneWidget);
+    expect(find.text('Search for a family member'), findsOneWidget);
 
     // Tribute tab
     await tester.tap(find.text('Tribute'));
@@ -168,8 +213,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Toggling to Bicol translates content',
-      (WidgetTester tester) async {
+  testWidgets('Toggling to Bicol translates content', (
+    WidgetTester tester,
+  ) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -190,10 +236,14 @@ void main() {
     // Story quote in Bicol.
     expect(storyQuote('An kusina iyo kun saen'), findsOneWidget);
 
-    // Memories tab in Bicol.
-    await tester.tap(navLabel('Mga Alaala'));
+    // Memories section on the home tab in Bicol.
+    await expectMemoriesTitle(tester, 'Kare-Kare sa Domingo');
+
+    // Family tab: family name + search bar in Bicol.
+    await tester.tap(navLabel('Pamilya'));
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('Kare-Kare sa Domingo'), findsOneWidget);
+    expect(familyTitle('An Pamilyang Lumbao'), findsOneWidget);
+    expect(find.text('Maghanap nin kapamilya'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

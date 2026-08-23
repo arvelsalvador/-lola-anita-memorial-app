@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/constants/app_routes.dart';
 import 'package:nita/core/localization/language_provider.dart';
+import 'package:nita/widgets/pulsing_dot.dart';
 
 /// Splash screen shown on app launch. Auto-advances to [AppRoutes.home]
 /// after [_autoAdvanceDelay], or immediately on tap.
@@ -274,7 +275,7 @@ class _SplashContent extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              const _PulsingDot(),
+              const PulsingDot(),
             ],
           ),
         ),
@@ -321,7 +322,7 @@ class _PortraitPhoto extends StatelessWidget {
         child: Center(
           child: ClipOval(
             child: Image.asset(
-              'assets/images/gallery/Nanay_dp.jpg',
+              'assets/images/Family DP/Nanay_dp.jpg',
               width: size - 20,
               height: size - 20,
               fit: BoxFit.cover,
@@ -338,56 +339,6 @@ class _PortraitPhoto extends StatelessWidget {
                 ),
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PulsingDot extends StatefulWidget {
-  const _PulsingDot();
-
-  @override
-  State<_PulsingDot> createState() => _PulsingDotState();
-}
-
-class _PulsingDotState extends State<_PulsingDot>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _scale;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    )..repeat(reverse: true);
-    _scale = Tween<double>(
-      begin: 0.6,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _scale,
-      builder: (context, child) => Transform.scale(
-        scale: _scale.value,
-        child: Container(
-          width: 6,
-          height: 6,
-          decoration: BoxDecoration(
-            color: AppColors.gold.withValues(alpha: 0.6),
-            shape: BoxShape.circle,
           ),
         ),
       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/constants/app_routes.dart';
 import 'package:nita/core/localization/language_provider.dart';
@@ -18,7 +19,7 @@ class LolaApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           scaffoldBackgroundColor: AppColors.cream,
-          fontFamily: 'Georgia',
+          fontFamily: GoogleFonts.inter().fontFamily,
           colorScheme: ColorScheme.fromSeed(seedColor: AppColors.rose),
           useMaterial3: true,
         ),
