@@ -59,11 +59,6 @@ class AppTextStyles {
     fontSize: 12,
     color: AppColors.muted,
     height: 1.5,
-  );
-  static const goldYears = TextStyle(
-    fontSize: 12,
-    color: AppColors.gold,
-    letterSpacing: 4,
-    fontWeight: FontWeight.w300,
+    fontFamily: 'Inter',
   );
 }

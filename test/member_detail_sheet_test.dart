@@ -24,9 +24,15 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
   }
 
-  Future<void> scrollToSiblings(WidgetTester tester) async {
-    // Bring the Mga Kapatid section on-screen.
-    await tester.drag(find.byType(ListView), const Offset(0, -900));
+  /// Brings a member card on-screen before tapping it. The siblings group
+  /// comes first and children second, so most cards start below the fold —
+  /// tapping an off-screen card silently misses and the sheet never opens.
+  Future<void> scrollToMember(WidgetTester tester, String name) async {
+    await tester.scrollUntilVisible(
+      find.text(name),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
   }
 
@@ -38,24 +44,28 @@ void main() {
     // Card text only before the tap.
     expect(find.text('Gernan Lumbao'), findsOneWidget);
 
+    // The anak section starts below the fold (siblings come first now);
+    // bring the card on-screen or the tap lands outside the viewport.
+    await scrollToMember(tester, 'Gernan Lumbao');
     await tester.tap(find.text('Gernan Lumbao'));
     await tester.pumpAndSettle();
 
-    // Sheet shows the name (card + sheet = 2 instances), relation, bio,
-    // about-title, and close button.
+    // Sheet shows the name (card + sheet = 2 instances), relation, full
+    // story, identity section, and close button.
     expect(find.text('Gernan Lumbao'), findsNWidgets(2));
     expect(find.text('Anak na lalaki'), findsWidgets);
-    expect(find.text('TUNGKOL SA KANYA'), findsOneWidget);
-    expect(
-      find.textContaining('Ang kanilang panganay na anak na lalaki'),
-      findsOneWidget,
-    );
+    expect(find.text('BUONG KUWENTO'), findsOneWidget);
+    expect(find.text('PAGKAKAKILANLAN'), findsOneWidget);
+    expect(find.text('PAMILYA'), findsOneWidget);
+    // Identity section always carries a Role row.
+    expect(find.text('Role'), findsOneWidget);
     expect(find.byIcon(Icons.close), findsOneWidget);
   });
 
   testWidgets('sheet closes via the X button', (tester) async {
     await pumpFamilyPage(tester);
 
+    await scrollToMember(tester, 'Gernan Lumbao');
     await tester.tap(find.text('Gernan Lumbao'));
     await tester.pumpAndSettle();
     expect(find.byIcon(Icons.close), findsOneWidget);
@@ -70,7 +80,7 @@ void main() {
 
   testWidgets('sheet closes when tapping outside (barrier)', (tester) async {
     await pumpFamilyPage(tester);
-    await scrollToSiblings(tester);
+    await scrollToMember(tester, 'Sonia Daiz');
 
     await tester.tap(find.text('Sonia Daiz'));
     await tester.pumpAndSettle();
@@ -85,41 +95,42 @@ void main() {
 
   testWidgets('kapatid sheet content scrolls without crashing', (tester) async {
     await pumpFamilyPage(tester);
-    await scrollToSiblings(tester);
+    await scrollToMember(tester, 'Roberto Daiz');
 
-    await tester.tap(find.text('Obit Daiz'));
+    await tester.tap(find.text('Roberto Daiz'));
     await tester.pumpAndSettle();
 
-    final aboutFinder = find.text('TUNGKOL SA KANYA');
-    expect(aboutFinder, findsOneWidget);
+    final storyFinder = find.text('BUONG KUWENTO');
+    expect(storyFinder, findsOneWidget);
 
     // Drag the sheet's scrollable content up and back down.
-    await tester.drag(aboutFinder, const Offset(0, -200));
+    await tester.drag(storyFinder, const Offset(0, -200));
     await tester.pumpAndSettle();
-    await tester.drag(aboutFinder, const Offset(0, 200));
+    await tester.drag(storyFinder, const Offset(0, 200));
     await tester.pumpAndSettle();
 
-    expect(find.text('Obit Daiz'), findsNWidgets(2));
+    expect(find.text('Roberto Daiz'), findsNWidgets(2));
   });
 
-  testWidgets('tapping an apo card opens the sheet with age info', (
-    tester,
-  ) async {
+  testWidgets('tapping an apo card opens the member sheet', (tester) async {
     await pumpFamilyPage(tester);
 
-    // Bring the grandchildren pager on-screen.
-    await tester.drag(find.byType(ListView), const Offset(0, -900));
+    // Bring the grandchildren section on-screen (it is the last section).
+    await tester.scrollUntilVisible(
+      find.text('Hanna Lumbao'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
 
-    // Apo cards render first names only.
-    await tester.tap(find.text('Alyanna'));
+    await tester.tap(find.text('Hanna Lumbao'));
     await tester.pumpAndSettle();
 
-    // The sheet carries the full name; the card behind shows the short one.
-    expect(find.text('Alyanna Daiz'), findsOneWidget);
+    // Sheet shows the same name (card + sheet = 2 instances) plus the
+    // "Apo" relation. Grandchildren carry a short bio, which the sheet
+    // renders under the Full Story section.
+    expect(find.text('Hanna Lumbao'), findsNWidgets(2));
     expect(find.text('Apo'), findsWidgets);
-    expect(find.text('6 taong gulang'), findsWidgets);
-    // No bio/photos for grandchildren — no About section in this sheet.
-    expect(find.text('TUNGKOL SA KANYA'), findsNothing);
+    expect(find.text('BUONG KUWENTO'), findsOneWidget);
   });
 }

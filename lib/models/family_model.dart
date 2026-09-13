@@ -59,8 +59,42 @@ class FamilyMember {
   /// Localized role label, e.g. 'family_role_husband'.
   final String roleKey;
 
-  /// Short biography about the member (localized).
+  /// Short biography about the member (localized). Rendered as the
+  /// "About" blurb in the member detail sheet.
   final String? bioKey;
+
+  /// Localized full-story paragraph for the member detail sheet's
+  /// "Full Story" section — longer and more personal than [bioKey].
+  final String? storyKey;
+
+  /// Birthplace, e.g. 'San Carlos City, Pangasinan'. Shown in the sheet's
+  /// Identity section; null hides the row.
+  final String? birthplace;
+
+  /// Occupation, e.g. 'Administrative Assistant'. Shown in the sheet's
+  /// Identity section; null hides the row.
+  final String? occupation;
+
+  /// Year the member became active in their role/occupation, e.g. '2018'.
+  /// Shown in the sheet's Identity section; null hides the row.
+  final String? activeSince;
+
+  /// Number of children, for the sheet's Family section. Null hides the
+  /// row — use it only when a real count is known.
+  final int? childrenCount;
+
+  /// Number of grandchildren, for the sheet's Family section. Null hides
+  /// the row — use it only when a real count is known.
+  final int? grandchildrenCount;
+
+  /// Short nickname shown under the sheet's name, e.g. "Hans". Null hides
+  /// it.
+  final String? nickname;
+
+  /// "Not recorded" marker for optional sheet fields. Only meaningful on
+  /// members whose sheet design always shows a row for it (e.g. Roberto's
+  /// spouse row); null hides the row instead.
+  static const String notRecorded = '—';
 
   /// A quote this family member shared (localized).
   final String? quoteKey;
@@ -105,11 +139,23 @@ class FamilyMember {
   /// tree card. Purely display text — not a separate linked member.
   final String? spouseName;
 
+  /// Search-only metadata: when set, this member entry was synthesized
+  /// from someone else's [spouseName] for the family search (the value is
+  /// the member they belong to). Null for real data-model members.
+  final String? spouseOf;
+
   const FamilyMember({
     required this.name,
     required this.roleKey,
     this.photoPath,
     this.bioKey,
+    this.storyKey,
+    this.birthplace,
+    this.occupation,
+    this.activeSince,
+    this.childrenCount,
+    this.grandchildrenCount,
+    this.nickname,
     this.quoteKey,
     this.tags = const [],
     this.extraCount,
@@ -121,5 +167,6 @@ class FamilyMember {
     this.tagline,
     this.parentName,
     this.spouseName,
+    this.spouseOf,
   });
 }

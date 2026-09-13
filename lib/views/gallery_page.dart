@@ -5,6 +5,7 @@ import 'dart:ui' show ImageFilter;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import 'package:nita/controllers/gallery_controller.dart';
@@ -16,6 +17,7 @@ import 'package:nita/models/gallery_group.dart';
 import 'package:nita/widgets/circle_icon_button.dart';
 import 'package:nita/widgets/floating_close_button.dart';
 import 'package:nita/widgets/ornamental_card.dart';
+import 'package:nita/widgets/page_title_header.dart';
 import 'package:nita/widgets/photo_counter_pill.dart';
 import 'package:nita/widgets/stagger_entrance.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -266,8 +268,7 @@ class _GalleryGridViewState extends State<GalleryGridView>
                               key: ValueKey('date_$_heroIndex'),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontFamily: 'Georgia',
+                              style: GoogleFonts.playfairDisplay(
                                 fontSize: 19,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.warmDark,
@@ -651,22 +652,31 @@ class _GalleryGridViewState extends State<GalleryGridView>
   }
 
   /// Section header: "Mga alaala" on the left, photo count on the right.
+  /// The title yields via [Expanded] so long translations can never push
+  /// the count (or the row) past the edge — this overflowed 14px in wide
+  /// test fonts once image counts loaded in.
   Widget _listHeader(LanguageProvider lang, int count) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            lang.t('gallery_all_photos_label'),
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: AppColors.warmDark,
+          Expanded(
+            child: Text(
+              lang.t('gallery_all_photos_label'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: AppColors.warmDark,
+              ),
             ),
           ),
+          const SizedBox(width: 8),
           Text(
             '$count ${lang.t('gallery_photos')}',
+            maxLines: 1,
             style: const TextStyle(fontSize: 12.5, color: AppColors.muted),
           ),
         ],
@@ -686,6 +696,11 @@ class _GalleryGridViewState extends State<GalleryGridView>
     if (widget.activeTab == null || widget.activeTab!.value == 1) {
       _startHeroTimer();
     }
+    // One fixed shuffle order per page instance: the "Lahat na Larawan"
+    // grid shows the photos in a mixed-up order instead of the sorted
+    // source order. Built once in initState so the grid doesn't reshuffle
+    // on every setState (the hero timer fires every 5s).
+    _shuffleRandom = math.Random();
   }
 
   void _updatePillsFade() {
@@ -699,6 +714,16 @@ class _GalleryGridViewState extends State<GalleryGridView>
       setState(() => _pillsCanScrollMore = canScrollMore);
     }
   }
+
+  late final math.Random _shuffleRandom;
+
+  /// The photos in shuffled order — computed once, then reused so every
+  /// rebuild shows the same mixed order.
+  late final List<GalleryImageItem> _shuffledImages = () {
+    final list = List<GalleryImageItem>.of(widget.images);
+    list.shuffle(_shuffleRandom);
+    return list;
+  }();
 
   void _onTabChanged() {
     // The gallery is tab index 1 in the home shell.
@@ -733,9 +758,12 @@ class _GalleryGridViewState extends State<GalleryGridView>
   List<GalleryImageItem> get _filtered {
     // "All" deliberately excludes Remembrances — those locked photos only
     // appear once the visitor explicitly taps that category (and passes
-    // the candle gate), not mixed anonymously into the general grid.
+    // the candle gate), not mixed anonymously into the general grid. It
+    // also shows the photos in shuffled order (one fixed order per visit);
+    // a specific category keeps the source order so related photos stay
+    // together.
     final byGroup = _selectedGroup == null
-        ? widget.images
+        ? _shuffledImages
               .where((i) => i.group != GalleryGroup.remembrances)
               .toList()
         : widget.images.where((i) => i.group == _selectedGroup).toList();
@@ -834,41 +862,15 @@ class _GalleryGridViewState extends State<GalleryGridView>
     );
   }
 
-  /// Title row with a trailing search button, and a small subtitle below.
+  /// Centered title reusing the shared Family page header design. The old
+  /// trailing search button is gone (it was never wired — the working
+  /// search bar sits directly below this header).
   Widget _header(LanguageProvider lang) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  lang.t('nav_gallery'),
-                  style: const TextStyle(
-                    fontFamily: 'Georgia',
-                    fontSize: 32,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.warmDark,
-                  ),
-                ),
-              ),
-              CircleIconButton(
-                icon: Icons.search_rounded,
-                onTap: () {
-                  // TODO: wire up gallery search.
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            lang.t('gallery_subtitle'),
-            style: const TextStyle(fontSize: 13, color: AppColors.warmMid),
-          ),
-        ],
+      child: PageTitleHeader(
+        title: lang.t('nav_gallery'),
+        subtitle: lang.t('gallery_subtitle'),
       ),
     );
   }
@@ -1352,8 +1354,7 @@ class _GalleryLightboxState extends State<GalleryLightbox> {
                         const SizedBox(height: 10),
                         Text(
                           lang.t(item.group.key),
-                          style: const TextStyle(
-                            fontFamily: 'Georgia',
+                          style: GoogleFonts.playfairDisplay(
                             fontStyle: FontStyle.italic,
                             fontWeight: FontWeight.w700,
                             fontSize: 20,
@@ -1584,8 +1585,7 @@ class _CandleGateState extends State<CandleGate> with TickerProviderStateMixin {
                         child: Text(
                           lang.t('remembrance_gate_title'),
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontFamily: 'Georgia',
+                          style: GoogleFonts.playfairDisplay(
                             fontStyle: FontStyle.italic,
                             fontSize: 20,
                             height: 1.4,
@@ -1727,8 +1727,8 @@ class _CandleGateState extends State<CandleGate> with TickerProviderStateMixin {
                                                       ),
                                                       textAlign:
                                                           TextAlign.center,
-                                                      style: const TextStyle(
-                                                        fontFamily: 'Georgia',
+                                                      style:
+                                                          GoogleFonts.playfairDisplay(
                                                         fontStyle:
                                                             FontStyle.italic,
                                                         fontSize: 12,
@@ -2237,8 +2237,7 @@ class _HighlightSlideshowState extends State<HighlightSlideshow> {
               children: [
                 Text(
                   lang.t('gallery_choose_music'),
-                  style: const TextStyle(
-                    fontFamily: 'Georgia',
+                  style: GoogleFonts.playfairDisplay(
                     fontWeight: FontWeight.w700,
                     fontSize: 17,
                     color: AppColors.white,
@@ -2399,8 +2398,7 @@ class _HighlightSlideshowState extends State<HighlightSlideshow> {
                         children: [
                           Text(
                             lang.t(item.group.key),
-                            style: const TextStyle(
-                              fontFamily: 'Georgia',
+                            style: GoogleFonts.playfairDisplay(
                               fontStyle: FontStyle.italic,
                               fontSize: 15,
                               color: AppColors.white,

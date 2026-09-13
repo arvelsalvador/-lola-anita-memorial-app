@@ -84,7 +84,7 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 300));
     final ramon = tester.getSize(cardOf('Gernan Lumbao')).width;
-    final rosario = tester.getSize(cardOf('Odin Lumbao')).width;
+    final rosario = tester.getSize(cardOf('Rodel Lumbao Sr.')).width;
     expect(
       ramon,
       closeTo(rosario, 0.1),

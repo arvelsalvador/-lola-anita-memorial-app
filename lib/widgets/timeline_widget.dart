@@ -106,6 +106,7 @@ class TimelineWidget extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         lang.t(e.descriptionKey),
+                        textAlign: TextAlign.justify,
                         style: AppTextStyles.caption,
                       ),
                     ],
@@ -115,7 +116,8 @@ class TimelineWidget extends StatelessWidget {
             ],
           ),
         );
-      }),
+        },
+      ),
     );
   }
 }

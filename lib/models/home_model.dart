@@ -57,24 +57,21 @@ class MemoryItem {
   final String titleKey;
   final String bodyKey;
 
-  /// Category used by the filter tabs on the memories page. One of
-  /// 'mem_filter_life' | 'mem_filter_family' | 'mem_filter_celebrations'.
-  final String category;
-
-  /// Era label shown above the title, e.g. '1940s'.
-  final String decade;
-
   /// How many gallery photos this memory points to (shown in the card
   /// footer next to "Tingnan sa Galeri").
   final int photoCount;
+
+  /// Bundled photo asset shown on the card and in its full-screen preview,
+  /// e.g. 'assets/images/Best Pictures/Bahay.jpg'. Null until a photo is
+  /// wired in — the soft gradient placeholder shows instead.
+  final String? image;
 
   const MemoryItem({
     required this.id,
     required this.icon,
     required this.titleKey,
     required this.bodyKey,
-    required this.category,
-    required this.decade,
     required this.photoCount,
+    this.image,
   });
 }

@@ -18,8 +18,8 @@ class AppBottomNav extends StatelessWidget {
     (Icons.home_outlined, Icons.home_rounded, 'nav_home'),
     (Icons.photo_library_outlined, Icons.photo_library_rounded, 'nav_gallery'),
     (Icons.people_alt_outlined, Icons.people_alt_rounded, 'nav_family'),
-    (Icons.favorite_outline_rounded, Icons.favorite_rounded, 'nav_tribute'),
-    (Icons.star_border_rounded, Icons.star_rounded, 'nav_favorites'),
+    (Icons.format_quote_outlined, Icons.format_quote_rounded, 'nav_words'),
+    (Icons.local_fire_department_outlined, Icons.local_fire_department_rounded, 'nav_favorites'),
   ];
 
   @override

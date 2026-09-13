@@ -21,6 +21,9 @@ dependencies:
   shimmer: ^3.0.0
   google_fonts: ^6.2.1
   audioplayers: ^6.7.1
+  url_launcher: ^6.3.2
+  video_player: ^2.11.1
+  fvp: ^0.38.1
 
 dev_dependencies:
   flutter_test:
@@ -32,8 +35,10 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/images/Best Pictures/
     - assets/images/Editing images/
     - assets/images/Family DP/
+    - assets/images/gallery/After death/
     - assets/images/gallery/Bahay/
     - assets/images/gallery/Bday/
     - assets/images/gallery/Family picture with nanay/
@@ -41,4 +46,5 @@ flutter:
     - assets/images/gallery/Hospital/
     - assets/images/gallery/Jollibee/
     - assets/images/gallery/Solo/
+    - assets/Video/
     - assets/audio/

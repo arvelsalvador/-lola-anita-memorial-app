@@ -26,10 +26,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
   }
 
-  // The filter chips live inside a Wrap (the same labels also appear in the
-  // section headers further down the page, so scope by the Wrap).
+  // The filter chips live inside a fixed one-line Row keyed
+  // 'family_filter_chips' (the same labels also appear in the section
+  // headers further down the page, so scope by that key).
   Finder chipText(String label, {bool skipOffstage = true}) => find.descendant(
-    of: find.byType(Wrap, skipOffstage: skipOffstage),
+    of: find.byKey(const Key('family_filter_chips'), skipOffstage: skipOffstage),
     matching: find.text(label, skipOffstage: skipOffstage),
     skipOffstage: skipOffstage,
   );
@@ -39,16 +40,26 @@ void main() {
       .position
       .pixels;
 
+  // Each pill has a distinct icon, and the "Mga Apo" section header repeats
+  // that label inside its own Wrap — so anchor the highlight lookup on the
+  // pill's unique icon instead of its label text, which becomes ambiguous
+  // once the grandchildren section is built.
+  const Map<String, IconData> pillIcons = {
+    'Lahat': Icons.grid_view_rounded,
+    'Direktang pamilya': Icons.people_outline,
+    'Mga Apo': Icons.diversity_3_outlined,
+  };
+
   // Pills scroll off-screen when a section is in view, so inspect the tree
   // including off-screen widgets (they stay mounted thanks to cacheExtent).
   Color? pillFill(WidgetTester tester, String label) {
     final container = tester.widget<Container>(
       find
           .ancestor(
-            of: chipText(label, skipOffstage: false),
+            of: find.byIcon(pillIcons[label]!, skipOffstage: false),
             matching: find.byType(Container, skipOffstage: false),
           )
-          .first,
+          .last,
     );
     return (container.decoration as BoxDecoration?)?.color;
   }

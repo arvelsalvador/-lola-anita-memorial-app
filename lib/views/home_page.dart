@@ -14,9 +14,10 @@ import 'package:nita/controllers/memories_controller.dart';
 import 'package:nita/controllers/tribute_controller.dart';
 import 'package:nita/models/home_model.dart';
 import 'package:nita/views/family_page.dart';
-import 'package:nita/views/favorites_page.dart';
+import 'package:nita/views/condolences_page.dart';
 import 'package:nita/views/gallery_page.dart';
-import 'package:nita/views/tribute_page.dart';
+import 'package:nita/views/settings_page.dart';
+import 'package:nita/views/words_page.dart';
 import 'package:nita/widgets/app_bottom_nav.dart';
 
 import 'package:nita/widgets/language_toggle.dart';
@@ -94,11 +95,25 @@ class HomeShell extends StatefulWidget {
 }
 
 class _HomeShellState extends State<HomeShell> {
-  // Whether the page content is scrolled back to the very top. The hero
-  // collapses to zero height as soon as the content scrolls at all, and stays
-  // hidden while scrolling — it only expands again at the very top, so it
-  // never pops back in mid-scroll.
-  bool _atTop = true;
+  // The Story tab's live scroll offset, mirrored here by the controller
+  // listener in initState. The hero's height is derived from it inside a
+  // ValueListenableBuilder, so the photo header tracks the finger 1:1 as
+  // the content scrolls — and grows back smoothly on the way up — without
+  // rebuilding the rest of the shell on every scroll tick.
+  final ValueNotifier<double> _storyOffset = ValueNotifier<double>(0);
+
+  // True just after a tab switch, so the hero collapse/expand plays as a
+  // short animated transition instead of snap-following the (just-reset)
+  // scroll offset. Cleared by a timer once the transition has finished.
+  bool _heroTabAnimating = false;
+
+  // Releases [_heroTabAnimating] after the tab-switch transition. Tracked so
+  // it can be canceled on dispose and before re-scheduling on rapid tab hops.
+  Timer? _heroTabTimer;
+
+  // Bumped every time the Story tab is re-entered, forcing StoryPage to
+  // remount with a fresh entrance animation and reset scroll state.
+  int _storyVisitId = 0;
 
   // Drives a quick fade on the tab body whenever the selected tab changes,
   // so switching tabs reads as a soft cross-fade instead of an instant swap.
@@ -115,6 +130,11 @@ class _HomeShellState extends State<HomeShell> {
   void initState() {
     super.initState();
     _controllers = List.generate(5, (_) => ScrollController());
+    // Mirror the Story tab's scroll position into the notifier. Only the
+    // hero listens to it, so the per-frame cost while scrolling stays tiny.
+    _controllers[0].addListener(() {
+      _storyOffset.value = _controllers[0].offset;
+    });
   }
 
   // Built fresh on every build() instead of cached once in initState, so
@@ -126,9 +146,8 @@ class _HomeShellState extends State<HomeShell> {
   List<Widget> _buildBodies() {
     return [
       StoryPage(
+        key: ValueKey('story-visit-$_storyVisitId'),
         controller: _controllers[0],
-        // The gallery is tab index 1 — the memories cards' "Tingnan sa
-        // Galeri" and "Buksan ang mga larawan" switch over to it.
         onOpenGallery: () => widget.onTabChanged(1),
         memoriesController: widget.memoriesController,
       ),
@@ -138,17 +157,22 @@ class _HomeShellState extends State<HomeShell> {
         galleryController: widget.galleryController,
       ),
       FamilyPage(controller: _controllers[2]),
-      TributePage(
+      WordsPage(
         controller: _controllers[3],
         tributeController: widget.tributeController,
       ),
-      FavoritesPage(controller: _controllers[4]),
+      CondolencesPage(
+        controller: _controllers[4],
+        tributeController: widget.tributeController,
+      ),
     ];
   }
 
   @override
   void dispose() {
+    _heroTabTimer?.cancel();
     _activeTab.dispose();
+    _storyOffset.dispose();
     for (final controller in _controllers) {
       controller.dispose();
     }
@@ -159,6 +183,9 @@ class _HomeShellState extends State<HomeShell> {
   void didUpdateWidget(covariant HomeShell oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.selectedTab != oldWidget.selectedTab) {
+      if (widget.selectedTab == 0 && oldWidget.selectedTab != 0) {
+        _storyVisitId++;
+      }
       _activeTab.value = widget.selectedTab;
       // Duck the opacity with zero duration (an instant drop, not a fade),
       // then switch to an animated duration for the rise once the new
@@ -167,6 +194,9 @@ class _HomeShellState extends State<HomeShell> {
       setState(() {
         _contentFadeDuration = Duration.zero;
         _contentOpacity = 0;
+        // Give the hero an animated collapse/expand for the tab switch;
+        // otherwise it would snap to the about-to-be-reset scroll offset.
+        _heroTabAnimating = true;
       });
       // The new tab always starts at the very top, even if it was scrolled
       // down the last time it was visited.
@@ -176,67 +206,95 @@ class _HomeShellState extends State<HomeShell> {
         if (controller.hasClients) {
           controller.jumpTo(0);
         }
+        // jumpTo fires the Story controller's listener, which resets the
+        // notifier; for a freshly mounted tab (no clients yet) reset the
+        // mirrored offset by hand.
+        if (widget.selectedTab == 0) {
+          _storyOffset.value = 0;
+        }
         setState(() {
-          _atTop = true;
           _contentFadeDuration = const Duration(milliseconds: 200);
           _contentOpacity = 1;
         });
       });
+      // Release the animated transition once it has had time to finish, so
+      // the hero returns to finger-tracking. A timer — rather than scroll
+      // notifications — avoids jumpTo's own notifications clearing the flag
+      // before the expand animation even starts. The timer is tracked and
+      // canceled on dispose/re-schedule so it never fires into a dead state.
+      _heroTabTimer?.cancel();
+      _heroTabTimer = Timer(const Duration(milliseconds: 340), () {
+        if (mounted && _heroTabAnimating) {
+          setState(() => _heroTabAnimating = false);
+        }
+      });
     }
   }
 
-  bool _handleScrollNotification(ScrollNotification notification) {
-    // This listener only sits around the active tab's scrollable (see the
-    // IndexedStack below), so it only sees notifications from the page the
-    // user is actually looking at.
-    if (notification is ScrollUpdateNotification) {
-      final atTop = notification.metrics.pixels <= 1.0;
-      if (atTop != _atTop) {
-        setState(() => _atTop = atTop);
-      }
-    }
-    return false;
-  }
+  // Memoized hero subtree: the ValueListenableBuilder below rebuilds on
+  // every scroll tick, so the photo header itself is built once and only
+  // the wrapper's height changes per frame. `widget` is read at tap time,
+  // so the closure stays correct across parent rebuilds.
+  late final Widget _heroChild = LolaHeroHeader(
+    model: HomeController.grandmother,
+    onTap: () => widget.onTabChanged(1),
+  );
 
   @override
   Widget build(BuildContext context) {
     final bodies = _buildBodies();
     final screenHeight = MediaQuery.sizeOf(context).height;
     final expandedHeight = (screenHeight * 0.46).clamp(400.0, 540.0);
-    final heroVisible = widget.selectedTab == 0 && _atTop;
+    final onStoryTab = widget.selectedTab == 0;
 
     return Scaffold(
       backgroundColor: AppColors.cream,
       body: Column(
         children: [
-          const _TopBar(),
+          _TopBar(
+            onOpenFamily: () => widget.onTabChanged(2),
+            onOpenTab: widget.onTabChanged,
+          ),
           // The memorial hero belongs to the home page only — on the other
-          // tabs (gallery, family, tribute, favorites) the pages show their
-          // own headers instead. Switching tabs collapses/expands it smoothly
-          // via the same AnimatedContainer that handles scroll collapse. The
-          // content fades a touch faster than the height animates, so it
-          // reads as settling out of view rather than getting clipped off.
-          ClipRect(
-            child: AnimatedContainer(
-              key: const ValueKey('hero-collapse'),
-              duration: const Duration(milliseconds: 280),
-              curve: Curves.easeOutCubic,
-              height: heroVisible ? expandedHeight : 0,
-              color: AppColors.warmDark,
-              child: OverflowBox(
+          // tabs (gallery, family, tribute, condolences) the pages show their
+          // own headers instead. On the Story tab its height is derived
+          // straight from the scroll offset, so the photo collapses and
+          // re-expands in lockstep with the finger. Tab switches play a
+          // short animated transition instead (see _heroTabAnimating).
+          ValueListenableBuilder<double>(
+            valueListenable: _storyOffset,
+            builder: (context, storyOffset, _) {
+              final heroHeight = onStoryTab
+                  ? (expandedHeight - storyOffset).clamp(0.0, expandedHeight)
+                  : 0.0;
+              final heroContent = OverflowBox(
                 alignment: Alignment.topCenter,
                 maxHeight: expandedHeight,
                 child: AnimatedOpacity(
-                  opacity: heroVisible ? 1 : 0,
+                  opacity: onStoryTab ? 1 : 0,
                   duration: const Duration(milliseconds: 200),
                   curve: Curves.easeOut,
-                  child: LolaHeroHeader(
-                    model: HomeController.grandmother,
-                    onTap: () => widget.onTabChanged(1),
-                  ),
+                  child: _heroChild,
                 ),
-              ),
-            ),
+              );
+              return ClipRect(
+                child: _heroTabAnimating
+                    ? AnimatedContainer(
+                        key: const ValueKey('hero-collapse'),
+                        duration: const Duration(milliseconds: 280),
+                        curve: Curves.easeOutCubic,
+                        height: heroHeight,
+                        color: AppColors.warmDark,
+                        child: heroContent,
+                      )
+                    : Container(
+                        key: const ValueKey('hero-collapse'),
+                        height: heroHeight,
+                        color: AppColors.warmDark,
+                        child: heroContent,
+                      ),
+              );
+            },
           ),
           Expanded(
             child: Stack(
@@ -265,13 +323,7 @@ class _HomeShellState extends State<HomeShell> {
                           child: IndexedStack(
                             index: widget.selectedTab,
                             children: [
-                              for (int i = 0; i < bodies.length; i++)
-                                NotificationListener<ScrollNotification>(
-                                  onNotification: i == widget.selectedTab
-                                      ? _handleScrollNotification
-                                      : null,
-                                  child: bodies[i],
-                                ),
+                              for (int i = 0; i < bodies.length; i++) bodies[i],
                             ],
                           ),
                         ),
@@ -308,7 +360,15 @@ class _HomeShellState extends State<HomeShell> {
 /// toggle on the right, with a thin gold divider underneath. Stays at the
 /// top while the hero section scrolls away.
 class _TopBar extends StatelessWidget {
-  const _TopBar();
+  /// Jumps straight to the Family tab in the bottom nav. Handed to
+  /// Settings so "Tingnan sa Pamilya" lands on the real tab.
+  final VoidCallback onOpenFamily;
+
+  /// Jumps to any tab in the bottom nav. Handed to Settings so the
+  /// About-Us rows land on their real tabs.
+  final ValueChanged<int> onOpenTab;
+
+  const _TopBar({required this.onOpenFamily, required this.onOpenTab});
 
   @override
   Widget build(BuildContext context) {
@@ -322,24 +382,70 @@ class _TopBar extends StatelessWidget {
             SizedBox(
               height: 52,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                // Tight margins pin the brand to the very left edge
+                // and the toggle + gear to the very right edge.
+                padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Icon(Icons.eco, size: 22, color: AppColors.goldLight),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'nanay anita',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.8,
-                        color: AppColors.goldLight,
-                        fontFamily: 'Georgia',
-                        fontFamilyFallback: ['Times New Roman', 'serif'],
+                    Flexible(
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.eco,
+                            size: 22,
+                            color: AppColors.goldLight,
+                          ),
+                          SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              'nanay anita',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.8,
+                                color: AppColors.goldLight,
+                                fontFamily: 'Georgia',
+                                fontFamilyFallback: [
+                                  'Times New Roman',
+                                  'serif',
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const Spacer(),
-                    const LanguageToggle(),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const LanguageToggle(),
+                        const SizedBox(width: 4),
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          visualDensity: VisualDensity.compact,
+                          icon: const Icon(
+                            Icons.settings_outlined,
+                            size: 20,
+                            color: AppColors.goldLight,
+                          ),
+                          onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => SettingsPage(
+                              onViewFamily: onOpenFamily,
+                              onOpenTab: onOpenTab,
+                            ),
+                          ),
+                        );
+                          },
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -842,6 +948,7 @@ class StoryPage extends StatelessWidget {
     return CustomScrollView(
       controller: controller,
       primary: false,
+      physics: const ClampingScrollPhysics(),
       slivers: [
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
@@ -900,7 +1007,6 @@ class StoryPage extends StatelessWidget {
                 index: 7,
                 floatUp: true,
                 child: MemoriesSection(
-                  onOpenGallery: onOpenGallery,
                   memoriesController: memoriesController,
                 ),
               ),
@@ -930,36 +1036,26 @@ class AboutCard extends StatelessWidget {
         borderWidth: 0.5,
         shadowOpacity: 0,
         padding: const EdgeInsets.all(20),
-        child: Text(text, style: AppTextStyles.serifBody),
+        child: Text(
+          text,
+          textAlign: TextAlign.justify,
+          style: AppTextStyles.serifBody,
+        ),
       ),
     );
   }
 }
 
-/// Category filters for the memories, in display order. The first entry
-/// (null) is "All" — it shows every memory.
-typedef _FilterTab = (String?, IconData, String);
-
-const List<_FilterTab> _filterTabs = [
-  (null, Icons.grid_view_rounded, 'mem_filter_all'),
-  ('mem_filter_life', Icons.eco_rounded, 'mem_filter_life'),
-  ('mem_filter_family', Icons.people_alt_rounded, 'mem_filter_family'),
-  ('mem_filter_celebrations', Icons.cake_rounded, 'mem_filter_celebrations'),
-];
-
-/// The cherished-memories block: stats pill, category filter tabs, feature
-/// card, and the memory cards. Lives on the home page (the Story tab).
+/// The cherished-memories block: the memory cards. Lives on the home page
+/// (the Story tab). The old filter pill row (Lahat / Buhay / Pamilya /
+/// Pagdiriwang) was removed — the categories were redundant with the
+/// gallery's own filters, and with them gone the "Lahat" pill had nothing
+/// left to filter.
 class MemoriesSection extends StatefulWidget {
-  /// Called when the visitor taps anything that points at the gallery
-  /// ("Tingnan sa Galeri", "Buksan ang mga larawan"). The home shell uses
-  /// it to switch to the gallery tab.
-  final VoidCallback? onOpenGallery;
-
   final MemoriesController memoriesController;
 
   const MemoriesSection({
     super.key,
-    this.onOpenGallery,
     required this.memoriesController,
   });
 
@@ -986,14 +1082,11 @@ class _MemoriesSectionState extends State<MemoriesSection> {
 
   @override
   Widget build(BuildContext context) {
-    final lang = context.watch<LanguageProvider>();
-    final memories = widget.memoriesController.visibleMemories;
+    final memories = MemoriesController.data.memories;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _filterTabsRow(lang),
-        const SizedBox(height: 12),
         for (var i = 0; i < memories.length; i++) ...[
           _StaggeredEntry(
             key: ValueKey(memories[i].id),
@@ -1001,7 +1094,6 @@ class _MemoriesSectionState extends State<MemoriesSection> {
             child: MemoryCard(
               memory: memories[i],
               index: i,
-              onTap: widget.onOpenGallery,
             ),
           ),
           if (i != memories.length - 1) const SizedBox(height: 12),
@@ -1009,65 +1101,37 @@ class _MemoriesSectionState extends State<MemoriesSection> {
       ],
     );
   }
+}
 
-  // ---------------------------------------------------------------------
-  // Category filter tabs — horizontal row of pill buttons, with an
-  // animated color/label cross-fade on selection instead of a hard swap.
-  // ---------------------------------------------------------------------
+/// Botanical spray above a memory card's title — the approved design
+/// (Memories_design.png) trimmed to its artwork band
+/// (Memories_design_trim.png, 2002x492, no transparent padding). The
+/// original canvas is 2304x1536 with the spray occupying only a quarter
+/// of its height, which rendered it tiny; the trim lets BoxFit.contain
+/// scale the spray to the full text-column width (tall as the width
+/// allows, 35–48px on phones).
+/// Vertical budget (worst case: 2-line title + 6-line body): 48px accent
+/// box + 4px gap + 42px title + 6px gap + 108px body = 208px, inside the
+/// 210.6px available (244px card, 16px vertical padding, 1.4px border).
+class _TitleAccent extends StatelessWidget {
+  const _TitleAccent();
 
-  Widget _filterTabsRow(LanguageProvider lang) {
+  static const _assetPath =
+      'assets/images/Editing images/Memories_design_trim.png';
+
+  @override
+  Widget build(BuildContext context) {
     return SizedBox(
-      height: 42,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        children: [for (final tab in _filterTabs) _filterTab(lang, tab)],
-      ),
-    );
-  }
-
-  Widget _filterTab(LanguageProvider lang, _FilterTab tab) {
-    final (category, icon, labelKey) = tab;
-    final selected = widget.memoriesController.selectedCategory == category;
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: _Pressable(
-        borderRadius: BorderRadius.circular(99),
-        onTap: () => widget.memoriesController.selectCategory(category),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
-          decoration: BoxDecoration(
-            color: selected ? const Color(0xFFA26747) : AppColors.white,
-            borderRadius: BorderRadius.circular(99),
-            border: Border.all(
-              color: selected
-                  ? Colors.transparent
-                  : AppColors.gold.withValues(alpha: 0.35),
-              width: 0.8,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 14,
-                color: selected ? AppColors.white : AppColors.warmMid,
-              ),
-              const SizedBox(width: 5),
-              AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 200),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: selected ? AppColors.white : AppColors.warmMid,
-                ),
-                child: Text(lang.t(labelKey)),
-              ),
-            ],
-          ),
+      height: 48,
+      width: double.infinity,
+      child: Center(
+        child: Image.asset(
+          _assetPath,
+          height: 48,
+          fit: BoxFit.contain,
+          // The spray is purely decorative — never let an asset problem
+          // break the card's layout.
+          errorBuilder: (_, _, _) => const SizedBox.shrink(),
         ),
       ),
     );
@@ -1077,21 +1141,20 @@ class _MemoriesSectionState extends State<MemoriesSection> {
 /// Memory card with a full-bleed photo occupying roughly a third of the
 /// card, flush against one rounded edge — left on even-indexed cards,
 /// right on odd-indexed ones, so the list reads as an alternating column
-/// rather than a repeating row. Text content (era, title, body) fills the
-/// remaining space. The whole card is tappable to open the gallery.
+/// rather than a repeating row. A small gold accent, the title row, and
+/// the body fill the remaining space. The whole card is tappable to open
+/// the gallery.
 class MemoryCard extends StatelessWidget {
   final MemoryItem memory;
   final int index;
-  final VoidCallback? onTap;
 
   const MemoryCard({
     super.key,
     required this.memory,
     required this.index,
-    this.onTap,
   });
 
-  static const double _cardHeight = 200;
+  static const double _cardHeight = 244;
   static const double _photoWidth = 150;
   static const _radius = 18.0;
 
@@ -1107,17 +1170,31 @@ class MemoryCard extends StatelessWidget {
       right: photoOnLeft ? Radius.zero : const Radius.circular(_radius),
     );
 
-    // The photo is its own tap target — opens a full-screen preview, not
-    // the gallery. It sits nested inside the card's own _Pressable below;
-    // Flutter's gesture arena gives the tap to this inner one, so the
-    // outer card tap (onTap, gallery) doesn't also fire.
+    // The photo holds its usual share of the card on normal widths but
+    // yields ground on narrow phones, so the text side keeps enough room
+    // for the title row's bookmark icon and the copy. Sits at the full 150px from
+    // ~390px screens up; the 96px floor keeps a visible photo strip on
+    // very narrow viewports.
+    final photoWidth = math.max(
+      96.0,
+      math.min(_photoWidth, (MediaQuery.sizeOf(context).width - 40) * 0.44),
+    );
+
+    // The photo is the card's only tap target — it opens a full-screen
+    // preview. The rest of the card (title, body) is static text; the
+    // gallery is reached from the section header instead.
     final photo = _Pressable(
       borderRadius: photoRadius,
-      onTap: () => _openMemoryPhotoPreview(context, heroTag: heroTag),
+      onTap: () => _openMemoryPhotoPreview(
+        context,
+        memory: memory,
+        heroTag: heroTag,
+      ),
       child: Hero(
         tag: heroTag,
-        child: _PhotoPlaceholder(
-          width: _photoWidth,
+        child: _MemoryPhoto(
+          assetPath: memory.image,
+          width: photoWidth,
           height: _cardHeight,
           borderRadius: photoRadius,
         ),
@@ -1126,19 +1203,22 @@ class MemoryCard extends StatelessWidget {
 
     final content = Expanded(
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            const _TitleAccent(),
+            const SizedBox(height: 4),
             Row(
               children: [
                 Expanded(
                   child: Text(
-                    '— ${memory.decade} —',
-                    maxLines: 1,
+                    lang.t(memory.titleKey),
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.serifHeading,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.goldYears,
                   ),
                 ),
                 const Icon(
@@ -1148,13 +1228,16 @@ class MemoryCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(lang.t(memory.titleKey), style: AppTextStyles.serifHeading),
             const SizedBox(height: 6),
+            // The body is summarized to fit ~6 lines on the card's text
+            // column (12px caption, 1.5 line height) at typical phone
+            // widths — no trailing ellipsis. The no-ellipsis probe test
+            // in test/memory_card_overflow_test.dart enforces this.
             Text(
               lang.t(memory.bodyKey),
+              textAlign: TextAlign.justify,
               style: AppTextStyles.caption,
-              maxLines: 4,
+              maxLines: 6,
               overflow: TextOverflow.ellipsis,
             ),
           ],
@@ -1162,30 +1245,82 @@ class MemoryCard extends StatelessWidget {
       ),
     );
 
-    return _Pressable(
-      borderRadius: BorderRadius.circular(_radius),
-      onTap: onTap,
-      child: Container(
-        height: _cardHeight,
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(_radius),
-          border: Border.all(
-            color: AppColors.rose.withValues(alpha: 0.14),
-            width: 0.7,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 14,
-              offset: const Offset(0, 5),
-            ),
-          ],
+    return Container(
+      height: _cardHeight,
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(_radius),
+        border: Border.all(
+          color: AppColors.rose.withValues(alpha: 0.14),
+          width: 0.7,
         ),
-        clipBehavior: Clip.antiAlias,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: photoOnLeft ? [photo, content] : [content, photo],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: photoOnLeft ? [photo, content] : [content, photo],
+      ),
+    );
+  }
+}
+
+/// The photo content for a memory's photo slot: the memory's own bundled
+/// asset when one is wired in ([assetPath], from MemoryItem.image), the
+/// soft gradient placeholder when it isn't. Shared by the card thumbnail
+/// and the full-screen preview so the Hero flight lands on exactly the
+/// same picture the thumbnail showed, at whatever size the destination
+/// needs.
+///
+/// A missing asset must never take the layout down with it: the default
+/// load-failure widget is an unwrapped error string that overflows this
+/// fixed-size slot (the "RIGHT OVERFLOWED BY 104 PIXELS" seen when the
+/// Best Pictures folder wasn't bundled), so load failures fall back to
+/// the placeholder.
+class _MemoryPhoto extends StatelessWidget {
+  final String? assetPath;
+  final double width;
+  final double height;
+  final BorderRadius borderRadius;
+  final double iconSize;
+
+  const _MemoryPhoto({
+    required this.assetPath,
+    required this.width,
+    required this.height,
+    required this.borderRadius,
+    this.iconSize = 36,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final path = assetPath;
+    if (path == null) {
+      return _PhotoPlaceholder(
+        width: width,
+        height: height,
+        borderRadius: borderRadius,
+        iconSize: iconSize,
+      );
+    }
+    return ClipRRect(
+      borderRadius: borderRadius,
+      child: Image.asset(
+        path,
+        width: width,
+        height: height,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _PhotoPlaceholder(
+          width: width,
+          height: height,
+          borderRadius: borderRadius,
+          iconSize: iconSize,
         ),
       ),
     );
@@ -1193,10 +1328,10 @@ class MemoryCard extends StatelessWidget {
 }
 
 /// Placeholder for a memory's photo — a soft rose/gold gradient block with
-/// an image icon, standing in until real photos are wired in. To swap in a
-/// real image later, replace this whole widget's `child` (the Icon) with
-/// `Image.asset(path, fit: BoxFit.cover)` or `Image.network(...)` — the
-/// sizing, clipping, and alternating placement in MemoryCard stay the same.
+/// an image icon, standing in until real photos are wired in. Used directly
+/// by [_MemoryPhoto], which wraps the wired-in assets and falls back to
+/// this placeholder when an asset is missing. The sizing, clipping, and
+/// alternating placement in MemoryCard stay the same.
 class _PhotoPlaceholder extends StatelessWidget {
   final double width;
   final double height;
@@ -1241,7 +1376,11 @@ class _PhotoPlaceholder extends StatelessWidget {
 /// Opens a full-screen preview of a memory's photo. This is intentionally
 /// separate from the card's own onTap (which opens the gallery tab) — the
 /// photo has its own destination, not the gallery.
-void _openMemoryPhotoPreview(BuildContext context, {required String heroTag}) {
+void _openMemoryPhotoPreview(
+  BuildContext context, {
+  required MemoryItem memory,
+  required String heroTag,
+}) {
   Navigator.of(context).push(
     PageRouteBuilder(
       opaque: false,
@@ -1251,7 +1390,7 @@ void _openMemoryPhotoPreview(BuildContext context, {required String heroTag}) {
       pageBuilder: (context, animation, secondaryAnimation) {
         return FadeTransition(
           opacity: animation,
-          child: _MemoryPhotoPreview(heroTag: heroTag),
+          child: _MemoryPhotoPreview(memory: memory, heroTag: heroTag),
         );
       },
     ),
@@ -1263,8 +1402,9 @@ void _openMemoryPhotoPreview(BuildContext context, {required String heroTag}) {
 /// the full-screen view instead of just cross-fading in. Tap anywhere,
 /// or the close button, to dismiss.
 class _MemoryPhotoPreview extends StatelessWidget {
+  final MemoryItem memory;
   final String heroTag;
-  const _MemoryPhotoPreview({required this.heroTag});
+  const _MemoryPhotoPreview({required this.memory, required this.heroTag});
 
   @override
   Widget build(BuildContext context) {
@@ -1279,7 +1419,8 @@ class _MemoryPhotoPreview extends StatelessWidget {
               Center(
                 child: Hero(
                   tag: heroTag,
-                  child: _PhotoPlaceholder(
+                  child: _MemoryPhoto(
+                    assetPath: memory.image,
                     width: side,
                     height: side,
                     borderRadius: BorderRadius.circular(20),
@@ -1373,7 +1514,7 @@ class _ScrollReveal extends StatefulWidget {
 }
 
 class _ScrollRevealState extends State<_ScrollReveal>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 700),
@@ -1389,6 +1530,8 @@ class _ScrollRevealState extends State<_ScrollReveal>
 
   bool _revealed = false;
   Timer? _delayTimer;
+  @override
+  bool get wantKeepAlive => true;
 
   Offset get _beginOffset {
     if (widget.floatUp) return const Offset(0, 0.08);
@@ -1415,6 +1558,7 @@ class _ScrollRevealState extends State<_ScrollReveal>
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // required by AutomaticKeepAliveClientMixin
     return VisibilityDetector(
       key: Key('scroll-reveal-${widget.id}'),
       onVisibilityChanged: _onVisibilityChanged,

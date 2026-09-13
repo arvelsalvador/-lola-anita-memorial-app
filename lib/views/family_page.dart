@@ -31,6 +31,7 @@ import 'package:nita/controllers/display_controller.dart';
 import 'package:nita/controllers/family_controller.dart';
 import 'package:nita/models/family_model.dart';
 import 'package:nita/widgets/gradient_avatar.dart';
+import 'package:nita/widgets/ornament_divider.dart';
 import 'package:nita/widgets/ornamental_card.dart';
 import 'package:nita/widgets/tag_chip.dart';
 import 'package:nita/views/family_tree_canvas_page.dart';
@@ -191,9 +192,10 @@ class _FamilyPageState extends State<FamilyPage> {
   Widget build(BuildContext context) {
     final data = FamilyController.data;
     final groups = data.groups;
-    // "Mga Anak" (children) is the first group; "Mga Apo" is the first group
-    // rendered with the grandchildren layout. Kapatid (siblings) sits right
-    // below Anak in the data, so scrolling to Anak reveals both.
+    // The 'Direktang pamilya' tab targets the Mga Anak section and the
+    // 'Mga Apo' tab the grandchildren section — both are bound by label,
+    // not by position, so they land correctly no matter where the groups
+    // sit in the data list.
     final apoIndex = groups.indexWhere(_isApoGroup);
 
     return Scaffold(
@@ -216,17 +218,41 @@ class _FamilyPageState extends State<FamilyPage> {
             ),
             const SizedBox(height: 18),
             FamilyRootCard(member: data.rootMember),
-            // No connector above the first section header — just normal
-            // spacing; each branch connector starts below its own header.
-            const SizedBox(height: 18),
+            // Carry the descent line from the root card's bottom edge down
+            // to the first section header: the bead marks the branch
+            // origin, and that header's own spine (see _SpineBehind)
+            // continues the line through into the section's branch
+            // connector, so root → bus → cards reads as one unbroken line.
+            if (groups.isNotEmpty)
+              const _FamilyGroupConnector(height: 18, bead: true),
             for (var i = 0; i < groups.length; i++) ...[
               FamilyGroupSection(
-                key: i == 0 ? _anakKey : (i == apoIndex ? _apoKey : null),
+                key: groups[i].labelKey == 'family_group_children'
+                    ? _anakKey
+                    : ((i == apoIndex ||
+                              // The apo group renders through the straight
+                              // descent grid whenever it has no age data (see
+                              // _isStraightDescentGroup) — bind the scroll key
+                              // by label too, or the scroll-follower can never
+                              // mark the grandchildren section active.
+                              _isStraightDescentGroup(groups[i]))
+                          ? _apoKey
+                          : null),
                 group: groups[i],
               ),
-              if (i < groups.length - 1)
-                const _FamilyGroupConnector()
-              else
+              if (i < groups.length - 1) ...[
+                // The grandchildren section draws its own straight
+                // per-column descent (the pager draws its own multi
+                // columns) — its columns must line up with the cards
+                // above it — so the generic single spine is skipped right
+                // before it. Leaving it in would punch a 22px hole into
+                // the straight lines coming off the cards above.
+                if (!_isApoGroup(groups[i + 1]) &&
+                    !_isStraightDescentGroup(groups[i + 1]))
+                  const _FamilyGroupConnector()
+                else
+                  const SizedBox.shrink(),
+              ] else
                 const SizedBox(height: 18),
             ],
             const SizedBox(height: 12),
@@ -240,14 +266,29 @@ class _FamilyPageState extends State<FamilyPage> {
 
 /// A short vertical line between two stacked group sections, so "Mga
 /// Anak", "Mga Kapatid", "Mga Apo", etc. read as branches hanging off the
-/// same root member instead of unconnected blocks.
+/// same root member instead of unconnected blocks. With [bead] set it
+/// also carries a hollow junction bead mid-segment — the branch-origin
+/// marker under the root card.
 class _FamilyGroupConnector extends StatelessWidget {
-  const _FamilyGroupConnector();
+  /// Segment height; defaults to the standard inter-section spacing.
+  final double height;
+
+  /// Whether to draw a hollow bead centered on the line mid-segment.
+  final bool bead;
+
+  const _FamilyGroupConnector({this.height = 22, this.bead = false});
 
   @override
   Widget build(BuildContext context) {
+    if (bead) {
+      return SizedBox(
+        height: height,
+        width: double.infinity,
+        child: CustomPaint(painter: _SpineBeadPainter()),
+      );
+    }
     return SizedBox(
-      height: 22,
+      height: height,
       child: Center(
         child: Container(
           width: 1.5,
@@ -258,57 +299,251 @@ class _FamilyGroupConnector extends StatelessWidget {
   }
 }
 
+/// Paints one spine segment as a center line with a hollow junction bead
+/// centered on it — cream fill with a gold ring, sized slightly larger
+/// than the bus junction beads because it marks where the whole descent
+/// begins.
+class _SpineBeadPainter extends CustomPainter {
+  static const _strokeWidth = 1.5;
+
+  /// Slightly larger than the branch-point beads on the bus (4.5).
+  static const _beadRadius = 5.5;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final center = Offset(cx, size.height / 2);
+
+    canvas.drawLine(
+      Offset(cx, 0),
+      Offset(cx, size.height),
+      Paint()
+        ..color = AppColors.gold.withValues(alpha: 0.85)
+        ..strokeWidth = _strokeWidth,
+    );
+
+    canvas.drawCircle(center, _beadRadius, Paint()..color = AppColors.cream);
+    canvas.drawCircle(
+      center,
+      _beadRadius,
+      Paint()
+        ..color = AppColors.gold.withValues(alpha: 0.85)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = _strokeWidth,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _SpineBeadPainter oldDelegate) => false;
+}
+
+/// One 1.5px gold line per column, laid out with the same equal-width
+/// Expanded cell math as the member card rows, so every line sits
+/// exactly under the card centers above and below it at any screen
+/// width. Stretches to the available height. [count] limits how many
+/// columns actually carry a line — used where the row below has fewer
+/// cards than columns, so a line only ever lands on a real card.
+class _SpineLines extends StatelessWidget {
+  final int columns;
+
+  /// Columns that actually draw a line; defaults to all of them.
+  final int count;
+
+  /// Hollow junction bead tangent to the segment's top edge.
+  final bool beadTop;
+
+  /// Hollow junction bead tangent to the segment's bottom edge.
+  final bool beadBottom;
+
+  const _SpineLines({
+    required this.columns,
+    int? count,
+    this.beadTop = false,
+    this.beadBottom = false,
+  }) : count = count ?? columns;
+
+  @override
+  Widget build(BuildContext context) {
+    if (beadTop || beadBottom) {
+      return CustomPaint(
+        size: Size.infinite,
+        painter: _StraightSpinePainter(
+          columns: columns,
+          count: count,
+          beadTop: beadTop,
+          beadBottom: beadBottom,
+        ),
+      );
+    }
+    return Row(
+      children: [
+        for (var c = 0; c < columns; c++)
+          Expanded(
+            child: c < count
+                ? Center(
+                    child: Container(
+                      width: 1.5,
+                      height: double.infinity,
+                      color: AppColors.gold.withValues(alpha: 0.85),
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+      ],
+    );
+  }
+}
+
+/// Paints the straight per-column descent lines with optional hollow
+/// junction beads: [columns] equal-width cell centers, [count] of them
+/// actually carrying a line, each optionally capped with a bead tangent
+/// to the card edge at the top and/or bottom of the segment — the same
+/// bead look as the branch connector's bus junctions.
+class _StraightSpinePainter extends CustomPainter {
+  final int columns;
+  final int count;
+  final bool beadTop;
+  final bool beadBottom;
+
+  _StraightSpinePainter({
+    required this.columns,
+    required this.count,
+    required this.beadTop,
+    required this.beadBottom,
+  });
+
+  static const _strokeWidth = 1.5;
+
+  /// Same bead size as the branch connector's bus junctions.
+  static const _beadRadius = 4.5;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = AppColors.gold.withValues(alpha: 0.85)
+      ..strokeWidth = _strokeWidth;
+
+    final cellWidth = size.width / columns;
+    for (var c = 0; c < count; c++) {
+      final cx = (c + 0.5) * cellWidth;
+      canvas.drawLine(Offset(cx, 0), Offset(cx, size.height), paint);
+      if (beadTop) {
+        _paintBead(canvas, Offset(cx, _beadRadius));
+      }
+      if (beadBottom) {
+        _paintBead(canvas, Offset(cx, size.height - _beadRadius));
+      }
+    }
+  }
+
+  /// Hollow junction bead: cream fill (the page ground, so the line
+  /// reads as punched beneath it) with a gold ring matching the line
+  /// weight.
+  void _paintBead(Canvas canvas, Offset center) {
+    canvas.drawCircle(center, _beadRadius, Paint()..color = AppColors.cream);
+    canvas.drawCircle(
+      center,
+      _beadRadius,
+      Paint()
+        ..color = AppColors.gold.withValues(alpha: 0.85)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = _strokeWidth,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _StraightSpinePainter oldDelegate) =>
+      oldDelegate.columns != columns ||
+      oldDelegate.count != count ||
+      oldDelegate.beadTop != beadTop ||
+      oldDelegate.beadBottom != beadBottom;
+}
+
+/// Paints vertical spine lines behind [child] — one per column at the
+/// grid cell centers ([columns] = 1 gives the classic single center
+/// line). Section headers wrap themselves in this so the descent
+/// line(s) pass through the header's empty middle and land exactly on
+/// the branch connector below instead of stopping short above it.
+class _SpineBehind extends StatelessWidget {
+  final Widget child;
+
+  /// Number of column-centered lines to draw behind [child].
+  final int columns;
+
+  /// Lines actually drawn; defaults to all [columns].
+  final int count;
+
+  const _SpineBehind({required this.child, this.columns = 1, int? count})
+    : count = count ?? columns;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        // Painted first so the header content sits on top; the spines
+        // stretch to the full stack height, which [child] defines.
+        Positioned.fill(
+          child: _SpineLines(columns: columns, count: count),
+        ),
+        child,
+      ],
+    );
+  }
+}
+
 /// Org-chart style branch connector that sits directly below a group's
 /// section header and above its first row of member cards: a trunk
 /// descends from top-center, fans out into a horizontal bus spanning the
 /// first-to-last card centers, and drops a short vertical line onto the
-/// top-center of each card. With a single card the bus is skipped and the
-/// trunk runs straight through to that card.
+/// top-center of each card. Every bus↔drop junction carries a hollow
+/// cream bead with a gold ring; the outer beads cap the bus ends. With a
+/// single card the bus is skipped and the beaded trunk runs straight
+/// through to that card.
 ///
 /// This is THE connector for every parent→children relationship in the
-/// family tree — Mga Anak, Mga Kapatid, and Mga Apo all render it through
+/// family tree — Mga Anak and Mga Kapatid render it through
 /// their shared layout paths, and any new group added to
 /// FamilyController.data.groups inherits it automatically via
 /// [FamilyGroupSection]. A section that renders member cards must place
 /// this widget as the first child of its card column; nothing else may
-/// draw lines between a header and its cards.
-///
-/// [cardGap] is the explicit gap between cards when the row uses fixed
-/// separators (the apo pager); leave it at zero when cards are plain
-/// equal-width Expanded cells.
+/// draw lines between a header and its cards. (The Mga Apo section draws
+/// its own straight per-column descent lines instead — see _SpineLines.)
 class _TreeBranchConnector extends StatelessWidget {
   final int cardCount;
-  final double cardGap;
 
-  const _TreeBranchConnector({required this.cardCount, this.cardGap = 0});
+  const _TreeBranchConnector({required this.cardCount});
 
   @override
   Widget build(BuildContext context) {
     if (cardCount <= 0) return const SizedBox.shrink();
     return SizedBox(
-      height: 24,
+      height: 28,
       width: double.infinity,
-      child: CustomPaint(
-        painter: _TreeBranchPainter(cardCount: cardCount, cardGap: cardGap),
-      ),
+      child: CustomPaint(painter: _TreeBranchPainter(cardCount: cardCount)),
     );
   }
 }
 
 /// Paints the trunk → bus → drops path. Card centers are derived purely
-/// from geometry (equal-width cells, optional fixed gaps), so no measuring
-/// of the actual cards is needed.
+/// from geometry (equal-width cells), so no measuring of the actual
+/// cards is needed.
 class _TreeBranchPainter extends CustomPainter {
   final int cardCount;
-  final double cardGap;
 
-  _TreeBranchPainter({required this.cardCount, this.cardGap = 0});
+  _TreeBranchPainter({required this.cardCount});
 
   static const _strokeWidth = 1.5;
-  static const _busY = 10.0;
+  static const _busY = 12.0;
+
+  /// Hollow junction beads sit centered ON every bus↔drop junction (and
+  /// on the single-drop trunk), capping the bus ends and marking each
+  /// branch point; the cream fill punches the lines out beneath the ring.
+  static const _junctionRadius = 4.5;
 
   /// How far drops extend above the bus centerline so every junction is
   /// a physical overlap (≥1px past the bus's edge) rather than a touch.
+  /// The junction beads hide the overlap, but it still guards against
+  /// hairline anti-aliasing seams.
   static const _jointOverlap = 2.5;
 
   @override
@@ -329,28 +564,21 @@ class _TreeBranchPainter extends CustomPainter {
     // never open a hairline (dark-on-dark-background) gap at a junction.
     final path = Path();
 
-    // Single card: no branching — one straight drop onto it.
+    // Single card: no branching — one straight drop onto it, with its
+    // junction bead at the top, where the spine from the header enters.
     if (cardCount == 1) {
       path.moveTo(cx, 0);
       path.lineTo(cx, size.height);
       canvas.drawPath(path, paint);
+      _paintBead(canvas, Offset(cx, _junctionRadius));
       return;
     }
 
-    final List<double> centers;
-    if (cardGap == 0) {
-      final cellWidth = size.width / cardCount;
-      centers = [for (var i = 0; i < cardCount; i++) (i + 0.5) * cellWidth];
-    } else {
-      final cellWidth = (size.width - cardGap * (cardCount - 1)) / cardCount;
-      centers = [
-        for (var i = 0; i < cardCount; i++)
-          i * (cellWidth + cardGap) + cellWidth / 2,
-      ];
-    }
+    final cellWidth = size.width / cardCount;
+    final centers = [for (var i = 0; i < cardCount; i++) (i + 0.5) * cellWidth];
 
-    // Trunk down from the parent spine, turning onto the bus as a single
-    // connected stroke (the corner gets a proper miter join).
+    // The trunk descends from the parent spine and turns onto the bus as
+    // one connected stroke (the corner gets a proper miter join).
     path.moveTo(cx, 0);
     path.lineTo(cx, _busY);
     path.lineTo(centers.first, _busY);
@@ -359,19 +587,53 @@ class _TreeBranchPainter extends CustomPainter {
     // centerline before falling, so trunk/bus/drop overlap through every
     // junction instead of just meeting at an edge.
     for (var i = 0; i < centers.length; i++) {
-      path.lineTo(centers[i], _busY - _jointOverlap);
-      path.lineTo(centers[i], size.height);
+      if (i == 0) {
+        // Continue the trunk subpath into the first drop — one
+        // continuous stroke, so the corner can never open a seam.
+        path.lineTo(centers.first, _busY - _jointOverlap);
+        path.lineTo(centers.first, size.height);
+      } else {
+        // Straight column: from just above the bus, down to the card.
+        path.moveTo(centers[i], _busY - _jointOverlap);
+        path.lineTo(centers[i], size.height);
+      }
       if (i < centers.length - 1) {
         path.moveTo(centers[i], _busY);
         path.lineTo(centers[i + 1], _busY);
       }
     }
     canvas.drawPath(path, paint);
+
+    // One hollow bead per branch point, each centered exactly ON the bus
+    // line so every junction aligns on the same height; the outer beads
+    // double as the bus's end caps.
+    for (final c in centers) {
+      _paintBead(canvas, Offset(c, _busY));
+    }
+  }
+
+  /// Draws one hollow junction bead: cream fill (the page ground, so the
+  /// lines read as punched beneath it) with a gold ring matching the
+  /// line weight.
+  void _paintBead(Canvas canvas, Offset center) {
+    canvas.drawCircle(
+      center,
+      _junctionRadius,
+      Paint()..color = AppColors.cream,
+    );
+    canvas.drawCircle(
+      center,
+      _junctionRadius,
+      Paint()
+        ..color = AppColors.gold
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = _strokeWidth,
+    );
   }
 
   @override
   bool shouldRepaint(covariant _TreeBranchPainter oldDelegate) =>
-      oldDelegate.cardCount != cardCount || oldDelegate.cardGap != cardGap;
+      oldDelegate.cardCount != cardCount;
 }
 
 /// "Pamilya" title, italic subtitle, small leaf divider underneath —
@@ -388,7 +650,7 @@ class FamilyPageHeader extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _LeafOrnament(flipped: true),
+            const _LeafOrnament(),
             const SizedBox(width: 8),
             Flexible(
               child: FittedBox(
@@ -433,64 +695,281 @@ class FamilyPageHeader extends StatelessWidget {
 }
 
 class _LeafOrnament extends StatelessWidget {
-  final bool flipped;
-
-  const _LeafOrnament({this.flipped = false});
+  const _LeafOrnament();
 
   @override
   Widget build(BuildContext context) {
-    return Transform.rotate(
-      angle: flipped ? 3.141592653589793 : 0,
-      child: const Icon(Icons.spa_outlined, size: 18, color: AppColors.gold),
-    );
+    return const Icon(Icons.spa_outlined, size: 18, color: AppColors.gold);
   }
 }
 
-/// Slim pill-shaped search field — kept close to your original tray,
-/// just bumped to a full pill radius to match the screenshot.
-class FamilySearchBar extends StatelessWidget {
+/// Slim pill-shaped search field over the whole pamilyang Lumbao — the
+/// "Lahat / Direktang pamilya / Mga Apo" filter pills keep scrolling the
+/// page, while this field live-filters members by name (and spouse name)
+/// across every group, root included. Results render as tappable tiles
+/// that open the same detail sheet as the member cards.
+class FamilySearchBar extends StatefulWidget {
   const FamilySearchBar({super.key});
+
+  @override
+  State<FamilySearchBar> createState() => _FamilySearchBarState();
+}
+
+class _FamilySearchBarState extends State<FamilySearchBar> {
+  final TextEditingController _controller = TextEditingController();
+  final FocusNode _focus = FocusNode();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  /// Every person reachable from the family data: each group's members,
+  /// plus spouses (shown as "+ Name" on tree cards) and the root.
+  List<FamilyMember> _allPeople(FamilyModel data) {
+    final people = <FamilyMember>[data.rootMember];
+    final seen = <String>{data.rootMember.name};
+    for (final group in data.groups) {
+      for (final member in group.members) {
+        if (seen.add(member.name)) people.add(member);
+      }
+      for (final member in group.members) {
+        final spouse = member.spouseName;
+        if (spouse != null && seen.add(spouse)) {
+          people.add(
+            FamilyMember(
+              name: spouse,
+              roleKey: member.roleKey,
+              spouseOf: member.name,
+            ),
+          );
+        }
+      }
+    }
+    return people;
+  }
+
+  List<FamilyMember> _matches(String query, FamilyModel data) {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return const [];
+    return _allPeople(data)
+        .where(
+          (m) =>
+              m.name.toLowerCase().contains(q) ||
+              (m.spouseOf ?? '').toLowerCase().contains(q),
+        )
+        .toList();
+  }
 
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
+    final data = FamilyController.data;
+    final results = _matches(_query, data);
 
-    return OrnamentalCard(
-      height: 48,
-      radius: 30,
-      borderColor: AppColors.gold,
-      borderAlpha: 0.16,
-      borderWidth: 0.8,
-      shadowOpacity: 0.02,
-      shadowBlur: 8,
-      shadowOffset: const Offset(0, 2),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          Icon(
-            Icons.search,
-            size: 19,
-            color: AppColors.warmMid.withValues(alpha: 0.8),
+    return Column(
+      children: [
+        OrnamentalCard(
+          height: 48,
+          radius: 30,
+          borderColor: AppColors.gold,
+          borderAlpha: 0.16,
+          borderWidth: 0.8,
+          shadowOpacity: 0.02,
+          shadowBlur: 8,
+          shadowOffset: const Offset(0, 2),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              Icon(
+                Icons.search,
+                size: 19,
+                color: AppColors.warmMid.withValues(alpha: 0.8),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  focusNode: _focus,
+                  onChanged: (value) => setState(() => _query = value),
+                  style: GoogleFonts.playfairDisplay(
+                    fontSize: 13.5,
+                    color: AppColors.textDark,
+                  ),
+                  decoration: InputDecoration.collapsed(
+                    hintText: lang.t('family_search_hint'),
+                    hintStyle: GoogleFonts.playfairDisplay(
+                      fontSize: 13.5,
+                      color: AppColors.muted,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 9),
+              if (_query.isEmpty)
+                Icon(
+                  Icons.tune,
+                  size: 19,
+                  color: AppColors.warmMid.withValues(alpha: 0.8),
+                )
+              else
+                InkWell(
+                  onTap: () {
+                    _controller.clear();
+                    _focus.unfocus();
+                    setState(() => _query = '');
+                  },
+                  customBorder: const CircleBorder(),
+                  child: const Icon(
+                    Icons.close,
+                    size: 19,
+                    color: AppColors.warmMid,
+                  ),
+                ),
+            ],
           ),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Text(
-              lang.t('family_search_hint'),
+        ),
+        // Results panel — appears under the field while a query is active.
+        if (_query.trim().isNotEmpty) ...[
+          const SizedBox(height: 8),
+          OrnamentalCard(
+            radius: 18,
+            borderColor: AppColors.gold,
+            borderAlpha: 0.14,
+            borderWidth: 0.8,
+            shadowOpacity: 0.03,
+            shadowBlur: 10,
+            shadowOffset: const Offset(0, 3),
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: results.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 18),
+                    child: Center(
+                      child: Text(
+                        lang.t('family_search_empty'),
+                        style: GoogleFonts.playfairDisplay(
+                          fontSize: 13,
+                          color: AppColors.muted,
+                        ),
+                      ),
+                    ),
+                  )
+                : Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            lang.t('family_search_results', {
+                              'count': '${results.length}',
+                            }),
+                            style: GoogleFonts.playfairDisplay(
+                              fontSize: 11,
+                              letterSpacing: 0.6,
+                              color: AppColors.muted,
+                            ),
+                          ),
+                        ),
+                      ),
+                      for (final member in results)
+                        _SearchResultTile(member: member),
+                    ],
+                  ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// One row in the family search results: avatar, name, and the localized
+/// relation label. Tapping opens the shared member detail sheet.
+class _SearchResultTile extends StatelessWidget {
+  final FamilyMember member;
+
+  const _SearchResultTile({required this.member});
+
+  @override
+  Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
+    final initials = DisplayController.initialsOf(member.name);
+    final colorIndex = member.name.hashCode.abs();
+    final bg = _apoAvatarBg[colorIndex % _apoAvatarBg.length];
+    final fg = _apoAvatarText[colorIndex % _apoAvatarText.length];
+
+    return InkWell(
+      onTap: () => showMemberDetailSheet(context, member),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: member.photoPath == null ? bg : Colors.white,
+              ),
+              child: member.photoPath == null
+                  ? Center(
+                      child: Text(
+                        initials,
+                        style: GoogleFonts.playfairDisplay(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: fg,
+                        ),
+                      ),
+                    )
+                  : ClipOval(
+                      child: Image.asset(
+                        member.photoPath!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Center(
+                          child: Text(
+                            initials,
+                            style: GoogleFonts.playfairDisplay(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: fg,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                member.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textDark,
+                ),
+              ),
+            ),
+            Text(
+              member.spouseOf == null
+                  ? lang.t(member.roleKey)
+                  : lang.t('family_search_spouse_of', {
+                      'name': member.spouseOf!,
+                    }),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.playfairDisplay(
-                fontSize: 13.5,
+                fontSize: 11.5,
                 color: AppColors.muted,
               ),
             ),
-          ),
-          const SizedBox(width: 9),
-          Icon(
-            Icons.tune,
-            size: 19,
-            color: AppColors.warmMid.withValues(alpha: 0.8),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -509,30 +988,44 @@ class _FamilyFilterChips extends StatelessWidget {
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
 
-    return Wrap(
-      alignment: WrapAlignment.center,
-      spacing: 10,
-      runSpacing: 8,
-      children: [
-        _FilterPill(
-          label: _familyText(lang, 'family_filter_all', 'Lahat'),
-          icon: Icons.grid_view_rounded,
-          selected: active == _FamilyFilter.all,
-          onTap: () => onSelected(_FamilyFilter.all),
+    // One fixed row — never wraps onto a second line and never scrolls.
+    // The FittedBox shrink-wraps the row and scales it down on very narrow
+    // screens so all three tabs always stay visible on one line, matching
+    // the search bar's single fixed field above it.
+    return Center(
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          key: const Key('family_filter_chips'),
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _FilterPill(
+              label: _familyText(lang, 'family_filter_all', 'Lahat'),
+              icon: Icons.grid_view_rounded,
+              selected: active == _FamilyFilter.all,
+              onTap: () => onSelected(_FamilyFilter.all),
+            ),
+            const SizedBox(width: 10),
+            _FilterPill(
+              label: _familyText(
+                lang,
+                'family_filter_direct',
+                'Direktang pamilya',
+              ),
+              icon: Icons.people_outline,
+              selected: active == _FamilyFilter.direct,
+              onTap: () => onSelected(_FamilyFilter.direct),
+            ),
+            const SizedBox(width: 10),
+            _FilterPill(
+              label: _familyText(lang, 'family_filter_apo', 'Mga Apo'),
+              icon: Icons.diversity_3_outlined,
+              selected: active == _FamilyFilter.apo,
+              onTap: () => onSelected(_FamilyFilter.apo),
+            ),
+          ],
         ),
-        _FilterPill(
-          label: _familyText(lang, 'family_filter_direct', 'Direktang pamilya'),
-          icon: Icons.people_outline,
-          selected: active == _FamilyFilter.direct,
-          onTap: () => onSelected(_FamilyFilter.direct),
-        ),
-        _FilterPill(
-          label: _familyText(lang, 'family_filter_apo', 'Mga Apo'),
-          icon: Icons.diversity_3_outlined,
-          selected: active == _FamilyFilter.apo,
-          onTap: () => onSelected(_FamilyFilter.apo),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -798,6 +1291,15 @@ bool _isApoGroup(FamilyGroup group) =>
     group.members.isNotEmpty &&
     group.members.any((m) => m.ageYears != null || m.ageMonths != null);
 
+/// Whether a group renders the straight per-column descent design (the
+/// "Mga Apo" look): vertically via FamilyApoSection (the pager) when the
+/// data has ages (see [_isApoGroup]); otherwise the generic grid draws
+/// its own straight lines through the header. FamilyPage also uses this
+/// to skip the generic single-spine connector right before the section,
+/// since the section draws its own per-column continuation.
+bool _isStraightDescentGroup(FamilyGroup group) =>
+    group.labelKey == 'family_group_grandchildren';
+
 /// "Mga Apo" section matching the redesign: section header with fire
 /// emoji, member count badge, "Tingnan lahat" link, and a single framed
 /// card showing the grandchildren in two rows of circular avatar cards
@@ -817,9 +1319,12 @@ class _FamilyApoSectionState extends State<FamilyApoSection> {
   // How many cards fit on one row and how many rows fit on one page.
   // The row count adapts to the available width so avatars never collapse
   // on narrow screens (see _columnsFor).
-  int _cardsPerRow = 4;
+  int _cardsPerRow = 3;
   static const int _rowsPerPage = 2;
-  static const double _cardGap = 10;
+  // No extra gap between cells — the pager uses the exact same
+  // equal-width Expanded cell math as the member grid above, so the
+  // per-column descent lines land precisely on the beads.
+  static const double _cardGap = 0;
   static const double _rowGap = 14;
 
   int _activePage = 0;
@@ -829,9 +1334,11 @@ class _FamilyApoSectionState extends State<FamilyApoSection> {
   int get _pageCount =>
       (widget.group.members.length / _cardsPerPage).ceil().clamp(1, 999);
 
-  /// Column count for the available pager width: 4 across on wide
-  /// screens, 3 on phones, 2 on very narrow screens.
-  int _columnsFor(double width) => width >= 380 ? 4 : (width >= 290 ? 3 : 2);
+  /// Column count for the available pager width — deliberately the same
+  /// breakpoints as the member-card grid above, so both sections share
+  /// identical column centers and the per-column descent lines between
+  /// them stay perfectly straight.
+  int _columnsFor(double width) => width >= 342 ? 3 : (width >= 224 ? 2 : 1);
 
   @override
   void dispose() {
@@ -860,143 +1367,180 @@ class _FamilyApoSectionState extends State<FamilyApoSection> {
     final lang = context.watch<LanguageProvider>();
     final group = widget.group;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // ── Section header ──────────────────────────────────────────
-        // A Wrap (not a Row) so the badge/link fall to a second line
-        // instead of overflowing when the screen is narrow.
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              // Label + fire emoji
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    lang.t(group.labelKey),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.playfairDisplay(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textDark,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text('🔥', style: GoogleFonts.playfairDisplay(fontSize: 14)),
-                ],
-              ),
-              // Count badge
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF4EC),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '${group.count} ${lang.t(group.subtitleKey)}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.playfairDisplay(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.rose,
-                  ),
-                ),
-              ),
-              // "Tingnan lahat" link — now opens the pinch-zoom tree.
-              GestureDetector(
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const FamilyTreeCanvasPage(),
-                    ),
-                  );
-                },
-                child: Text(
-                  _familyText(
-                    lang,
-                    'family_view_all_grandchildren',
-                    'Tingnan lahat',
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.playfairDisplay(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.roseDeep,
-                    decoration: TextDecoration.underline, // hints it's tappable
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // ── Paged avatar rows ───────────────────────────────────────
-        // Each apo has its own individual card (see _ApoPageGrid); the
-        // horizontal padding keeps the rows in the same place as when
-        // they sat inside a single framed panel. The pager adapts its
-        // column count to the available width (see _columnsFor).
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final columns = _columnsFor(constraints.maxWidth);
-            if (columns != _cardsPerRow) {
-              // The page layout changed with the window size; jump back
-              // to the first page so the old page position never lingers.
-              _cardsPerRow = columns;
-              if (_activePage != 0) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (!mounted || _activePage == 0) return;
-                  setState(() => _activePage = 0);
-                  if (_pageController.hasClients) {
-                    _pageController.jumpToPage(0);
-                  }
-                });
+    // The whole section is laid out inside one LayoutBuilder so the
+    // header's per-column spine and the pager share the exact same
+    // column centers as the member-card grid above.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = _columnsFor(constraints.maxWidth);
+        // Columns that actually carry a descent line — the full column
+        // set unless the section has fewer members than columns.
+        final spineCount = columns < group.members.length
+            ? columns
+            : group.members.length;
+        if (columns != _cardsPerRow) {
+          // The page layout changed with the window size; jump back to
+          // the first page so the old page position never lingers.
+          _cardsPerRow = columns;
+          if (_activePage != 0) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted || _activePage == 0) return;
+              setState(() => _activePage = 0);
+              if (_pageController.hasClients) {
+                _pageController.jumpToPage(0);
               }
-            }
-            final pageCount = _pageCount;
+            });
+          }
+        }
+        final pageCount = _pageCount;
 
-            return Column(
+        return Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: columns * 220.0 + (columns - 1) * 12,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  child: SizedBox(
-                    // Tall enough for the branch connector plus two card
-                    // rows; grows only to host the new drops.
-                    height: 300,
-                    child: PageView.builder(
-                      controller: _pageController,
-                      itemCount: pageCount,
-                      onPageChanged: (page) {
-                        if (page != _activePage) {
-                          setState(() => _activePage = page);
-                        }
-                      },
-                      itemBuilder: (context, page) {
-                        final pageMembers = group.members
-                            .skip(page * _cardsPerPage)
-                            .take(_cardsPerPage)
-                            .toList();
-                        return _ApoPageGrid(
-                          members: pageMembers,
-                          pageOffset: page * _cardsPerPage,
-                          cardsPerRow: _cardsPerRow,
-                          rowsPerPage: _rowsPerPage,
-                          cardGap: _cardGap,
-                          rowGap: _rowGap,
-                        );
-                      },
-                    ),
+                // ── Per-column descent lines: straight lines under the
+                // cards above, running through this segment and the
+                // header's multi-spine straight onto the pager's first
+                // card row below.
+                SizedBox(
+                  height: 22,
+                  child: _SpineLines(
+                    columns: columns,
+                    count: spineCount,
+                    beadTop: true,
+                  ),
+                ),
+                // ── Section header ──────────────────────────────────────────
+                // A Wrap (not a Row) so the badge/link fall to a second line
+                // instead of overflowing when the screen is narrow.
+                _SpineBehind(
+                  columns: columns,
+                  count: spineCount,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            // Label + fire emoji
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  lang.t(group.labelKey),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.playfairDisplay(
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textDark,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '🔥',
+                                  style: GoogleFonts.playfairDisplay(
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            // Count badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF4EC),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${group.count} ${lang.t(group.subtitleKey)}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.playfairDisplay(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.rose,
+                                ),
+                              ),
+                            ),
+                            // "Tingnan lahat" link — now opens the pinch-zoom tree.
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const FamilyTreeCanvasPage(),
+                                  ),
+                                );
+                              },
+                              child: Text(
+                                _familyText(
+                                  lang,
+                                  'family_view_all_grandchildren',
+                                  'Tingnan lahat',
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.playfairDisplay(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.roseDeep,
+                                  decoration: TextDecoration
+                                      .underline, // hints it's tappable
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                  ),
+                ),
+
+                // ── Paged avatar rows ───────────────────────────────────────
+                // Each apo has its own individual card (see _ApoPageGrid).
+                // The pager spans the same constrained width as the grid
+                // above, so its columns line up with the per-column descent
+                // lines coming down through the header, and it adapts its
+                // column count to the available width (see _columnsFor).
+                SizedBox(
+                  // Tall enough for the branch connector plus two card rows;
+                  // grows only to host the new drops.
+                  height: 300,
+                  child: PageView.builder(
+                    controller: _pageController,
+                    itemCount: pageCount,
+                    onPageChanged: (page) {
+                      if (page != _activePage) {
+                        setState(() => _activePage = page);
+                      }
+                    },
+                    itemBuilder: (context, page) {
+                      final pageMembers = group.members
+                          .skip(page * _cardsPerPage)
+                          .take(_cardsPerPage)
+                          .toList();
+                      return _ApoPageGrid(
+                        members: pageMembers,
+                        pageOffset: page * _cardsPerPage,
+                        cardsPerRow: _cardsPerRow,
+                        rowsPerPage: _rowsPerPage,
+                        cardGap: _cardGap,
+                        rowGap: _rowGap,
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -1031,10 +1575,10 @@ class _FamilyApoSectionState extends State<FamilyApoSection> {
                   ),
                 ),
               ],
-            );
-          },
-        ),
-      ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -1072,22 +1616,43 @@ class _ApoPageGrid extends StatelessWidget {
         final avatarSize = (cardWidth - 24).clamp(0.0, 72.0).toDouble();
         return Column(
           children: [
-            // Branch connector onto this page's top card row; drawn per
-            // page so the drops always line up with whichever cards are
-            // paged into view.
-            _TreeBranchConnector(
-              cardCount: cardsPerRow < members.length
-                  ? cardsPerRow
-                  : members.length,
-              cardGap: cardGap,
+            // Straight per-column descent onto this page's top card row;
+            // drawn per page. No horizontal bus — the descent lines from
+            // the header above simply continue down onto the cards, so
+            // each column reads as one unbroken straight line. Lines only
+            // land on columns that have a card on this page.
+            SizedBox(
+              height: 28,
+              child: _SpineLines(
+                columns: cardsPerRow,
+                count: cardsPerRow < members.length
+                    ? cardsPerRow
+                    : members.length,
+                beadBottom: true,
+              ),
             ),
             for (var r = 0; r < rowsPerPage; r++) ...[
-              if (r > 0) SizedBox(height: rowGap),
+              // Descent lines through the gap above every row after the
+              // first: each card continues straight down onto the card
+              // beneath it in the same column. A count below the column
+              // total (partially-filled row) draws fewer lines; a negative
+              // count draws none at all.
+              if (r > 0)
+                SizedBox(
+                  height: rowGap,
+                  child: _SpineLines(
+                    columns: cardsPerRow,
+                    count: members.length - r * cardsPerRow < cardsPerRow
+                        ? members.length - r * cardsPerRow
+                        : cardsPerRow,
+                    beadBottom: true,
+                  ),
+                ),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   for (var c = 0; c < cardsPerRow; c++) ...[
-                    if (c > 0) SizedBox(width: cardGap),
+                    if (c > 0 && cardGap > 0) SizedBox(width: cardGap),
                     if (r * cardsPerRow + c < members.length)
                       Expanded(
                         child: OrnamentalCard(
@@ -1316,113 +1881,277 @@ class FamilyGroupSection extends StatelessWidget {
       return FamilyApoSection(group: group);
     }
 
+    final Widget header = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    lang.t(group.labelKey),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textDark,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 5),
+                const Icon(Icons.spa_outlined, size: 13, color: AppColors.gold),
+              ],
+            ),
+          ),
+          Text(
+            '${group.count} ${lang.t(group.subtitleKey)}',
+            style: GoogleFonts.playfairDisplay(
+              fontSize: 11.5,
+              fontStyle: FontStyle.italic,
+              color: AppColors.muted,
+            ),
+          ),
+        ],
+      ),
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        lang.t(group.labelKey),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.playfairDisplay(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textDark,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 5),
-                    const Icon(
-                      Icons.spa_outlined,
-                      size: 13,
-                      color: AppColors.gold,
-                    ),
-                  ],
-                ),
-              ),
-              Text(
-                '${group.count} ${lang.t(group.subtitleKey)}',
-                style: GoogleFonts.playfairDisplay(
-                  fontSize: 11.5,
-                  fontStyle: FontStyle.italic,
-                  color: AppColors.muted,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        if (group.showAsSummary)
+        // Header + the gap beneath it. For card-grid sections the pair is
+        // wrapped in a _SpineBehind so the descent line runs unbroken from
+        // above (the root card, or the previous group) through the header's
+        // empty middle and lands on the branch connector below. A "view
+        // all" summary row has no connector to land on, so it keeps plain
+        // spacing. The grandchildren grid instead draws straight
+        // per-column lines through its header (no bus) — see the
+        // [straight] branch below.
+        if (group.showAsSummary) ...[
+          header,
+          const SizedBox(height: 12),
           FamilySummaryCard(
             viewAllLabelKey: group.viewAllLabelKey ?? group.labelKey,
             count: group.count,
-          )
-        else
-          // Responsive member grid: pick the column count from the
-          // available width (3 across on phones, 2 on narrow screens, 1 on
-          // the smallest). The grid is capped at the cards' max width and
-          // centered, and every row is laid out under IntrinsicHeight with
-          // a stretch cross axis so all cards in the row share the same
-          // height (the tallest one's) — no more ragged bottoms when one
-          // member has extra tags or a longer name.
+          ),
+        ] else
           LayoutBuilder(
             builder: (context, constraints) {
               final available = constraints.maxWidth;
               final cols = available >= 342 ? 3 : (available >= 224 ? 2 : 1);
-              final rows = <List<FamilyMember>>[];
-              for (var i = 0; i < group.members.length; i += cols) {
-                final end = i + cols > group.members.length
-                    ? group.members.length
-                    : i + cols;
-                rows.add(group.members.sublist(i, end));
+
+              // Straight per-column descent for the grandchildren grid:
+              // lines run from the section above, straight through the
+              // header onto every branch column, and continue card→card
+              // down each column — no horizontal bus. [_isApoGroup] routes
+              // the group to FamilyApoSection (the pager) when the data
+              // has ages; without ages it falls back to this grid and
+              // keeps the same straight-line look.
+              final straight = _isStraightDescentGroup(group);
+
+              // Branch columns follow family branches: consecutive members
+              // sharing a parentName stack into one vertical column — one
+              // column per parent's children (Hanna Lumbao & Audrey Lumbao under Gernan,
+              // Rodel Lumbao Jr. & Rose-ann Lumbao under Rodel Lumbao Sr., Arvel/Aivan/Honey/Daniel Salvador
+              // under Lorie) — so every branch descends in its own column,
+              // matching the "Mga Apo" design. When any member has no
+              // parent on record the grouping is ambiguous, so fall back
+              // to the generic equal-chunk rows.
+              final branches = <List<FamilyMember>>[];
+              if (straight &&
+                  group.members.isNotEmpty &&
+                  group.members.every((m) => m.parentName != null)) {
+                for (final member in group.members) {
+                  final last = branches.isEmpty ? null : branches.last;
+                  if (last != null &&
+                      last.first.parentName == member.parentName) {
+                    last.add(member);
+                  } else {
+                    branches.add([member]);
+                  }
+                }
               }
+
+              // Branch columns render one vertical stack per parent; every
+              // other case (generic sections and ambiguous straight data)
+              // keeps the equal-chunk rows.
+              final useColumns = straight && branches.isNotEmpty;
+              final rows = <List<FamilyMember>>[];
+              if (!useColumns) {
+                for (var i = 0; i < group.members.length; i += cols) {
+                  final end = i + cols > group.members.length
+                      ? group.members.length
+                      : i + cols;
+                  rows.add(group.members.sublist(i, end));
+                }
+              }
+
+              // Branch columns give every parent's stack its own column, so
+              // the straight grid renders exactly one column per branch
+              // (three for the current data). Generic grids keep the
+              // breakpoint columns.
+              final plotCols = useColumns ? branches.length : cols;
+
               // Cap the grid at the per-card max width so cells never grow
               // past it on wide screens; Center keeps the block centered.
               // (A per-cell Center would hand its child loose constraints
               // and defeat the equal-height stretch.)
-              final gridMaxWidth = cols * 220.0 + (cols - 1) * 12;
+              final gridMaxWidth = plotCols * 220.0 + (plotCols - 1) * 12;
+
+              // The header's through-lines and the first descent must line
+              // up with the first card of every branch column — each
+              // column always opens with a card, so the straight grid
+              // carries one line per column. Generic grids line up with
+              // the first row's card count.
+              final headerLines = useColumns
+                  ? plotCols
+                  : (cols < group.members.length ? cols : group.members.length);
+
+              // Branch columns give every card a full grid cell; shrink the
+              // portrait the same way so a three-across phone column never
+              // overflows its card.
+              final cellWidth =
+                  (available < gridMaxWidth ? available : gridMaxWidth) /
+                  plotCols;
+              final portraitSize = useColumns
+                  ? (cellWidth - 36.0).clamp(28.0, 88.0)
+                  : null;
+
+              final Widget grid = useColumns
+                  ? Column(
+                      children: [
+                        // Descent from the header onto the first card of
+                        // every branch column — straight per-column lines
+                        // continuing the ones behind the header.
+                        SizedBox(
+                          height: 28,
+                          child: _SpineLines(
+                            columns: plotCols,
+                            beadBottom: true,
+                          ),
+                        ),
+                        // One vertical stack per parent branch: cards chain
+                        // card→card with short beaded lines in the gaps, and
+                        // a branch simply ends when its children run out
+                        // (Lorie's four stack deepest; the shorter columns
+                        // leave clean ground below).
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (final branch in branches)
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    for (var i = 0; i < branch.length; i++) ...[
+                                      if (i > 0)
+                                        SizedBox(
+                                          height: 12,
+                                          child: _SpineLines(
+                                            columns: 1,
+                                            beadTop: true,
+                                          ),
+                                        ),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                        ),
+                                        child: _MemberThumbnailCard(
+                                          member: branch[i],
+                                          portraitSize: portraitSize,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    )
+                  : Column(
+                      children: [
+                        // Descent onto the first card row: a bus fanning
+                        // out from the spine above (grid sections).
+                        if (rows.isNotEmpty)
+                          _TreeBranchConnector(cardCount: rows.first.length),
+                        for (var r = 0; r < rows.length; r++) ...[
+                          if (r > 0) const SizedBox(height: 12),
+                          IntrinsicHeight(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                for (var c = 0; c < plotCols; c++) ...[
+                                  if (c < rows[r].length)
+                                    Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                        ),
+                                        child: _MemberThumbnailCard(
+                                          member: rows[r][c],
+                                          portraitSize: portraitSize,
+                                        ),
+                                      ),
+                                    )
+                                  else
+                                    const Expanded(child: SizedBox()),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    );
+
+              if (!useColumns) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _SpineBehind(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [header, const SizedBox(height: 12)],
+                      ),
+                    ),
+                    Center(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: gridMaxWidth),
+                        child: grid,
+                      ),
+                    ),
+                  ],
+                );
+              }
+
+              // Straight descent: the header lives inside the capped grid
+              // width so its per-column lines align with the branch column
+              // card centers above and below it.
               return Center(
                 child: ConstrainedBox(
                   constraints: BoxConstraints(maxWidth: gridMaxWidth),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Branch connector onto the first card row: trunk
-                      // from the spine above, bus across the row, one drop
-                      // per card.
-                      if (rows.isNotEmpty)
-                        _TreeBranchConnector(cardCount: rows.first.length),
-                      for (var r = 0; r < rows.length; r++) ...[
-                        if (r > 0) const SizedBox(height: 12),
-                        IntrinsicHeight(
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              for (var c = 0; c < cols; c++) ...[
-                                if (c < rows[r].length)
-                                  Expanded(
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                      ),
-                                      child: _MemberThumbnailCard(
-                                        member: rows[r][c],
-                                      ),
-                                    ),
-                                  )
-                                else
-                                  const Expanded(child: SizedBox()),
-                              ],
-                            ],
-                          ),
+                      // Continuation segment from the cards above down to
+                      // the header.
+                      SizedBox(
+                        height: 18,
+                        child: _SpineLines(
+                          columns: plotCols,
+                          count: headerLines,
+                          beadTop: true,
                         ),
-                      ],
+                      ),
+                      _SpineBehind(
+                        columns: plotCols,
+                        count: headerLines,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [header, const SizedBox(height: 12)],
+                        ),
+                      ),
+                      grid,
                     ],
                   ),
                 ),
@@ -1430,6 +2159,111 @@ class FamilyGroupSection extends StatelessWidget {
             },
           ),
       ],
+    );
+  }
+}
+
+/// Opens the member's display picture full-screen with pinch-to-zoom.
+/// Pushed above the member detail sheet, so closing it returns to the
+/// sheet. No-op when the member has no photo.
+void showMemberPhotoViewer(BuildContext context, FamilyMember member) {
+  if (member.photoPath == null) return;
+  Navigator.of(context).push(
+    PageRouteBuilder(
+      opaque: false,
+      barrierColor: AppColors.viewerBackground.withValues(alpha: 0.94),
+      barrierDismissible: true,
+      transitionDuration: const Duration(milliseconds: 220),
+      reverseTransitionDuration: const Duration(milliseconds: 180),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return FadeTransition(
+          opacity: animation,
+          child: _MemberPhotoViewer(member: member),
+        );
+      },
+    ),
+  );
+}
+
+/// Full-screen viewer for one member's display picture: pinch-to-zoom
+/// via [InteractiveViewer], member name caption, close button. A quick
+/// tap anywhere dismisses; an active drag/pinch gesture wins over the
+/// tap recognizer so zooming and panning still work.
+class _MemberPhotoViewer extends StatelessWidget {
+  final FamilyMember member;
+
+  const _MemberPhotoViewer({required this.member});
+
+  @override
+  Widget build(BuildContext context) {
+    final photoPath = member.photoPath;
+    if (photoPath == null) return const SizedBox.shrink();
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            InteractiveViewer(
+              minScale: 0.8,
+              maxScale: 4.0,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => Navigator.of(context).pop(),
+                // Tight bounds so BoxFit.contain scales small sources
+                // (e.g. low-res portraits) UP to fill the screen instead
+                // of rendering them at intrinsic pixel size.
+                child: SizedBox.expand(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Image.asset(
+                      photoPath,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) =>
+                          const Icon(
+                            Icons.broken_image,
+                            size: 80,
+                            color: Colors.grey,
+                          ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 12,
+              right: 12,
+              child: IconButton(
+                tooltip: MaterialLocalizations.of(
+                  context,
+                ).closeButtonTooltip,
+                icon: const Icon(
+                  Icons.close_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ),
+            Positioned(
+              left: 24,
+              right: 24,
+              bottom: 24,
+              child: Text(
+                member.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1516,13 +2350,15 @@ class _MemberDetailSheet extends StatelessWidget {
               ),
             ),
 
-            // ── Large portrait ──────────────────────────────────────
+            // ── Large portrait (taps open the full-screen viewer) ───
             Center(
               child: _MemberPortrait(
                 member: member,
                 size: 120,
                 ringWidth: 1.6,
                 initialsFontSize: 30,
+                familyBorder: true,
+                onPhotoTap: () => showMemberPhotoViewer(context, member),
               ),
             ),
             const SizedBox(height: 14),
@@ -1654,8 +2490,8 @@ class _MemberDetailSheet extends StatelessWidget {
               ),
             ],
 
-            // ── Bio ─────────────────────────────────────────────────
-            if (member.bioKey != null) ...[
+            // ── Full story (falls back to the short bio) ──────────
+            if (member.storyKey != null || member.bioKey != null) ...[
               const SizedBox(height: 18),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 28),
@@ -1663,7 +2499,7 @@ class _MemberDetailSheet extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      lang.t('family_sheet_about').toUpperCase(),
+                      lang.t('family_sheet_full_story').toUpperCase(),
                       style: GoogleFonts.playfairDisplay(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
@@ -1671,15 +2507,141 @@ class _MemberDetailSheet extends StatelessWidget {
                         color: AppColors.gold,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Oversized opening quote mark hugging the text.
+                        Text(
+                          '\u201C',
+                          style: GoogleFonts.playfairDisplay(
+                            fontSize: 44,
+                            height: 1,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.gold.withValues(alpha: 0.45),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            member.storyKey != null
+                                ? lang.t(member.storyKey!)
+                                : lang.t(member.bioKey!),
+                            textAlign: TextAlign.justify,
+                            style: GoogleFonts.playfairDisplay(
+                              fontSize: 12.5,
+                              height: 1.7,
+                              color: AppColors.warmDark,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            // ── Identity ──────────────────────────────────────────
+            if (member.roleKey.isNotEmpty ||
+                member.birthplace != null ||
+                member.occupation != null ||
+                member.activeSince != null) ...[
+              const SizedBox(height: 18),
+              const OrnamentDivider(),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      lang.t(member.bioKey!),
+                      lang.t('family_sheet_identity').toUpperCase(),
                       style: GoogleFonts.playfairDisplay(
-                        fontSize: 12.5,
-                        height: 1.55,
-                        color: AppColors.warmDark,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.2,
+                        color: AppColors.gold,
                       ),
                     ),
+                    const SizedBox(height: 4),
+                    _SheetRow(
+                      icon: Icons.person_outline_rounded,
+                      label: lang.t('family_sheet_role'),
+                      value: lang.t(member.roleKey),
+                    ),
+                    if (member.birthplace != null)
+                      _SheetRow(
+                        icon: Icons.place_outlined,
+                        label: lang.t('family_sheet_birthplace'),
+                        value: member.birthplace!,
+                      ),
+                    if (member.occupation != null)
+                      _SheetRow(
+                        icon: Icons.work_outline_rounded,
+                        label: lang.t('family_sheet_occupation'),
+                        value: member.occupation!,
+                      ),
+                    if (member.activeSince != null)
+                      _SheetRow(
+                        icon: Icons.calendar_today_outlined,
+                        label: lang.t('family_sheet_active_since'),
+                        value: member.activeSince!,
+                      ),
+                    if (member.nickname != null)
+                      _SheetRow(
+                        icon: Icons.badge_outlined,
+                        label: lang.t('family_sheet_nickname'),
+                        value: member.nickname!,
+                      ),
+                  ],
+                ),
+              ),
+            ],
+
+            // ── Family ────────────────────────────────────────────
+            if (member.spouseName != null ||
+                member.childrenCount != null ||
+                member.grandchildrenCount != null) ...[
+              const SizedBox(height: 18),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      lang.t('family_sheet_family').toUpperCase(),
+                      style: GoogleFonts.playfairDisplay(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.2,
+                        color: AppColors.gold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    _SheetRow(
+                      icon: Icons.favorite_outline_rounded,
+                      label: lang.t('family_sheet_spouse'),
+                      value:
+                          member.spouseName ??
+                          lang.t('family_sheet_not_recorded'),
+                    ),
+                    if (member.childrenCount != null)
+                      _SheetRow(
+                        icon: Icons.family_restroom_rounded,
+                        label: lang.t('family_sheet_children'),
+                        value: lang.t('family_sheet_children_count', {
+                          'count': '${member.childrenCount}',
+                        }),
+                      ),
+                    if (member.grandchildrenCount != null)
+                      _SheetRow(
+                        icon: Icons.escalator_warning_rounded,
+                        label: lang.t('family_sheet_grandchildren'),
+                        value: lang.t('family_sheet_grandchildren_count', {
+                          'count': '${member.grandchildrenCount}',
+                        }),
+                      ),
                   ],
                 ),
               ),
@@ -1731,6 +2693,76 @@ class _MemberDetailSheet extends StatelessWidget {
   }
 }
 
+/// One label/value row in the member sheet's Identity and Family
+/// sections: small gold-outlined icon circle, label, and a right-aligned
+/// muted value with a hairline divider underneath — matching the
+/// member-sheet design mock.
+class _SheetRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _SheetRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: AppColors.muted.withValues(alpha: 0.18),
+            width: 0.8,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 26,
+            height: 26,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: AppColors.gold.withValues(alpha: 0.45),
+                width: 1,
+              ),
+            ),
+            child: Icon(icon, size: 13, color: AppColors.warmMid),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textDark,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 11.5,
+                color: AppColors.muted,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Compact version of the root-member plaque for one member inside a
 /// group: framed circular portrait (or initials placeholder), centered
 /// name, italic role, and any tags — same design language as
@@ -1738,7 +2770,11 @@ class _MemberDetailSheet extends StatelessWidget {
 class _MemberThumbnailCard extends StatelessWidget {
   final FamilyMember member;
 
-  const _MemberThumbnailCard({required this.member});
+  /// Portrait diameter override for tight grids (e.g. four grandchildren
+  /// across a phone); null keeps the default 88px portrait.
+  final double? portraitSize;
+
+  const _MemberThumbnailCard({required this.member, this.portraitSize});
 
   @override
   Widget build(BuildContext context) {
@@ -1763,7 +2799,7 @@ class _MemberThumbnailCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _MemberPortrait(member: member),
+            _MemberPortrait(member: member, size: portraitSize ?? 88),
             const SizedBox(height: 9),
             Text(
               member.name,
@@ -1810,6 +2846,27 @@ class _MemberPortrait extends StatelessWidget {
   final Offset badgeOffset;
   final double initialsFontSize;
 
+  /// Draws the decorative Family_Border artwork over the portrait (used
+  /// by the member detail sheet). The artwork is a centered wreath on a
+  /// transparent 1536x1024 canvas whose drawn band spans ~0.54 of the
+  /// canvas width and ~0.635 of its height, so the overlay box is
+  /// expanded and cover-fitted until the wreath's outer edge encircles
+  /// the photo circle.
+  final bool familyBorder;
+
+  /// Opens the full-screen photo viewer when the portrait is tapped.
+  /// Wired only by the member detail sheet — card thumbnails leave it
+  /// null and stay non-tappable. Ignored for photo-less members, whose
+  /// initials tile never opens the viewer.
+  final VoidCallback? onPhotoTap;
+
+  static const String _familyBorderAsset =
+      'assets/images/Editing images/Family_Border.png';
+  static const double _familyBorderOverflowFactor = 0.22;
+  static const double _familyBorderPhotoScale = 0.75;
+  static const double _familyBorderVerticalShift =
+      -0.45; // fraction of `size`, shifts photo down
+
   const _MemberPortrait({
     required this.member,
     this.size = 88,
@@ -1820,11 +2877,73 @@ class _MemberPortrait extends StatelessWidget {
     this.badgeBorderWidth = 1.5,
     this.badgeOffset = const Offset(-1, -1),
     this.initialsFontSize = 22,
+    this.familyBorder = false,
+    this.onPhotoTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
     final initials = DisplayController.initialsOf(member.name);
+
+    // Family border mode uses a slightly larger photo circle and a tighter
+    // overlay expansion so the portrait sits more naturally in the wreath.
+    final double photoSize = familyBorder
+        ? size * _familyBorderPhotoScale
+        : size;
+
+    final Widget photoCircle = Container(
+      width: photoSize,
+      height: photoSize,
+      padding: EdgeInsets.all(familyBorder ? 1.6 : 3),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white,
+        border: Border.all(
+          color: AppColors.gold.withValues(alpha: ringAlpha),
+          width: ringWidth,
+        ),
+      ),
+      child: ClipOval(
+        child: member.photoPath == null
+            ? _InitialsTile(initials: initials, fontSize: initialsFontSize)
+            : Image.asset(
+                member.photoPath!,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => _InitialsTile(
+                  initials: initials,
+                  fontSize: initialsFontSize,
+                ),
+              ),
+      ),
+    );
+
+    // Tapping the portrait opens the full-screen viewer (sheet only —
+    // card thumbnails pass no callback). Photo-less members render the
+    // initials tile and stay non-tappable.
+    final bool tappable = onPhotoTap != null && member.photoPath != null;
+    final String viewPhotoLabel = _familyText(
+      lang,
+      'family_sheet_view_photo',
+      'View full photo',
+    );
+    final Widget portraitCircle = tappable
+        ? Semantics(
+            button: true,
+            image: true,
+            label: viewPhotoLabel,
+            child: Tooltip(
+              message: viewPhotoLabel,
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  onTap: onPhotoTap,
+                  child: photoCircle,
+                ),
+              ),
+            ),
+          )
+        : photoCircle;
 
     return SizedBox(
       width: size,
@@ -1832,35 +2951,28 @@ class _MemberPortrait extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Container(
-            width: size,
-            height: size,
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white,
-              border: Border.all(
-                color: AppColors.gold.withValues(alpha: ringAlpha),
-                width: ringWidth,
+          if (familyBorder)
+            Align(
+              alignment: Alignment(0, _familyBorderVerticalShift),
+              child: portraitCircle,
+            )
+          else
+            portraitCircle,
+          if (familyBorder)
+            Positioned(
+              left: -size * _familyBorderOverflowFactor,
+              top: -size * _familyBorderOverflowFactor,
+              right: -size * _familyBorderOverflowFactor,
+              bottom: -size * _familyBorderOverflowFactor,
+              child: IgnorePointer(
+                child: Image.asset(
+                  _familyBorderAsset,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                      const SizedBox.shrink(),
+                ),
               ),
             ),
-            child: ClipOval(
-              child: member.photoPath == null
-                  ? _InitialsTile(
-                      initials: initials,
-                      fontSize: initialsFontSize,
-                    )
-                  : Image.asset(
-                      member.photoPath!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
-                          _InitialsTile(
-                            initials: initials,
-                            fontSize: initialsFontSize,
-                          ),
-                    ),
-            ),
-          ),
           Positioned(
             right: badgeOffset.dx,
             bottom: badgeOffset.dy,

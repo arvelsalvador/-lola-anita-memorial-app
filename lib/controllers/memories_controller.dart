@@ -7,85 +7,70 @@ class MemoriesController extends ChangeNotifier {
     memories: [
       MemoryItem(
         id: 'memory_1',
-        icon: '🍚',
+        icon: '🏠',
         titleKey: 'memory_1_title',
         bodyKey: 'memory_1_body',
-        category: 'mem_filter_celebrations',
-        decade: '1960s',
         photoCount: 14,
+        image: 'assets/images/Best Pictures/Bahay.jpg',
       ),
       MemoryItem(
         id: 'memory_2',
-        icon: '🙏',
+        icon: '👵',
         titleKey: 'memory_2_title',
         bodyKey: 'memory_2_body',
-        category: 'mem_filter_life',
-        decade: '1970s',
         photoCount: 8,
+        image: 'assets/images/Best Pictures/Fullbody.jpg',
       ),
       MemoryItem(
         id: 'memory_3',
-        icon: '✂️',
+        icon: '💗',
         titleKey: 'memory_3_title',
         bodyKey: 'memory_3_body',
-        category: 'mem_filter_life',
-        decade: '1950s',
         photoCount: 9,
+        image: 'assets/images/Best Pictures/Halik.jpg',
       ),
       MemoryItem(
         id: 'memory_4',
-        icon: '🌺',
+        icon: '🤲',
         titleKey: 'memory_4_title',
         bodyKey: 'memory_4_body',
-        category: 'mem_filter_life',
-        decade: '1980s',
         photoCount: 12,
+        image: 'assets/images/Best Pictures/Kamay.jpg',
       ),
       MemoryItem(
         id: 'memory_5',
-        icon: '📻',
+        icon: '💪',
         titleKey: 'memory_5_title',
         bodyKey: 'memory_5_body',
-        category: 'mem_filter_family',
-        decade: '1990s',
         photoCount: 6,
+        image: 'assets/images/Best Pictures/Stolen.jpg',
       ),
       MemoryItem(
         id: 'memory_6',
-        icon: '💌',
+        icon: '🎂',
         titleKey: 'memory_6_title',
         bodyKey: 'memory_6_body',
-        category: 'mem_filter_family',
-        decade: '2000s',
         photoCount: 15,
+        image: 'assets/images/Best Pictures/Bday5.jpg',
+      ),
+      MemoryItem(
+        id: 'memory_7',
+        icon: '🕊️',
+        titleKey: 'memory_7_title',
+        bodyKey: 'memory_7_body',
+        photoCount: 2,
+        image: 'assets/images/Best Pictures/After death.jpg',
       ),
     ],
   );
 
-  String? _selectedCategory;
   int? _galleryCount;
-
-  String? get selectedCategory => _selectedCategory;
 
   /// Real gallery photo count, loaded from the asset manifest so the stats
   /// pill and the feature card always reflect the actual gallery. Null
   /// while the manifest is still being read (shown as a loading placeholder).
   /// -1 means the read failed (shown as a dash instead of pulsing forever).
   int? get galleryCount => _galleryCount;
-
-  /// All memories when no filter is selected, otherwise only the memories
-  /// in the selected category.
-  List<MemoryItem> get visibleMemories {
-    if (_selectedCategory == null) return data.memories;
-    return data.memories.where((m) => m.category == _selectedCategory).toList();
-  }
-
-  void selectCategory(String? category) {
-    if (_selectedCategory != category) {
-      _selectedCategory = category;
-      notifyListeners();
-    }
-  }
 
   Future<void> loadGalleryCount() async {
     try {

@@ -58,6 +58,12 @@ class GalleryController extends ChangeNotifier {
           case 'jabi':
             group = GalleryGroup.gatherings;
             break;
+          case 'after':
+            // "After death ..." photos (e.g. After death 2.jpg) belong with
+            // the Last Day remembrances — without this they'd land in the
+            // catch-all Other bucket, which is otherwise always empty.
+            group = GalleryGroup.remembrances;
+            break;
           case 'solo':
           case 'nanay':
           case 'nanay_halfbody':

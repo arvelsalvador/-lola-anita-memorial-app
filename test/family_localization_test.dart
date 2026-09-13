@@ -37,7 +37,6 @@ void main() {
     expect(find.text('Mga Anak'), findsOneWidget);
     expect(find.text('Mga Kapatid'), findsOneWidget);
     expect(find.text('3 anak'), findsOneWidget);
-    expect(find.text('6 taong gulang', skipOffstage: false), findsWidgets);
 
     // Toggle to English — every family string must translate immediately.
     lang.setLanguage(AppLanguage.english);
@@ -48,24 +47,13 @@ void main() {
     // Filter chip + section header both read 'Grandchildren'. The section
     // header sits below the fold, so search cached off-screen widgets too.
     expect(find.text('Grandchildren', skipOffstage: false), findsNWidgets(2));
-    expect(find.text('16 members', skipOffstage: false), findsOneWidget);
     expect(find.text('3 children'), findsOneWidget);
-    expect(find.text('6 years old', skipOffstage: false), findsWidgets);
-
-    // Baby Daiz ("8 months old") sits on the second page of the
-    // grandchildren pager (3 columns fit at this test width). Bring the
-    // pager on-screen first, then flip to that page.
-    await tester.drag(find.byType(ListView), const Offset(0, -900));
-    await tester.pumpAndSettle();
-    await tester.drag(find.byType(PageView), const Offset(-400, 0));
-    await tester.pumpAndSettle();
-    expect(find.text('8 months old'), findsOneWidget);
+    expect(find.text('8 members', skipOffstage: false), findsOneWidget);
 
     // No Tagalog leftovers may remain anywhere in the tree.
     expect(find.text('Mga Anak'), findsNothing);
     expect(find.text('Mga Kapatid'), findsNothing);
     expect(find.text('Mga Apo'), findsNothing);
-    expect(find.text('6 taong gulang', skipOffstage: false), findsNothing);
   });
 
   testWidgets('family page translates to Bicol group labels', (tester) async {

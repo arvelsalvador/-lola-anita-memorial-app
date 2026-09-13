@@ -5,18 +5,44 @@ import 'package:provider/provider.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/views/family_page.dart';
 
-/// Geometry regression tests for the org-chart branch connector
-/// (_TreeBranchPainter): the horizontal bus must clear the section header
-/// text vertically, and every drop must land on its card's center.
+/// Geometry regression tests for the family page descent lines: the
+/// org-chart branch connector (_TreeBranchPainter) must clear the section
+/// header text vertically and its drops must land on the card centers;
+/// the Mga Apo grid draws straight per-column lines (_SpineLines) instead
+/// of a bus — through its header and card→card down each branch column —
+/// and those must clear its header too.
+///
+/// Everything is asserted at scroll 0: the list builds all sections there
+/// (cacheExtent 2000), while scrolling to the bottom disposes the sections
+/// above the viewport, which would hide them from the finders.
 void main() {
   Finder connectorFinder() => find.byWidgetPredicate(
     (w) => w.runtimeType.toString() == '_TreeBranchConnector',
   );
 
+  Finder spineFinder() =>
+      find.byWidgetPredicate((w) => w.runtimeType.toString() == '_SpineLines');
+
   double topOf(RenderBox box) => box.localToGlobal(Offset.zero).dy;
 
   double bottomOf(RenderBox box) =>
       box.localToGlobal(Offset.zero).dy + box.size.height;
+
+  /// Boxes of [finder] sorted top→bottom.
+  List<RenderBox> boxesOf(Finder finder) =>
+      finder
+          .evaluate()
+          .map((e) => e.renderObject! as RenderBox)
+          .toList()
+        ..sort((a, b) => topOf(a).compareTo(topOf(b)));
+
+  /// First connector box whose top edge sits at or below [minTop].
+  RenderBox? connectorBelow(double minTop) {
+    for (final b in boxesOf(connectorFinder())) {
+      if (topOf(b) >= minTop) return b;
+    }
+    return null;
+  }
 
   Future<void> pumpFamilyPage(WidgetTester tester) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -38,10 +64,15 @@ void main() {
 
     final titleBox = tester.renderObject<RenderBox>(find.text('Mga Anak'));
     final countBox = tester.renderObject<RenderBox>(find.text('3 anak'));
-    final connector = tester.renderObject<RenderBox>(connectorFinder().first);
+
+    // The section's own connector — the first one at or below the header.
+    // The lookup is anchored to the header rather than a blind `.first`
+    // so it stays correct no matter how the groups are ordered.
+    final connector = connectorBelow(bottomOf(titleBox) - 1);
+    expect(connector, isNotNull, reason: 'no connector below "Mga Anak"');
 
     // Bus sits 10px below the connector box's top edge.
-    final busY = topOf(connector) + 10;
+    final busY = topOf(connector!) + 10;
     final titleBottom = bottomOf(titleBox);
     final countBottom = bottomOf(countBox);
 
@@ -94,59 +125,86 @@ void main() {
     }
   });
 
-  testWidgets('apo pager bus clears the "Mga Apo" header text', (tester) async {
+  testWidgets('apo straight lines clear the "Mga Apo" header text', (
+    tester,
+  ) async {
     await pumpFamilyPage(tester);
 
-    // Bring the grandchildren section on-screen.
-    await tester.drag(find.byType(ListView), const Offset(0, -900));
+    // Bring the grandchildren section into the build range with a small
+    // scroll — scrolling to the very bottom would dispose the sections
+    // above it. 'Mga Apo' also appears on a filter chip — anchor on the
+    // section header's unique count text instead.
+    await tester.scrollUntilVisible(
+      find.text('8 miyembro'),
+      100,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
+    final countFinder = find.text('8 miyembro');
+    expect(countFinder, findsOneWidget);
+    final headerBottom = bottomOf(
+      tester.renderObject<RenderBox>(countFinder),
+    );
 
-    final titleFinder = find.text('Mga Apo');
-    expect(titleFinder, findsOneWidget);
-    final titleBox = tester.renderObject<RenderBox>(titleFinder);
-    final connector = tester.renderObject<RenderBox>(connectorFinder().last);
-
-    final busY = topOf(connector) + 10;
+    // Straight per-column lines below the header (the descent onto the
+    // first card row) — and no bus connector anymore.
+    final spines = boxesOf(
+      spineFinder(),
+    ).where((b) => topOf(b) >= headerBottom).toList();
     expect(
-      busY,
-      greaterThanOrEqualTo(bottomOf(titleBox) + 4),
-      reason: 'apo pager bus line overlaps the section title text',
+      spines,
+      isNotEmpty,
+      reason: 'no straight descent lines below the "Mga Apo" header',
+    );
+    expect(
+      topOf(spines.first),
+      greaterThanOrEqualTo(headerBottom),
+      reason: 'apo descent lines overlap the section header text',
+    );
+    expect(
+      connectorBelow(headerBottom),
+      isNull,
+      reason: 'the "Mga Apo" grid must not render a bus connector',
     );
   });
 
   testWidgets(
-    'every section with member cards has exactly one branch connector '
-    'below its header (guards future sections too)',
+    'every section has descent lines below its header '
+    '(branch connector, or straight spines for Mga Apo)',
     (tester) async {
       await pumpFamilyPage(tester);
 
-      // Bring all sections' widgets into the built/cached range.
-      await tester.drag(find.byType(ListView), const Offset(0, -900));
+      // Jump to a fixed mid-scroll offset: far enough that the apo
+      // section is built, close enough that the Kapatid and Anak sections
+      // above it are still alive (scrolling to the bottom disposes them).
+      final position = tester.state<ScrollableState>(
+        find.byType(Scrollable).first,
+      ).position;
+      position.jumpTo(300);
       await tester.pumpAndSettle();
 
-      List<RenderBox> connectorBoxes() =>
-          connectorFinder()
-              .evaluate()
-              .map((e) => e.renderObject! as RenderBox)
-              .toList()
-            ..sort((a, b) => topOf(a).compareTo(topOf(b)));
-
-      // Sections are rendered from FamilyController.data.groups; today those
-      // are Mga Anak, Mga Kapatid, and Mga Apo. Any group added later flows
-      // through the same FamilyGroupSection paths, so this count must stay
-      // in lockstep with the data — one connector per card-row section
-      // (the apo pager materializes exactly one page at rest).
-      final sectionLabels = ['Mga Anak', 'Mga Kapatid', 'Mga Apo'];
+      // Mga Anak and Mga Kapatid render the org-chart branch connector;
+      // Mga Apo draws straight per-column lines instead. Any new group
+      // added later flows through FamilyGroupSection and inherits the
+      // connector automatically, so the connector count must stay in
+      // lockstep with the non-apo card-row sections.
       expect(
-        connectorBoxes().length,
-        sectionLabels.length,
+        boxesOf(connectorFinder()).length,
+        2,
         reason:
-            'section/connector count mismatch — a card-row section is '
-            'missing its branch connector',
+            'Mga Anak and Mga Kapatid must each render exactly one branch '
+            'connector',
       );
 
-      for (final label in sectionLabels) {
-        final headerFinder = find.text(label);
+      // 'Mga Apo' also appears on a filter chip — anchor on the unique
+      // count text for that section's header.
+      final sections = <String, Finder>{
+        'Mga Anak': find.text('Mga Anak'),
+        'Mga Kapatid': find.text('Mga Kapatid'),
+        'Mga Apo': find.text('8 miyembro'),
+      };
+
+      sections.forEach((label, headerFinder) {
         expect(
           headerFinder,
           findsOneWidget,
@@ -156,22 +214,22 @@ void main() {
           tester.renderObject<RenderBox>(headerFinder),
         );
 
-        final below = connectorBoxes()
-            .where((b) => topOf(b) >= headerBottom)
-            .toList();
+        final below = [
+          ...boxesOf(connectorFinder()),
+          ...boxesOf(spineFinder()),
+        ].where((b) => topOf(b) >= headerBottom - 6).toList();
         expect(
           below,
           isNotEmpty,
-          reason: 'no branch connector below the "$label" header',
+          reason: 'no descent lines below the "$label" header',
         );
 
-        final busY = topOf(below.first) + 10;
         expect(
-          busY,
-          greaterThanOrEqualTo(headerBottom + 4),
-          reason: '"$label" bus line does not clear its header text',
+          topOf(below.first),
+          greaterThanOrEqualTo(headerBottom - 6),
+          reason: '"$label" descent lines do not clear its header text',
         );
-      }
+      });
     },
   );
 }
