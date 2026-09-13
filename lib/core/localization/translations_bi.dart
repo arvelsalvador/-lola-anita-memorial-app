@@ -29,6 +29,7 @@ const Map<String, String> translationsBi = {
   'condolences_subtitle': 'Mag-Sindihan nin kandila para ki Nanay',
   'settings_language': 'Tataramon',
   'settings_title': 'Mga Setting',
+  'settings_menu_title': 'Menu',
   'settings_subtitle': 'I-personalize an saimong eksperyensya',
   'settings_desc_dev': 'Aramon an manungod sa developer kan app na ini.',
   'settings_desc_about': 'Hilingon an samong misyon asin mga layunin.',

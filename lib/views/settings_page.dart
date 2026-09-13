@@ -184,7 +184,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                   CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  lang.t('settings_about_app_title'),
+                                  lang.t('settings_menu_title'),
                                   style: const TextStyle(
                                     fontSize: 17,
                                     fontWeight: FontWeight.w700,
@@ -281,7 +281,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         ],
                       ),
                     ),
-                  const Spacer(),
+                  const SizedBox(height: 32),
                   const SizedBox(height: 24),
                   Text(
                     'Nanay Anita · ${lang.t('settings_about_app_version')}',
@@ -296,6 +296,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
         ),
+      ),
       ),
       ),
     );
@@ -1604,12 +1605,11 @@ class _ContactPageState extends State<_ContactPage> {
                 ],
               ),
             ),
-          ),
+          ],
         ),
       ),
-    ));
+    );
   }
-}
 }
 
 /// Small semibold label above a contact field.

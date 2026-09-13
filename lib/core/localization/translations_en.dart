@@ -26,6 +26,7 @@ const Map<String, String> translationsEn = {
   'condolences_subtitle': 'Light a candle for Nanay',
   'settings_language': 'Language',
   'settings_title': 'Settings',
+  'settings_menu_title': 'Menu',
   'settings_subtitle': 'Personalize your experience',
   'settings_desc_dev': 'Learn about the developer of this app.',
   'settings_desc_about': 'See our mission and goals.',

@@ -28,6 +28,7 @@ const Map<String, String> translationsTl = {
   'family_tree_unlinked': 'Iba pang mga Apo',
   'settings_language': 'Wika',
   'settings_title': 'Mga Setting',
+  'settings_menu_title': 'Menu',
   'settings_subtitle': 'I-personalize ang iyong karanasan',
   'settings_desc_dev': 'Alamin ang tungkol sa developer ng app na ito.',
   'settings_desc_about': 'Tingnan ang aming misyon at mga layunin.',
