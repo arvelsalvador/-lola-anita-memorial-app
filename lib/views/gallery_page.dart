@@ -12,6 +12,7 @@ import 'package:nita/controllers/gallery_controller.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/core/navigation.dart';
+import 'package:nita/core/utils/motion.dart';
 import 'package:nita/models/gallery_model.dart';
 import 'package:nita/models/gallery_group.dart';
 import 'package:nita/widgets/circle_icon_button.dart';
@@ -118,6 +119,20 @@ class _GalleryPageState extends State<GalleryPage> {
     }
   }
 
+  @override
+  void didUpdateWidget(covariant GalleryPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Parent rebuilds _buildBodies() every build, but instances are
+    // stable in practice. If ever swapped, move the listener so the
+    // old controller doesn't leak and the new one still loads.
+    if (!identical(oldWidget.galleryController, widget.galleryController)) {
+      oldWidget.galleryController.removeListener(_onChanged);
+      widget.galleryController.addListener(_onChanged);
+      _didPrecache = false;
+      widget.galleryController.load();
+    }
+  }
+
   void _onChanged() {
     if (!mounted) return;
     setState(() {});
@@ -134,28 +149,62 @@ class _GalleryPageState extends State<GalleryPage> {
     if (_didPrecache) return;
     _didPrecache = true;
     final images = widget.galleryController.images;
-    if (images == null) return;
+    if (images == null || images.isEmpty) return;
+    // Capture the context before awaiting: the page may pop mid-precache.
+    final ctx = context;
     final count = math.min(images.length, 9);
-    await Future.wait([
-      for (int i = 0; i < count; i++)
-        precacheImage(AssetImage(images[i].path), context),
-    ]);
+    // No .timeout() here on purpose: Future.timeout leaves a pending
+    // Timer in widget tests (fake_async) long after precache finishes,
+    // failing teardown with "!timersPending". Bundled-asset precache
+    // can't hang like a network call, and errors are caught below.
+    try {
+      await Future.wait([
+        for (int i = 0; i < count; i++)
+          // ResizeImage decodes a grid-sized bitmap instead of the full
+          // camera JPEG — the lightbox loads a larger tier on demand.
+          precacheImage(
+            ResizeImage(AssetImage(images[i].path), width: 400),
+            ctx,
+          ),
+      ]);
+    } catch (e) {
+      debugPrint('[Gallery] precache skipped: $e');
+    }
+    if (!mounted) return;
   }
 
   @override
   Widget build(BuildContext context) {
-    final lang = context.read<LanguageProvider>();
+    // Watch so the empty/loading text re-translates when language changes.
+    final lang = context.watch<LanguageProvider>();
     final images = widget.galleryController.images;
 
     if (images == null) {
       return const Center(child: CircularProgressIndicator());
     }
     if (images.isEmpty) {
+      // Empty = manifest failed or zero photos. Offer retry instead of
+      // a bare text so a Windows stale-bundle or slow manifest isn't
+      // a dead end (a full restart picks up new assets).
       return Center(
-        child: Text(
-          lang.t('no_images'),
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 16, color: Colors.grey),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                lang.t('no_images'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () => widget.galleryController.load(),
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -168,47 +217,79 @@ class _GalleryPageState extends State<GalleryPage> {
   }
 }
 
-class GalleryGridView extends StatefulWidget {
+/// Auto-rotating "featured memory" card above the grid.
+///
+/// Extracted from [_GalleryGridViewState] so its 5s [Timer] only rebuilds
+/// this card — previously every tick called `setState` on the whole grid
+/// state and relaid out the entire `CustomScrollView` + visible photo cards.
+class HeroSlideshowCard extends StatefulWidget {
   final List<GalleryImageItem> images;
-  final ScrollController? controller;
-  final ValueNotifier<int>? activeTab;
   final GalleryController galleryController;
-  const GalleryGridView({
+  final ValueNotifier<int>? activeTab;
+
+  const HeroSlideshowCard({
     super.key,
     required this.images,
-    this.controller,
-    this.activeTab,
     required this.galleryController,
+    this.activeTab,
   });
 
   @override
-  State<GalleryGridView> createState() => _GalleryGridViewState();
+  State<HeroSlideshowCard> createState() => _HeroSlideshowCardState();
 }
 
-class _GalleryGridViewState extends State<GalleryGridView>
-    with TickerProviderStateMixin {
-  GalleryGroup? _selectedGroup;
-  // Search text the visitor typed. Empty string = no search filter.
-  String _searchQuery = '';
-  final TextEditingController _searchController = TextEditingController();
-
-  // Tracks whether the filter-pill row can still scroll further right,
-  // so the edge fade only shows when it's actually true — not as a
-  // permanent decoration that lingers even at the end of the list.
-  final ScrollController _pillsScrollController = ScrollController();
-  bool _pillsCanScrollMore = false;
-
-  final Set<GalleryGroup> _visited = {};
-
-  // --- Auto-slideshow for hero card ---
+class _HeroSlideshowCardState extends State<HeroSlideshowCard> {
   int _heroIndex = 0;
   Timer? _heroTimer;
 
-  /// Compact, side-by-side "featured memory" card: square thumbnail on the
-  /// left, label + date in the middle, a round play button on the right.
+  @override
+  void initState() {
+    super.initState();
+    widget.activeTab?.addListener(_onTabChanged);
+    if (widget.activeTab == null || widget.activeTab!.value == 1) {
+      _startHeroTimer();
+    }
+  }
+
+  void _onTabChanged() {
+    final isVisible = widget.activeTab?.value == 1;
+    if (isVisible) {
+      _startHeroTimer();
+    } else {
+      _heroTimer?.cancel();
+    }
+  }
+
+  void _startHeroTimer() {
+    _heroTimer?.cancel();
+    if (widget.images.isEmpty) return;
+    _heroTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!mounted || widget.images.isEmpty) return;
+      setState(() {
+        _heroIndex = (_heroIndex + 1) % widget.images.length;
+      });
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant HeroSlideshowCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(widget.images, oldWidget.images)) {
+      _heroIndex = 0;
+      _startHeroTimer();
+    }
+  }
+
+  @override
+  void dispose() {
+    _heroTimer?.cancel();
+    widget.activeTab?.removeListener(_onTabChanged);
+    super.dispose();
+  }
+
   Widget _heroCard(LanguageProvider lang) {
-    if (_playableImages.isEmpty) return const SizedBox.shrink();
-    final item = _playableImages[_heroIndex];
+    if (widget.images.isEmpty) return const SizedBox.shrink();
+    final item = widget.images[_heroIndex % widget.images.length];
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -221,7 +302,7 @@ class _GalleryGridViewState extends State<GalleryGridView>
           child: InkWell(
             borderRadius: BorderRadius.circular(18),
             onTap: () {
-              final shuffled = List<GalleryImageItem>.of(_playableImages)
+              final shuffled = List<GalleryImageItem>.of(widget.images)
                 ..shuffle();
               Navigator.of(context).push(
                 fadeRoute(
@@ -235,9 +316,9 @@ class _GalleryGridViewState extends State<GalleryGridView>
             child: Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: AppColors.white,
+                color: AppColors.paper,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFEBE1D3), width: 1),
+                border: Border.all(color: AppColors.sandBorder, width: 1),
               ),
               child: SizedBox(
                 height: 100,
@@ -257,7 +338,7 @@ class _GalleryGridViewState extends State<GalleryGridView>
                             style: const TextStyle(
                               fontSize: 12.5,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFFB0653A),
+                              color: AppColors.copper,
                             ),
                           ),
                           const SizedBox(height: 6),
@@ -283,12 +364,12 @@ class _GalleryGridViewState extends State<GalleryGridView>
                       width: 38,
                       height: 38,
                       decoration: const BoxDecoration(
-                        color: Color(0xFFB0653A),
+                        color: AppColors.copper,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
                         Icons.chevron_right_rounded,
-                        color: AppColors.white,
+                        color: AppColors.paper,
                         size: 22,
                       ),
                     ),
@@ -307,13 +388,9 @@ class _GalleryGridViewState extends State<GalleryGridView>
   /// _heroIndex photo with a play badge; the two behind it peek out from
   /// the corner, rotated slightly, so the stack reads as "there's more."
   Widget _heroPhotoStack(GalleryImageItem frontItem) {
-    final count = _playableImages.length;
-    final backItem = count > 2
-        ? _playableImages[(_heroIndex + 2) % count]
-        : null;
-    final midItem = count > 1
-        ? _playableImages[(_heroIndex + 1) % count]
-        : null;
+    final count = widget.images.length;
+    final backItem = count > 2 ? widget.images[(_heroIndex + 2) % count] : null;
+    final midItem = count > 1 ? widget.images[(_heroIndex + 1) % count] : null;
 
     return SizedBox(
       width: 116,
@@ -375,7 +452,7 @@ class _GalleryGridViewState extends State<GalleryGridView>
         height: size,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.white, width: 3),
+          border: Border.all(color: AppColors.paper, width: 3),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.15),
@@ -408,12 +485,12 @@ class _GalleryGridViewState extends State<GalleryGridView>
                     width: 34,
                     height: 34,
                     decoration: const BoxDecoration(
-                      color: Color(0xFFB0653A),
+                      color: AppColors.copper,
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
                       Icons.play_arrow_rounded,
-                      color: AppColors.white,
+                      color: AppColors.paper,
                       size: 18,
                     ),
                   ),
@@ -425,15 +502,57 @@ class _GalleryGridViewState extends State<GalleryGridView>
     );
   }
 
+  @override
+  Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
+    return _heroCard(lang);
+  }
+}
+
+class GalleryGridView extends StatefulWidget {
+  final List<GalleryImageItem> images;
+  final ScrollController? controller;
+  final ValueNotifier<int>? activeTab;
+  final GalleryController galleryController;
+  const GalleryGridView({
+    super.key,
+    required this.images,
+    this.controller,
+    this.activeTab,
+    required this.galleryController,
+  });
+
+  @override
+  State<GalleryGridView> createState() => _GalleryGridViewState();
+}
+
+class _GalleryGridViewState extends State<GalleryGridView>
+    with TickerProviderStateMixin {
+  GalleryGroup? _selectedGroup;
+  // Search text the visitor typed. Empty string = no search filter.
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+
+  // Tracks whether the filter-pill row can still scroll further right,
+  // so the edge fade only shows when it's actually true — not as a
+  // permanent decoration that lingers even at the end of the list.
+  final ScrollController _pillsScrollController = ScrollController();
+  bool _pillsCanScrollMore = false;
+
+  final Set<GalleryGroup> _visited = {};
+
+  // Featured-memory rotation lives in [HeroSlideshowCard] so its 5s timer
+  // never rebuilds this grid state.
+
   Widget _searchBar(LanguageProvider lang) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       child: Container(
         height: 46,
         decoration: BoxDecoration(
-          color: AppColors.white,
+          color: AppColors.paper,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE0D6CC), width: 1),
+          border: Border.all(color: AppColors.stoneBorder, width: 1),
         ),
         child: TextField(
           controller: _searchController,
@@ -552,7 +671,7 @@ class _GalleryGridViewState extends State<GalleryGridView>
                   style: const TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFFB0653A),
+                    color: AppColors.copper,
                   ),
                 ),
               ),
@@ -574,12 +693,12 @@ class _GalleryGridViewState extends State<GalleryGridView>
     // every other active pill, for a consistent "this is active" signal.
     final unselectedBg = isRemembrances
         ? AppColors.gold.withValues(alpha: 0.14)
-        : AppColors.white;
+        : AppColors.paper;
     final unselectedBorder = isRemembrances
         ? AppColors.gold
-        : const Color(0xFFE0D6CC);
+        : AppColors.stoneBorder;
     final unselectedTextColor = isRemembrances
-        ? const Color(0xFFB06A2B)
+        ? AppColors.amber
         : AppColors.warmDark;
 
     return Material(
@@ -591,7 +710,7 @@ class _GalleryGridViewState extends State<GalleryGridView>
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
           decoration: BoxDecoration(
-            color: selected ? const Color(0xFFB0653A) : unselectedBg,
+            color: selected ? AppColors.copper : unselectedBg,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: selected ? Colors.transparent : unselectedBorder,
@@ -606,7 +725,7 @@ class _GalleryGridViewState extends State<GalleryGridView>
                 Icon(
                   Icons.local_fire_department_rounded,
                   size: 14,
-                  color: selected ? AppColors.white : unselectedTextColor,
+                  color: selected ? AppColors.paper : unselectedTextColor,
                 ),
                 const SizedBox(width: 5),
               ],
@@ -618,7 +737,7 @@ class _GalleryGridViewState extends State<GalleryGridView>
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: selected ? AppColors.white : unselectedTextColor,
+                  color: selected ? AppColors.paper : unselectedTextColor,
                 ),
               ),
             ],
@@ -692,14 +811,10 @@ class _GalleryGridViewState extends State<GalleryGridView>
     // Check once after the first frame, in case there are enough pills
     // to overflow even before the user touches the row.
     WidgetsBinding.instance.addPostFrameCallback((_) => _updatePillsFade());
-    // No shell to report visibility -> assume always visible (e.g. previews/tests).
-    if (widget.activeTab == null || widget.activeTab!.value == 1) {
-      _startHeroTimer();
-    }
     // One fixed shuffle order per page instance: the "Lahat na Larawan"
     // grid shows the photos in a mixed-up order instead of the sorted
     // source order. Built once in initState so the grid doesn't reshuffle
-    // on every setState (the hero timer fires every 5s).
+    // on filter/search setStates.
     _shuffleRandom = math.Random();
   }
 
@@ -726,29 +841,16 @@ class _GalleryGridViewState extends State<GalleryGridView>
   }();
 
   void _onTabChanged() {
-    // The gallery is tab index 1 in the home shell.
-    final isVisible = widget.activeTab?.value == 1;
-    if (isVisible) {
-      _startHeroTimer();
+    // The gallery is tab index 1 in the home shell. The hero card owns
+    // its own rotation timer (see [HeroSlideshowCard]); here we only
+    // reset entrance-visit tracking.
+    if (widget.activeTab?.value == 1) {
       if (_visited.isNotEmpty) setState(_visited.clear);
-    } else {
-      _heroTimer?.cancel();
     }
-  }
-
-  void _startHeroTimer() {
-    _heroTimer?.cancel();
-    _heroTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      if (_playableImages.isEmpty) return;
-      setState(() {
-        _heroIndex = (_heroIndex + 1) % _playableImages.length;
-      });
-    });
   }
 
   @override
   void dispose() {
-    _heroTimer?.cancel();
     widget.activeTab?.removeListener(_onTabChanged);
     _searchController.dispose();
     _pillsScrollController.dispose();
@@ -827,7 +929,13 @@ class _GalleryGridViewState extends State<GalleryGridView>
         // photos are being viewed.
         if (_playableImages.isNotEmpty &&
             _selectedGroup != GalleryGroup.remembrances)
-          SliverToBoxAdapter(child: _heroCard(lang)),
+          SliverToBoxAdapter(
+            child: HeroSlideshowCard(
+              images: _playableImages,
+              galleryController: widget.galleryController,
+              activeTab: widget.activeTab,
+            ),
+          ),
         SliverToBoxAdapter(child: _listHeader(lang, images.length)),
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
@@ -1009,7 +1117,7 @@ class _PhotoCard extends StatelessWidget {
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
                               colors: [
-                                const Color(0xFFF7E7B6).withValues(alpha: 0.22),
+                                AppColors.glowGold.withValues(alpha: 0.22),
                                 AppColors.gold.withValues(alpha: 0.52),
                               ],
                             ),
@@ -1021,7 +1129,7 @@ class _PhotoCard extends StatelessWidget {
                                 width: 36,
                                 height: 36,
                                 decoration: BoxDecoration(
-                                  color: AppColors.white.withValues(
+                                  color: AppColors.paper.withValues(
                                     alpha: 0.92,
                                   ),
                                   shape: BoxShape.circle,
@@ -1031,7 +1139,7 @@ class _PhotoCard extends StatelessWidget {
                                   // behind the Last Day gate.
                                   Icons.local_fire_department_rounded,
                                   size: 18,
-                                  color: Color(0xFFB06A2B),
+                                  color: AppColors.amber,
                                 ),
                               ),
                               const SizedBox(height: 7),
@@ -1074,7 +1182,7 @@ class _PhotoCard extends StatelessWidget {
                                     lang.t(item.date ?? 'date_1'),
                                     style: const TextStyle(
                                       fontSize: 9,
-                                      color: AppColors.white,
+                                      color: AppColors.paper,
                                       fontWeight: FontWeight.w500,
                                       shadows: [
                                         Shadow(
@@ -1125,10 +1233,39 @@ class GalleryLightbox extends StatefulWidget {
 }
 
 class _GalleryLightboxState extends State<GalleryLightbox> {
+  static const _lightboxWidth = 1080;
+
   late final PageController _controller = PageController(
-    initialPage: widget.initialIndex,
+    initialPage: _clampedInitial,
   );
-  late int _current = widget.initialIndex;
+  late int _current = _clampedInitial;
+
+  int get _clampedInitial {
+    if (widget.images.isEmpty) return 0;
+    return widget.initialIndex.clamp(0, widget.images.length - 1);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Warm the current + neighbor pages at viewer resolution so swipes
+    // land on decoded bitmaps instead of janking on full-res decodes.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _precacheNeighbors(_current);
+    });
+  }
+
+  void _precacheNeighbors(int index) {
+    for (final i in {index - 1, index, index + 1}) {
+      if (i >= 0 && i < widget.images.length) {
+        precacheImage(
+          ResizeImage(AssetImage(widget.images[i].path), width: _lightboxWidth),
+          context,
+        );
+      }
+    }
+  }
 
   bool _isLocked(int index) =>
       widget.images[index].group == GalleryGroup.remembrances &&
@@ -1158,7 +1295,15 @@ class _GalleryLightboxState extends State<GalleryLightbox> {
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
-    final item = widget.images[_current];
+    if (widget.images.isEmpty) {
+      return const Scaffold(
+        backgroundColor: AppColors.viewerBackground,
+        body: Center(
+          child: Icon(Icons.broken_image, size: 80, color: Colors.grey),
+        ),
+      );
+    }
+    final item = widget.images[_current.clamp(0, widget.images.length - 1)];
 
     return Scaffold(
       backgroundColor: AppColors.viewerBackground,
@@ -1167,20 +1312,26 @@ class _GalleryLightboxState extends State<GalleryLightbox> {
         children: [
           PageView.builder(
             controller: _controller,
-            onPageChanged: (i) => setState(() => _current = i),
+            onPageChanged: (i) {
+              setState(() => _current = i);
+              _precacheNeighbors(i);
+            },
             itemCount: widget.images.length,
             itemBuilder: (context, i) {
               final image = widget.images[i];
               final locked = _isLocked(i);
               final viewer = InteractiveViewer(
                 minScale: 0.8,
-                maxScale: 5.0,
+                maxScale: 3.0,
                 child: Center(
                   child: Hero(
                     tag: 'gallery_${image.path}',
                     child: Image.asset(
                       image.path,
                       fit: BoxFit.contain,
+                      // Viewer tier: bounded decode instead of native
+                      // camera resolution (grid uses ~200-400).
+                      cacheWidth: _lightboxWidth,
                       errorBuilder: (c, e, s) => const Icon(
                         Icons.broken_image,
                         size: 80,
@@ -1212,7 +1363,7 @@ class _GalleryLightboxState extends State<GalleryLightbox> {
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            const Color(0xFFF7E7B6).withValues(alpha: 0.16),
+                            AppColors.glowGold.withValues(alpha: 0.16),
                             AppColors.gold.withValues(alpha: 0.45),
                           ],
                         ),
@@ -1224,7 +1375,7 @@ class _GalleryLightboxState extends State<GalleryLightbox> {
                             width: 64,
                             height: 64,
                             decoration: BoxDecoration(
-                              color: AppColors.white.withValues(alpha: 0.92),
+                              color: AppColors.paper.withValues(alpha: 0.92),
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
@@ -1238,7 +1389,7 @@ class _GalleryLightboxState extends State<GalleryLightbox> {
                               // Last Day gate.
                               Icons.local_fire_department_rounded,
                               size: 32,
-                              color: Color(0xFFB06A2B),
+                              color: AppColors.amber,
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -1247,7 +1398,7 @@ class _GalleryLightboxState extends State<GalleryLightbox> {
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFFFFF6E0),
+                              color: AppColors.candleGlow,
                               letterSpacing: 0.6,
                             ),
                           ),
@@ -1358,7 +1509,7 @@ class _GalleryLightboxState extends State<GalleryLightbox> {
                             fontStyle: FontStyle.italic,
                             fontWeight: FontWeight.w700,
                             fontSize: 20,
-                            color: AppColors.white,
+                            color: AppColors.paper,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -1513,15 +1664,15 @@ class _CandleGateState extends State<CandleGate> with TickerProviderStateMixin {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              DecoratedBox(
+              const DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: RadialGradient(
-                    center: const Alignment(0, -0.35),
+                    center: Alignment(0, -0.35),
                     radius: 1.0,
-                    colors: const [
-                      Color(0xFF322217),
-                      Color(0xFF1B120B),
-                      Color(0xFF0D0805),
+                    colors: [
+                      AppColors.darkAsh,
+                      AppColors.darkEmber,
+                      AppColors.darkSoot,
                     ],
                   ),
                 ),
@@ -1729,12 +1880,12 @@ class _CandleGateState extends State<CandleGate> with TickerProviderStateMixin {
                                                           TextAlign.center,
                                                       style:
                                                           GoogleFonts.playfairDisplay(
-                                                        fontStyle:
-                                                            FontStyle.italic,
-                                                        fontSize: 12,
-                                                        color:
-                                                            AppColors.goldLight,
-                                                      ),
+                                                            fontStyle: FontStyle
+                                                                .italic,
+                                                            fontSize: 12,
+                                                            color: AppColors
+                                                                .goldLight,
+                                                          ),
                                                     ),
                                                   ),
                                                 ),
@@ -1954,16 +2105,13 @@ class _CandlePainter extends CustomPainter {
     canvas.drawOval(
       saucer,
       Paint()
-        ..shader = LinearGradient(
+        ..shader = const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: const [Color(0xFFE9D3A6), Color(0xFFB98E4F)],
+          colors: [AppColors.medallionGoldLight, AppColors.medallionGoldDeep],
         ).createShader(saucer),
     );
-    canvas.drawOval(
-      saucer.deflate(2),
-      Paint()..color = const Color(0xFF8F6A33),
-    );
+    canvas.drawOval(saucer.deflate(2), Paint()..color = AppColors.medallionInk);
 
     // Warm halo blooming around the flame when lit.
     if (lit) {
@@ -1976,8 +2124,8 @@ class _CandlePainter extends CustomPainter {
           ..shader =
               RadialGradient(
                 colors: [
-                  const Color(0xFFFFC96A).withValues(alpha: 0.55),
-                  const Color(0xFFFFC96A).withValues(alpha: 0.0),
+                  AppColors.flameGold.withValues(alpha: 0.55),
+                  AppColors.flameGold.withValues(alpha: 0.0),
                 ],
               ).createShader(
                 Rect.fromCircle(center: glowCenter, radius: glowRadius),
@@ -2024,23 +2172,23 @@ class _CandlePainter extends CustomPainter {
       canvas.drawPath(
         _flamePath(flameBase, fh, fw),
         Paint()
-          ..shader = LinearGradient(
+          ..shader = const LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: const [
-              Color(0xFFFFD54F),
-              Color(0xFFFF8F00),
-              Color(0xFFFF6D00),
+            colors: [
+              AppColors.flameCore,
+              AppColors.flameAmber,
+              AppColors.flameEmber,
             ],
           ).createShader(outerRect),
       );
       canvas.drawPath(
         _flamePath(flameBase, fh * 0.62, fw * 0.58),
-        Paint()..color = const Color(0xFFFFE082),
+        Paint()..color = AppColors.flameGlow,
       );
       canvas.drawPath(
         _flamePath(flameBase, fh * 0.3, fw * 0.3),
-        Paint()..color = const Color(0xFFFFFDE7),
+        Paint()..color = AppColors.flameInner,
       );
     }
 
@@ -2049,7 +2197,7 @@ class _CandlePainter extends CustomPainter {
       Offset(cx, waxTop - 2),
       Offset(cx, waxTop + 7),
       Paint()
-        ..color = const Color(0xFF4A3626)
+        ..color = AppColors.wickBrown
         ..strokeWidth = 2.2
         ..strokeCap = StrokeCap.round,
     );
@@ -2062,15 +2210,11 @@ class _CandlePainter extends CustomPainter {
     canvas.drawRRect(
       waxRect,
       Paint()
-        ..shader = LinearGradient(
+        ..shader = const LinearGradient(
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
-          colors: const [
-            Color(0xFFE9DEC8),
-            Color(0xFFFBF6EA),
-            Color(0xFFD9CBB0),
-          ],
-          stops: const [0.0, 0.5, 1.0],
+          colors: [AppColors.waxShade, AppColors.waxLight, AppColors.waxDeep],
+          stops: [0.0, 0.5, 1.0],
         ).createShader(waxRect.outerRect),
     );
 
@@ -2082,15 +2226,15 @@ class _CandlePainter extends CustomPainter {
     canvas.drawRRect(
       rimRect,
       Paint()
-        ..shader = LinearGradient(
+        ..shader = const LinearGradient(
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
-          colors: const [Color(0xFFFDF8EE), Color(0xFFEDE2CC)],
+          colors: [AppColors.handPaper, AppColors.handShade],
         ).createShader(rimRect.outerRect),
     );
 
     // Wax drips hanging from the rim.
-    final dripPaint = Paint()..color = const Color(0xFFF3EBD8);
+    final dripPaint = Paint()..color = AppColors.waxDrip;
     const drips = [
       (dx: 0.52, len: 0.12),
       (dx: 0.62, len: 0.07),
@@ -2151,12 +2295,19 @@ class HighlightSlideshow extends StatefulWidget {
 class _HighlightSlideshowState extends State<HighlightSlideshow> {
   static const _photoDuration = Duration(seconds: 5);
 
-  late int _current = widget.initialIndex;
+  late int _current = widget.images.isEmpty
+      ? 0
+      : widget.initialIndex.clamp(0, widget.images.length - 1);
   bool _playing = true;
   bool _hasMusic = false;
   bool _muted = false;
   Timer? _timer;
   AudioPlayer? _music;
+  // Guards the async music lifecycle: set in dispose so late
+  // continuations never touch a dead player, and bumped per track switch
+  // so rapid taps can't interleave stop()/play() calls.
+  bool _disposed = false;
+  int _musicOp = 0;
 
   // All bundled tracks available to pick from, and which one is
   // currently playing — powers the new music-picker bottom sheet.
@@ -2172,47 +2323,68 @@ class _HighlightSlideshowState extends State<HighlightSlideshow> {
 
   @override
   void dispose() {
+    _disposed = true;
+    _musicOp++;
     _timer?.cancel();
-    _music?.dispose();
+    final music = _music;
+    _music = null;
+    music?.dispose();
     super.dispose();
   }
 
   Future<void> _initMusic() async {
     try {
       final tracks = await widget.galleryController.findAllAudioAssets();
-      if (tracks.isEmpty) return;
-      if (mounted) setState(() => _availableTracks = tracks);
+      if (_disposed || !mounted || tracks.isEmpty) return;
+      setState(() => _availableTracks = tracks);
 
       final defaultPath = await widget.galleryController.findFirstAudioAsset();
+      if (_disposed || !mounted) return;
       final startPath = defaultPath ?? tracks.first;
 
       final player = AudioPlayer();
       _music = player;
       await player.setReleaseMode(ReleaseMode.loop);
-      await player.setVolume(0.45);
-      await player.play(AssetSource(startPath));
-      if (mounted) {
-        setState(() {
-          _hasMusic = true;
-          _currentTrackPath = startPath;
-        });
+      if (_disposed) {
+        await player.dispose();
+        return;
       }
+      await player.setVolume(0.45);
+      if (_disposed) {
+        await player.dispose();
+        return;
+      }
+      await player.play(AssetSource(startPath));
+      if (_disposed || !mounted) return;
+      setState(() {
+        _hasMusic = true;
+        _currentTrackPath = startPath;
+      });
     } catch (_) {
-      _music?.dispose();
+      if (_disposed) return;
+      final music = _music;
+      _music = null;
+      music?.dispose();
     }
   }
 
   /// Switches background music to [path] without interrupting the photo
   /// slideshow itself — stops the current track and starts the new one
   /// at the same volume/mute state, keeping playback logic identical to
-  /// what _initMusic already sets up.
+  /// what _initMusic already sets up. Rapid taps are serialized via
+  /// [_musicOp]: only the latest request takes effect.
   Future<void> _selectTrack(String path) async {
-    if (path == _currentTrackPath || _music == null) return;
+    final op = ++_musicOp;
+    final music = _music;
+    if (path == _currentTrackPath || music == null) return;
     try {
-      await _music!.stop();
-      await _music!.play(AssetSource(path));
-      await _music!.setVolume(_muted ? 0 : 0.45);
-      if (mounted) setState(() => _currentTrackPath = path);
+      await music.stop();
+      if (_disposed || !mounted || op != _musicOp) return;
+      await music.play(AssetSource(path));
+      if (_disposed || !mounted || op != _musicOp) return;
+      await music.setVolume(_muted ? 0 : 0.45);
+      if (_disposed || !mounted || op != _musicOp) return;
+      setState(() => _currentTrackPath = path);
     } catch (_) {
       // Leave the previous track playing if switching fails, rather than
       // silently killing music the visitor was already enjoying.
@@ -2240,7 +2412,7 @@ class _HighlightSlideshowState extends State<HighlightSlideshow> {
                   style: GoogleFonts.playfairDisplay(
                     fontWeight: FontWeight.w700,
                     fontSize: 17,
-                    color: AppColors.white,
+                    color: AppColors.paper,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -2248,7 +2420,7 @@ class _HighlightSlideshowState extends State<HighlightSlideshow> {
                   child: ListView.separated(
                     shrinkWrap: true,
                     itemCount: _availableTracks.length,
-                    separatorBuilder: (_, __) => Divider(
+                    separatorBuilder: (_, _) => Divider(
                       color: Colors.white.withValues(alpha: 0.08),
                       height: 1,
                     ),
@@ -2300,15 +2472,16 @@ class _HighlightSlideshowState extends State<HighlightSlideshow> {
 
   void _scheduleNext() {
     _timer?.cancel();
-    if (!_playing) return;
+    if (!_playing || widget.images.isEmpty) return;
     _timer = Timer(_photoDuration, () {
-      if (!mounted) return;
+      if (!mounted || widget.images.isEmpty) return;
       setState(() => _current = (_current + 1) % widget.images.length);
       _scheduleNext();
     });
   }
 
   void _goTo(int index) {
+    if (widget.images.isEmpty) return;
     setState(() {
       _current = (index + widget.images.length) % widget.images.length;
     });
@@ -2316,11 +2489,13 @@ class _HighlightSlideshowState extends State<HighlightSlideshow> {
   }
 
   void _togglePlay() {
+    if (widget.images.isEmpty) return;
     setState(() => _playing = !_playing);
     _scheduleNext();
   }
 
   void _toggleMute() {
+    if (_disposed) return;
     setState(() => _muted = !_muted);
     _music?.setVolume(_muted ? 0 : 0.45);
   }
@@ -2328,7 +2503,15 @@ class _HighlightSlideshowState extends State<HighlightSlideshow> {
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
-    final item = widget.images[_current];
+    if (widget.images.isEmpty) {
+      return const Scaffold(
+        backgroundColor: AppColors.viewerBackground,
+        body: Center(
+          child: Icon(Icons.broken_image, size: 80, color: Colors.grey),
+        ),
+      );
+    }
+    final item = widget.images[_current.clamp(0, widget.images.length - 1)];
 
     return Scaffold(
       backgroundColor: AppColors.viewerBackground,
@@ -2401,7 +2584,7 @@ class _HighlightSlideshowState extends State<HighlightSlideshow> {
                             style: GoogleFonts.playfairDisplay(
                               fontStyle: FontStyle.italic,
                               fontSize: 15,
-                              color: AppColors.white,
+                              color: AppColors.paper,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -2482,10 +2665,17 @@ class _KenBurnsPhoto extends StatefulWidget {
 
 class _KenBurnsPhotoState extends State<_KenBurnsPhoto>
     with SingleTickerProviderStateMixin {
+  // Static opening frame when the OS requests reduced motion.
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 5200),
-  )..forward();
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (!animationsDisabled()) _controller.forward();
+  }
 
   late final Animation<double> _scale = Tween<double>(
     begin: _zoomOut ? 1.14 : 1.0,

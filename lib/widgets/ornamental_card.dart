@@ -23,7 +23,7 @@ class OrnamentalCard extends StatelessWidget {
   const OrnamentalCard({
     super.key,
     this.radius = 16,
-    this.fill = AppColors.white,
+    this.fill = AppColors.paper,
     this.borderColor = AppColors.gold,
     this.borderAlpha = 0.2,
     this.borderWidth = 0.6,

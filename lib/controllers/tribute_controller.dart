@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:nita/models/tribute_model.dart';
 
@@ -131,7 +130,11 @@ class TributeController extends ChangeNotifier {
     ],
   );
 
-  int _localCount = 124;
+  /// Seed so a fresh visit never reads as zero — the count represents
+  /// "candles lit before you arrived". Session-only (see [lightCandle]).
+  static const int initialCandleCount = 124;
+
+  int _localCount = initialCandleCount;
   bool _lit = false;
   bool _loading = false;
 
@@ -139,48 +142,19 @@ class TributeController extends ChangeNotifier {
   bool get lit => _lit;
   bool get loading => _loading;
 
-  /// Shared candle-count stream. Falls back to an empty stream when
-  /// Firebase is not configured (or unreachable), so the section renders
-  /// the local counter instead of throwing during build.
-  late final Stream<DocumentSnapshot<Map<String, dynamic>>> candleStream =
-      _buildCandleStream();
-
-  Stream<DocumentSnapshot<Map<String, dynamic>>> _buildCandleStream() {
-    try {
-      return FirebaseFirestore.instance
-          .collection('memorial')
-          .doc('anita_lumbao')
-          .snapshots();
-    } catch (_) {
-      return Stream<DocumentSnapshot<Map<String, dynamic>>>.empty();
-    }
-  }
-
+  /// Local-only for now (no Firebase): session candle count.
+  /// Starts at 124 each launch, +1 when lit. Shared Firestore count
+  /// can be re-added later behind a flag without changing the UI,
+  /// which reads [localCount] only.
   Future<void> lightCandle() async {
-    if (_lit) return;
+    if (_lit || _loading) return;
     _loading = true;
+    notifyListeners();
+    // Tiny delay so the disabled button state is visible, then light.
+    await Future<void>.delayed(const Duration(milliseconds: 300));
     _lit = true;
     _localCount++;
+    _loading = false;
     notifyListeners();
-
-    try {
-      final docRef = FirebaseFirestore.instance
-          .collection('memorial')
-          .doc('anita_lumbao');
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
-        final snapshot = await transaction.get(docRef);
-        if (!snapshot.exists) {
-          transaction.set(docRef, {'candleCount': _localCount});
-        } else {
-          final current = snapshot.data()?['candleCount'] ?? 124;
-          transaction.update(docRef, {'candleCount': current + 1});
-        }
-      });
-    } catch (_) {
-      // Fallback to local optimistic count
-    } finally {
-      _loading = false;
-      notifyListeners();
-    }
   }
 }

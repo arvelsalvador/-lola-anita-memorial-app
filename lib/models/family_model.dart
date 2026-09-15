@@ -2,10 +2,10 @@ class FamilyModel {
   /// The center person of the tree — Anita in your screenshot.
   final FamilyMember rootMember;
 
-  /// "32 miyembro ng pamilya"
+  /// e.g. "15 miyembro ng pamilya" — must match Memorial.totalMembers.
   final int totalMembers;
 
-  /// "4 na henerasyon"
+  /// e.g. "3 na henerasyon" — must match Memorial.generations.
   final int generations;
 
   final List<FamilyGroup> groups;

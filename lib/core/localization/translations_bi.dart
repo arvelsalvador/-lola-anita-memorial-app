@@ -20,6 +20,8 @@ const Map<String, String> translationsBi = {
   'family_tree_unlinked': 'Iba Pang mga Apo',
   'splash_tap': 'Pindota tang makalaog',
   'hero_tagline': 'Namomotan na lola, paratipig kan mga istorya',
+  'hero_portrait_label': 'Ladawan ni {name}',
+  'hero_years_label': 'Nabuhay puon {birth} sagkod {passing}',
   'section_her_words': 'An saiyang mga tataramon',
   'section_her_journey': 'An saiyang pagbiyahe',
   'section_about_her': 'Manungod sa saiya',
@@ -109,6 +111,14 @@ const Map<String, String> translationsBi = {
       'Saro siyang mamomoton na agom, maingat na ina, asin puso kan pamilyang umabot sa tulong henerasyon. '
       'Dai nagpapahingalo an saiyang mga kamot — nagluluto, nagtatahi, o nakatupi sa pag-ampo — asin an saiyang harong pirmeng bukas.\n\n'
       'Hararom an saiyang pagtubod na an pamilya iyo an pinakamahalagang kayamanan, asin itinao niya an gabos tanganing magtugdok nin harong na pano nin pagkamoot.',
+  'story_favorites':
+      'Mga Paborito asin Gawi ni Nanay:\n'
+      'Namomotan ni Nanay magdalan nin TV, orog na an Eat Bulaga asin mga palabas manunungod sa kalikasan arog kan Nat Geo Wild asin mga hayop. '
+      'Masipag man siyang paratluto, an paborito niyang lutuon an sa natong (laing) asin iba pang masisiram na putahe.\n\n'
+      'An panginot niyang gibo an pagtupi nin bado asin pagpamibi. Dai nawawara an kape sa saiyang aldaw, orog na an Coffee Mate, Coffee Combo, o gatas na Bear Brand.\n\n'
+      'Makadios si Nanay — pirme nagpamibi gabos na banggi asin aktibong nagsisimba, orog na kun Simbang Gabi.\n\n'
+      'Maogma siya, pirme andam magdangog asin tumabang kun may problema, asin matinao orog na sa pagkakan.\n'
+      'Pinagmamalaki niya an saiyang mga apo asin pirme proud sainda.',
   'timeline_birth_title':
       'Ipinangaki sa Purok 3, Barangay 7, Mercedes, Camarines Norte',
   'timeline_birth_desc':
@@ -230,6 +240,7 @@ const Map<String, String> translationsBi = {
   'family_sheet_grandchildren': 'Mga apō',
   'family_sheet_grandchildren_count': '{count} na apō',
   'family_sheet_not_recorded': 'Mayo nakatala',
+  'family_sheet_view_photo': 'Hilingon an bilog na ladawan',
   'family_view_full_tree': 'Helingon an bilog na family tree',
   'family_footer_note':
       'An mga miyembro kan pamilya puedeng ikonektar sa mga alaala.',
@@ -418,8 +429,8 @@ const Map<String, String> translationsBi = {
       'Gugugolon ko an bilog kong buhay tanganing magmoot sa mga tawo siring kan pagkamoot niya sa samo.',
   'family_quote_3_name': 'Ana, apo',
   // ── Words tab ─────────────────────────────────────────────────────────
-  'words_subtitle':
-      'Mga tataramon nin pagkamoot kan pamilya para ki Nanay',
+  'words_subtitle': 'Mga tataramon nin pagkamoot kan pamilya para ki Nanay',
+  'words_empty': 'Mayo pang tataramon sa grupong ini.',
   'words_leave_cta': 'Magwalat nin tataramon',
   'words_filter_all': 'Gabos',
   'words_filter_children': 'Mga aki',
@@ -462,8 +473,7 @@ const Map<String, String> translationsBi = {
       'Dai man kita nadakotup ngunyan, dala-dala ko pa an mga istorya asin katawa-ta an samuya.',
   'words_quote_3_name': 'Rodel Lumbao Sr.',
   // Mga tugang
-  'words_quote_4':
-      'May sukol sa kada sukol kan harong asin sa puso kan gabos.',
+  'words_quote_4': 'May sukol sa kada sukol kan harong asin sa puso kan gabos.',
   'words_quote_4_name': 'Roberto Daiz',
   'words_quote_5':
       'An dagat an nagtokdo samo nin pasensya, ika an nagtokdo nin puso.',

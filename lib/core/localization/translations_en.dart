@@ -17,6 +17,8 @@ const Map<String, String> translationsEn = {
   'splash_subtitle': 'IN LOVING MEMORY',
   'splash_tap': 'Touch to enter',
   'hero_tagline': 'Beloved grandmother, keeper of stories',
+  'hero_portrait_label': 'Photo of {name}',
+  'hero_years_label': 'Lived from {birth} to {passing}',
   'section_her_words': 'Her words',
   'section_her_journey': 'Her journey',
   'section_about_her': 'About her',
@@ -102,6 +104,14 @@ const Map<String, String> translationsEn = {
       'She was a loving wife, a nurturing mother, and the heart of a family spanning three generations. '
       'Her hands were never idle — cooking, sewing, or folded in prayer — and her home was always open.\n\n'
       'She believed deeply that family was life\'s greatest treasure, and she gave everything to build a home filled with love.',
+  'story_favorites':
+      'Nanay\'s Favorites and Habits:\n'
+      'Nanay loved watching TV, especially Eat Bulaga and nature shows like Nat Geo Wild and animals. '
+      'She was also a devoted cook — her favorite to make was sa natong (laing) and other delicious dishes.\n\n'
+      'Her main routines were folding clothes and praying. Coffee was never missing from her day, especially Coffee Mate, Coffee Combo, or Bear Brand milk.\n\n'
+      'Nanay was devout — always praying every night and actively attending church, especially during Simbang Gabi.\n\n'
+      'She was cheerful, always ready to listen and help when there was a problem, and generous especially when it came to food.\n'
+      'She was proud of her grandchildren and always proud of them.',
   'timeline_birth_title':
       'Born in Purok 3, Barangay 7, Mercedes, Camarines Norte',
   'timeline_birth_desc':
@@ -222,6 +232,7 @@ const Map<String, String> translationsEn = {
   'family_sheet_grandchildren': 'Grandchildren',
   'family_sheet_grandchildren_count': '{count} grandchildren',
   'family_sheet_not_recorded': 'Not recorded',
+  'family_sheet_view_photo': 'View full photo',
   'family_view_full_tree': 'View the full family tree',
   'family_tree_tap_hint': 'Tap a name to see memories',
   'family_tree_unlinked': 'Other Grandchildren',
@@ -393,6 +404,7 @@ const Map<String, String> translationsEn = {
   'family_quote_3_name': 'Ana, granddaughter',
   // ── Words tab ─────────────────────────────────────────────────────────
   'words_subtitle': 'Words of love from the family for Nanay',
+  'words_empty': 'No words in this group yet.',
   'words_leave_cta': 'Leave a word',
   'words_filter_all': 'All',
   'words_filter_children': 'Her children',

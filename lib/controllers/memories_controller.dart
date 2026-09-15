@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:nita/core/gallery_assets.dart';
 import 'package:nita/models/home_model.dart';
@@ -74,14 +75,17 @@ class MemoriesController extends ChangeNotifier {
 
   Future<void> loadGalleryCount() async {
     try {
-      final paths = await loadGalleryPhotoPaths();
+      final paths = await loadGalleryPhotoPaths().timeout(
+        const Duration(seconds: 10),
+      );
       if (_galleryCount != paths.length) {
         _galleryCount = paths.length;
         notifyListeners();
       }
-    } catch (_) {
+    } catch (e) {
       // -1 marks a failed load, distinct from null ("still loading"), so
       // the UI can stop pulsing and show a dash instead of waiting forever.
+      debugPrint('[Memories] gallery count failed: $e');
       if (_galleryCount != -1) {
         _galleryCount = -1;
         notifyListeners();

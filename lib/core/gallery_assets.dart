@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 
 /// Support assets that happen to live in the gallery folder but are not
@@ -15,14 +17,22 @@ const Set<String> gallerySupportAssets = {
 /// above. Shared by the gallery page (the grid) and the memories page
 /// (the "N larawan sa Galeri" counts).
 Future<List<String>> loadGalleryPhotoPaths() async {
-  final assetManifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+  final assetManifest = await AssetManifest.loadFromAssetBundle(rootBundle)
+      .timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => throw TimeoutException('gallery manifest timed out'),
+      );
   final paths = assetManifest
       .listAssets()
-      .where(
-        (key) =>
-            key.startsWith('assets/images/gallery/') &&
-            (key.endsWith('.jpg') || key.endsWith('.png')),
-      )
+      .where((key) {
+        if (!key.startsWith('assets/images/gallery/')) return false;
+        // Case-insensitive so Bday/bday and .JPG/.PNG/.jpeg all load
+        // on Windows (case-insensitive FS) and Linux/web (sensitive).
+        final lower = key.toLowerCase();
+        return lower.endsWith('.jpg') ||
+            lower.endsWith('.jpeg') ||
+            lower.endsWith('.png');
+      })
       .where((key) => !gallerySupportAssets.contains(key.split('/').last))
       .toList();
   paths.sort();

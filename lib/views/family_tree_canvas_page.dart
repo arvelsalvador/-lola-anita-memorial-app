@@ -72,7 +72,7 @@ class _FamilyTreeCanvasPageState extends State<FamilyTreeCanvasPage> {
   /// directly under that child. Grandchildren without a matching
   /// parentName are collected into one shared trailing branch.
   void _buildLayout() {
-    final data = FamilyController.data;
+    const data = FamilyController.data;
     final childrenGroup = data.groups.firstWhere(
       (g) => g.labelKey == 'family_group_children',
       orElse: () => const FamilyGroup(
@@ -162,9 +162,9 @@ class _FamilyTreeCanvasPageState extends State<FamilyTreeCanvasPage> {
         _TreeLayout.canvasPadding * 2;
 
     double cursorX = _TreeLayout.canvasPadding;
-    final row1Y = _TreeLayout.canvasPadding;
-    final row2Y = row1Y + _TreeLayout.rootHeight + _TreeLayout.rowGap;
-    final row3Y = row2Y + _TreeLayout.nodeHeight + _TreeLayout.rowGap;
+    const row1Y = _TreeLayout.canvasPadding;
+    const row2Y = row1Y + _TreeLayout.rootHeight + _TreeLayout.rowGap;
+    const row3Y = row2Y + _TreeLayout.nodeHeight + _TreeLayout.rowGap;
 
     final rootRect = Rect.fromLTWH(
       (canvasWidth - _TreeLayout.rootWidth) / 2,
@@ -283,9 +283,9 @@ class _FamilyTreeCanvasPageState extends State<FamilyTreeCanvasPage> {
 
     final scenePoint = _transform.toScene(viewportCenter);
     final result = matrix.clone()
-      ..translate(scenePoint.dx, scenePoint.dy)
-      ..scale(adjust)
-      ..translate(-scenePoint.dx, -scenePoint.dy);
+      ..translateByDouble(scenePoint.dx, scenePoint.dy, 0, 1)
+      ..scaleByDouble(adjust, adjust, adjust, 1)
+      ..translateByDouble(-scenePoint.dx, -scenePoint.dy, 0, 1);
 
     _transform.value = result;
   }
@@ -482,9 +482,9 @@ class _TreeNodeCard extends StatelessWidget {
             Container(
               width: avatarSize,
               height: avatarSize,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFFFF4EC),
+                color: AppColors.blushPaper,
               ),
               child: member.photoPath == null
                   ? Center(
@@ -550,7 +550,7 @@ class _TreeNodeCard extends StatelessWidget {
                     vertical: 3,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFF0DD),
+                    color: AppColors.warmPaper,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
@@ -579,7 +579,7 @@ class _HintBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF0DD),
+        color: AppColors.warmPaper,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.gold.withValues(alpha: 0.3)),
       ),

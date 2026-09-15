@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/constants/app_routes.dart';
 import 'package:nita/core/localization/language_provider.dart';
+import 'package:nita/core/utils/motion.dart';
 import 'package:nita/widgets/pulsing_dot.dart';
 
 /// Splash screen shown on app launch. Auto-advances to [AppRoutes.home]
@@ -49,8 +50,12 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
       duration: _sequenceDuration,
     );
 
-    _petalCtrl = AnimationController(vsync: this, duration: _petalCycleDuration)
-      ..repeat();
+    _petalCtrl = AnimationController(
+      vsync: this,
+      duration: _petalCycleDuration,
+    );
+    // Reduced motion: static petals instead of the falling loop.
+    if (!animationsDisabled()) _petalCtrl.repeat();
 
     _photoScale = Tween<double>(begin: 0.8, end: 1.0).animate(
       CurvedAnimation(
@@ -83,7 +88,12 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
       ),
     );
 
-    _sequenceCtrl.forward();
+    // Reduced motion: skip the entrance choreography, show final state.
+    if (animationsDisabled()) {
+      _sequenceCtrl.value = 1.0;
+    } else {
+      _sequenceCtrl.forward();
+    }
     _autoAdvanceTimer = Timer(_autoAdvanceDelay, _navigate);
   }
 
@@ -219,7 +229,7 @@ class _SplashContent extends StatelessWidget {
                 style: const TextStyle(
                   fontFamily: 'Georgia',
                   fontSize: 24,
-                  color: Color(0xFFFAF0E6),
+                  color: AppColors.linen,
                   fontWeight: FontWeight.w300,
                   letterSpacing: 2,
                 ),
@@ -227,7 +237,7 @@ class _SplashContent extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 subtitle,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 11,
                   color: AppColors.gold,
                   letterSpacing: 5,
@@ -251,7 +261,7 @@ class _SplashContent extends StatelessWidget {
                 fontFamily: 'Georgia',
                 fontStyle: FontStyle.italic,
                 fontSize: 13,
-                color: Color(0xFFD4BFB5),
+                color: AppColors.petalBlush,
                 height: 1.6,
                 letterSpacing: 0.5,
               ),
@@ -314,7 +324,7 @@ class _PortraitPhoto extends StatelessWidget {
         decoration: const BoxDecoration(
           shape: BoxShape.circle,
           gradient: LinearGradient(
-            colors: [Color(0xFFC4956A), Color(0xFF7A4E3A)],
+            colors: [AppColors.dawnRose, AppColors.duskBrown],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -332,7 +342,7 @@ class _PortraitPhoto extends StatelessWidget {
                   style: TextStyle(
                     fontFamily: 'Georgia',
                     fontSize: 40,
-                    color: Color(0xFFFAF0E6),
+                    color: AppColors.linen,
                     fontWeight: FontWeight.w300,
                     letterSpacing: 2,
                   ),

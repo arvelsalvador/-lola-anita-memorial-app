@@ -16,14 +16,14 @@ class StoryModel {
   final String quoteKey;
   final String quoteAttributionKey;
   final String aboutKey;
-  final String favorites;
+  final String favoritesKey;
   final List<LifeEvent> timeline;
 
   const StoryModel({
     required this.quoteKey,
     required this.quoteAttributionKey,
     required this.aboutKey,
-    required this.favorites,
+    required this.favoritesKey,
     required this.timeline,
   });
 }

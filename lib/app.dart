@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/constants/app_routes.dart';
 import 'package:nita/core/localization/language_provider.dart';
@@ -12,14 +11,19 @@ class LolaApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => LanguageProvider(),
+    // Global app state lives here. Feature controllers (Home/Gallery/
+    // Memories/Tribute) stay explicitly injected via `HomePage`'s
+    // composition root so `HomeShell` remains directly testable with
+    // constructor injection — see `test/header_scroll_test.dart`.
+    return MultiProvider(
+      providers: [ChangeNotifierProvider(create: (_) => LanguageProvider())],
       child: MaterialApp(
         title: 'In Loving Memory',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           scaffoldBackgroundColor: AppColors.cream,
-          fontFamily: GoogleFonts.inter().fontFamily,
+          // One Voice Rule (DESIGN.md): Georgia everywhere, serif fallback.
+          fontFamily: 'Georgia, Times New Roman, serif',
           colorScheme: ColorScheme.fromSeed(seedColor: AppColors.rose),
           useMaterial3: true,
         ),

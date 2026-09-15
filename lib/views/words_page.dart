@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
+import 'package:nita/core/utils/display_utils.dart';
 import 'package:nita/controllers/tribute_controller.dart';
 import 'package:nita/models/tribute_model.dart';
 import 'package:nita/widgets/ornamental_card.dart';
@@ -23,7 +24,11 @@ class WordsPage extends StatefulWidget {
   /// view never constructs or owns the controller.
   final TributeController tributeController;
 
-  const WordsPage({super.key, this.controller, required this.tributeController});
+  const WordsPage({
+    super.key,
+    this.controller,
+    required this.tributeController,
+  });
 
   @override
   State<WordsPage> createState() => _WordsPageState();
@@ -34,14 +39,14 @@ class _WordsPageState extends State<WordsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final data = TributeController.data;
+    const data = TributeController.data;
     final lang = context.watch<LanguageProvider>();
 
     final quotes = _filter == null
         ? data.familyQuotes
         : data.familyQuotes
-            .where((q) => q.group == _filter)
-            .toList(growable: false);
+              .where((q) => q.group == _filter)
+              .toList(growable: false);
 
     return CustomScrollView(
       controller: widget.controller,
@@ -79,10 +84,24 @@ class _WordsPageState extends State<WordsPage> {
               ],
               ...quotes.map(
                 (q) => Padding(
+                  key: ValueKey(q.quoteKey),
                   padding: const EdgeInsets.only(bottom: 12),
                   child: FamilyQuoteCard(quote: q),
                 ),
               ),
+              if (quotes.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Text(
+                    lang.t('words_empty'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontStyle: FontStyle.italic,
+                      color: AppColors.muted,
+                    ),
+                  ),
+                ),
               const SizedBox(height: 32),
             ]),
           ),
@@ -143,7 +162,9 @@ class _FilterChips extends StatelessWidget {
             icon: Icons.escalator_warning_outlined,
             selected: active == QuoteGroup.grandchildren,
             onTap: () => onSelected(
-              active == QuoteGroup.grandchildren ? null : QuoteGroup.grandchildren,
+              active == QuoteGroup.grandchildren
+                  ? null
+                  : QuoteGroup.grandchildren,
             ),
           ),
           const SizedBox(width: 8),
@@ -177,7 +198,7 @@ class _FilterChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? AppColors.roseDeep : AppColors.white,
+      color: selected ? AppColors.roseDeep : AppColors.paper,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
@@ -198,7 +219,7 @@ class _FilterChip extends StatelessWidget {
               Icon(
                 icon,
                 size: 14,
-                color: selected ? AppColors.white : AppColors.warmMid,
+                color: selected ? AppColors.paper : AppColors.warmMid,
               ),
               const SizedBox(width: 5),
               Text(
@@ -206,7 +227,7 @@ class _FilterChip extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
-                  color: selected ? AppColors.white : AppColors.warmMid,
+                  color: selected ? AppColors.paper : AppColors.warmMid,
                 ),
               ),
             ],
@@ -232,10 +253,7 @@ class _FeaturedQuoteCard extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFFBF3E8),
-            AppColors.goldLight,
-          ],
+          colors: [AppColors.quotePaper, AppColors.goldLight],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
@@ -256,7 +274,11 @@ class _FeaturedQuoteCard extends StatelessWidget {
           const Positioned(
             top: 10,
             right: 12,
-            child: Icon(Icons.favorite_rounded, size: 14, color: AppColors.rose),
+            child: Icon(
+              Icons.favorite_rounded,
+              size: 14,
+              color: AppColors.rose,
+            ),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
@@ -280,7 +302,7 @@ class _FeaturedQuoteCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 // ── Big open-quote mark (homepage QuoteCard style) ─────
-                Text(
+                const Text(
                   '\u201C',
                   style: TextStyle(
                     fontFamily: 'Georgia',
@@ -368,7 +390,7 @@ class FamilyQuoteCard extends StatelessWidget {
                           color: AppColors.warmDark,
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: AppColors.white,
+                            color: AppColors.paper,
                             width: 1.5,
                           ),
                         ),
@@ -463,12 +485,13 @@ class _MemberAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (photoPath == null) {
-      return GradientAvatar(
-        size: size,
-        initials: _initialsOf(name),
-      );
+    final path = photoPath;
+    if (path == null || path.isEmpty) {
+      return GradientAvatar(size: size, initials: _initialsOf(name));
     }
+    // ClipOval + Image.asset (with errorBuilder) instead of
+    // DecorationImage — a missing bundled photo falls back to initials
+    // instead of throwing a red-screen paint error.
     return Container(
       width: size,
       height: size,
@@ -478,21 +501,19 @@ class _MemberAvatar extends StatelessWidget {
           color: AppColors.gold.withValues(alpha: 0.5),
           width: 1.2,
         ),
-        image: DecorationImage(
-          image: AssetImage(photoPath!),
+      ),
+      child: ClipOval(
+        child: Image.asset(
+          path,
           fit: BoxFit.cover,
+          errorBuilder: (_, _, _) =>
+              GradientAvatar(size: size, initials: _initialsOf(name)),
         ),
       ),
     );
   }
 
   static String _initialsOf(String name) {
-    final parts = name
-        .split(RegExp(r'\s+'))
-        .where((p) => p.isNotEmpty)
-        .toList(growable: false);
-    if (parts.isEmpty) return '?';
-    if (parts.length == 1) return parts.first[0].toUpperCase();
-    return (parts.first[0] + parts.last[0]).toUpperCase();
+    return DisplayUtils.initialsOf(name).toUpperCase();
   }
 }

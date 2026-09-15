@@ -46,30 +46,31 @@ class _CandleVideoState extends State<CandleVideo> {
   bool _completed = false;
   int _lastSignal = 0;
 
-  // TODO(temp-diagnostic): remove once the init failure is identified.
-  String _errorMessage = '';
-
   @override
   void initState() {
     super.initState();
     _controller = VideoPlayerController.asset(CandleVideo.assetPath);
-    _controller.setLooping(false);
+    // setLooping is a Future that can fail on platforms without an
+    // implementation — observe (and swallow) it instead of leaving an
+    // unhandled async error.
+    _controller.setLooping(false).catchError((_) {});
     _controller.addListener(_onTick);
     widget.playSignal.addListener(_onSignal);
     _lastSignal = widget.playSignal.value;
-    _controller.initialize().then((_) {
-      if (!mounted) return;
-      // Rest on the first (unlit) frame — never autoplay.
-      _controller.pause();
-      setState(() => _ready = true);
-    }).catchError((Object e) {
-      debugPrint('[CandleVideo] initialize failed: $e');
-      if (!mounted) return;
-      setState(() {
-        _failed = true;
-        _errorMessage = '$e';
-      });
-    });
+    _controller
+        .initialize()
+        .timeout(const Duration(seconds: 10))
+        .then((_) {
+          if (!mounted) return;
+          // Rest on the first (unlit) frame — never autoplay.
+          _controller.pause();
+          setState(() => _ready = true);
+        })
+        .catchError((Object e) {
+          debugPrint('[CandleVideo] initialize failed: $e');
+          if (!mounted) return;
+          setState(() => _failed = true);
+        });
   }
 
   @override
@@ -91,19 +92,20 @@ class _CandleVideoState extends State<CandleVideo> {
     if (!_ready || _failed || !mounted) return;
     final value = _controller.value;
     if (value.hasError) {
-      // TODO(temp-diagnostic): remove once the init failure is identified.
       debugPrint('[CandleVideo] player error: ${value.errorDescription}');
-      setState(() {
-        _failed = true;
-        _errorMessage = value.errorDescription ?? 'unknown player error';
-      });
+      setState(() => _failed = true);
       return;
     }
     if (_completed || !value.isPlaying) return;
     final duration = value.duration;
-    if (duration > Duration.zero && value.position >= duration) {
+    // Some platforms clamp position ~100-200ms short of duration (or stop
+    // the playing flag first), so treat near-the-end as the end instead
+    // of requiring exact equality — otherwise the video sits on a
+    // near-last frame and _completed never flips.
+    if (duration > Duration.zero &&
+        value.position >= duration - const Duration(milliseconds: 300)) {
       _controller.pause();
-      setState(() => _completed = true);
+      if (mounted) setState(() => _completed = true);
     }
   }
 
@@ -113,18 +115,16 @@ class _CandleVideoState extends State<CandleVideo> {
     if (!_ready || _failed || !mounted) return;
     if (_controller.value.isPlaying) return;
     try {
-      await _controller.seekTo(Duration.zero);
+      await _controller
+          .seekTo(Duration.zero)
+          .timeout(const Duration(seconds: 5));
       if (!mounted) return;
       setState(() => _completed = false);
-      await _controller.play();
+      await _controller.play().timeout(const Duration(seconds: 5));
     } catch (e) {
-      // TODO(temp-diagnostic): remove once the init failure is identified.
       debugPrint('[CandleVideo] play failed: $e');
       if (!mounted) return;
-      setState(() {
-        _failed = true;
-        _errorMessage = '$e';
-      });
+      setState(() => _failed = true);
     }
   }
 
@@ -179,7 +179,7 @@ class _CandleVideoState extends State<CandleVideo> {
                 height: 200,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.white.withValues(alpha: 0.72),
+                  color: AppColors.paper.withValues(alpha: 0.72),
                   border: Border.all(
                     color: AppColors.gold.withValues(alpha: 0.35),
                     width: 0.7,
@@ -197,11 +197,7 @@ class _CandleVideoState extends State<CandleVideo> {
                 child: ClipOval(
                   child: _ready && !_failed
                       ? VideoPlayer(_controller)
-                      : _FallbackMedallion(
-                          loading: !_failed,
-                          // TODO(temp-diagnostic): remove once identified.
-                          errorMessage: _errorMessage,
-                        ),
+                      : _FallbackMedallion(loading: !_failed),
                 ),
               ),
             ),
@@ -217,10 +213,7 @@ class _CandleVideoState extends State<CandleVideo> {
 class _FallbackMedallion extends StatelessWidget {
   final bool loading;
 
-  // TODO(temp-diagnostic): remove once the init failure is identified.
-  final String errorMessage;
-
-  const _FallbackMedallion({required this.loading, this.errorMessage = ''});
+  const _FallbackMedallion({required this.loading});
 
   @override
   Widget build(BuildContext context) {
@@ -237,28 +230,10 @@ class _FallbackMedallion extends StatelessWidget {
                 color: AppColors.rose,
               ),
             )
-          : Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.local_fire_department_rounded,
-                  size: 40,
-                  color: AppColors.gold,
-                ),
-                if (errorMessage.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    errorMessage,
-                    textAlign: TextAlign.center,
-                    maxLines: 4,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 9,
-                      color: AppColors.roseDeep,
-                    ),
-                  ),
-                ],
-              ],
+          : const Icon(
+              Icons.local_fire_department_rounded,
+              size: 40,
+              color: AppColors.gold,
             ),
     );
   }

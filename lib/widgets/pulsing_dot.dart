@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:nita/core/constants/app_constants.dart';
+import 'package:nita/core/utils/motion.dart';
 
 /// Small gold dot that pulses gently, used as a "tap to continue" hint.
 class PulsingDot extends StatefulWidget {
@@ -20,7 +21,13 @@ class _PulsingDotState extends State<PulsingDot>
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
-    )..repeat(reverse: true);
+    );
+    // Reduced motion: steady full-size dot instead of the pulse loop.
+    if (animationsDisabled()) {
+      _ctrl.value = 1.0;
+    } else {
+      _ctrl.repeat(reverse: true);
+    }
     _scale = Tween<double>(
       begin: 0.6,
       end: 1.0,

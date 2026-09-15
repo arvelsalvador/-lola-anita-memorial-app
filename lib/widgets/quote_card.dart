@@ -29,7 +29,7 @@ class QuoteCard extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(24, 26, 24, 22),
       child: Column(
         children: [
-          Text(
+          const Text(
             '\u201C',
             style: TextStyle(
               fontFamily: 'Georgia',

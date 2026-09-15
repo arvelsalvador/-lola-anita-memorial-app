@@ -28,7 +28,7 @@ class LanguageToggle extends StatelessWidget {
         onTap: () {
           showModalBottomSheet(
             context: context,
-            backgroundColor: AppColors.white,
+            backgroundColor: AppColors.paper,
             shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             ),
@@ -48,13 +48,13 @@ class LanguageToggle extends StatelessWidget {
                 DisplayController.languageCode(lang.language),
                 style: TextStyle(
                   fontSize: 11,
-                  color: const Color(0xFFFAF0E6),
+                  color: AppColors.linen,
                   fontWeight: lang.isBicol ? FontWeight.w400 : FontWeight.w600,
                   letterSpacing: 0.5,
                 ),
               ),
               const SizedBox(width: 2),
-              const Icon(Icons.expand_more, size: 14, color: Color(0xFFFAF0E6)),
+              const Icon(Icons.expand_more, size: 14, color: AppColors.linen),
             ],
           ),
         ),

@@ -1,3 +1,4 @@
+import 'package:nita/core/constants/memorial.dart';
 import 'package:nita/models/family_model.dart';
 
 class FamilyController {
@@ -5,12 +6,12 @@ class FamilyController {
     rootMember: FamilyMember(
       name: 'Anita Daiz Lumbao',
       roleKey: 'family_root_subtitle', // "Sentro ng aming pamilya"
-      yearsLabel: '1938–2022',
+      yearsLabel: Memorial.yearsLabel,
       photoCount: 12,
       photoPath: 'assets/images/Family DP/Nanay_dp.jpg',
     ),
-    totalMembers: 32,
-    generations: 4,
+    totalMembers: Memorial.totalMembers,
+    generations: Memorial.generations,
     groups: [
       FamilyGroup(
         labelKey: 'family_group_siblings',
@@ -29,6 +30,9 @@ class FamilyController {
             tags: ['PD', 'BD', 'SD'],
             extraCount: 1,
           ),
+          // TODO(i18n): occupation/birthplace are English-only display
+          // strings pending translation keys — values kept verbatim so no
+          // family facts are invented.
           FamilyMember(
             name: 'Rodolfo Daiz',
             roleKey: 'family_role_brother',
@@ -176,8 +180,10 @@ class FamilyController {
     ],
   );
 
-  static const childrenCount = 6;
+  static const childrenCount = Memorial.childrenCount;
+  // TODO(family): reconcile with timeline — marriage_desc says 54 years,
+  // anniversary_desc honors 37 years (1998). Confirm true span.
   static const marriageYears = 54;
-  static const generations = 3;
-  static const siblingsCount = 7;
+  static const generations = Memorial.generations;
+  static const siblingsCount = Memorial.siblingsCount;
 }

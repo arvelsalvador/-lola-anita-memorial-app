@@ -27,6 +27,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
+import 'package:nita/core/navigation.dart';
 import 'package:nita/controllers/display_controller.dart';
 import 'package:nita/controllers/family_controller.dart';
 import 'package:nita/models/family_model.dart';
@@ -53,14 +54,14 @@ String _familyText(
 // consecutive "no-photo" cards don't repeat the same color, just like
 // the LD / JD / BD circles in your screenshot.
 const List<Color> _apoAvatarBg = [
-  Color(0xFFF1E9FB), // lavender
-  Color(0xFFE6F5EA), // mint
-  Color(0xFFFDE8F0), // pink
+  AppColors.tintLavender, // lavender
+  AppColors.tintMint, // mint
+  AppColors.tintPink, // pink
 ];
 const List<Color> _apoAvatarText = [
-  Color(0xFF8B5FBF), // purple
-  Color(0xFF3F9142), // green
-  Color(0xFFD1568B), // rose/pink
+  AppColors.accentPurple, // purple
+  AppColors.accentGreen, // green
+  AppColors.accentPink, // rose/pink
 ];
 
 /// The filter tabs above the family content. Each tab scrolls the page to
@@ -190,7 +191,7 @@ class _FamilyPageState extends State<FamilyPage> {
 
   @override
   Widget build(BuildContext context) {
-    final data = FamilyController.data;
+    const data = FamilyController.data;
     final groups = data.groups;
     // The 'Direktang pamilya' tab targets the Mga Anak section and the
     // 'Mga Apo' tab the grandchildren section — both are bound by label,
@@ -767,7 +768,7 @@ class _FamilySearchBarState extends State<FamilySearchBar> {
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
-    final data = FamilyController.data;
+    const data = FamilyController.data;
     final results = _matches(_query, data);
 
     return Column(
@@ -1460,7 +1461,7 @@ class _FamilyApoSectionState extends State<FamilyApoSection> {
                                 vertical: 5,
                               ),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFFF4EC),
+                                color: AppColors.blushPaper,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
@@ -1477,12 +1478,9 @@ class _FamilyApoSectionState extends State<FamilyApoSection> {
                             // "Tingnan lahat" link — now opens the pinch-zoom tree.
                             GestureDetector(
                               onTap: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        const FamilyTreeCanvasPage(),
-                                  ),
-                                );
+                                Navigator.of(
+                                  context,
+                                ).push(fadeRoute(const FamilyTreeCanvasPage()));
                               },
                               child: Text(
                                 _familyText(
@@ -2045,7 +2043,7 @@ class FamilyGroupSection extends StatelessWidget {
                                   children: [
                                     for (var i = 0; i < branch.length; i++) ...[
                                       if (i > 0)
-                                        SizedBox(
+                                        const SizedBox(
                                           height: 12,
                                           child: _SpineLines(
                                             columns: 1,
@@ -2219,12 +2217,11 @@ class _MemberPhotoViewer extends StatelessWidget {
                     child: Image.asset(
                       photoPath,
                       fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const Icon(
-                            Icons.broken_image,
-                            size: 80,
-                            color: Colors.grey,
-                          ),
+                      errorBuilder: (context, error, stackTrace) => const Icon(
+                        Icons.broken_image,
+                        size: 80,
+                        color: Colors.grey,
+                      ),
                     ),
                   ),
                 ),
@@ -2234,9 +2231,11 @@ class _MemberPhotoViewer extends StatelessWidget {
               top: 12,
               right: 12,
               child: IconButton(
-                tooltip: MaterialLocalizations.of(
-                  context,
-                ).closeButtonTooltip,
+                // App-locale close label (not the system locale) so the
+                // tooltip follows the in-app EN/TL/BC toggle.
+                tooltip: context.read<LanguageProvider>().t(
+                  'family_sheet_close',
+                ),
                 icon: const Icon(
                   Icons.close_rounded,
                   color: Colors.white,
@@ -2277,7 +2276,7 @@ void showMemberDetailSheet(BuildContext context, FamilyMember member) {
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    backgroundColor: AppColors.white,
+    backgroundColor: AppColors.paper,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
@@ -2936,10 +2935,7 @@ class _MemberPortrait extends StatelessWidget {
               message: viewPhotoLabel,
               child: MouseRegion(
                 cursor: SystemMouseCursors.click,
-                child: GestureDetector(
-                  onTap: onPhotoTap,
-                  child: photoCircle,
-                ),
+                child: GestureDetector(onTap: onPhotoTap, child: photoCircle),
               ),
             ),
           )
@@ -2953,7 +2949,7 @@ class _MemberPortrait extends StatelessWidget {
         children: [
           if (familyBorder)
             Align(
-              alignment: Alignment(0, _familyBorderVerticalShift),
+              alignment: const Alignment(0, _familyBorderVerticalShift),
               child: portraitCircle,
             )
           else
@@ -3009,7 +3005,7 @@ class _InitialsTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFFFF4EC),
+      color: AppColors.blushPaper,
       alignment: Alignment.center,
       child: Text(
         initials,

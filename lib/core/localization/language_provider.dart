@@ -20,6 +20,7 @@ class LanguageProvider extends ChangeNotifier {
   AppLanguage get language => _language;
 
   void setLanguage(AppLanguage lang) {
+    if (_language == lang) return;
     _language = lang;
     notifyListeners();
   }
@@ -30,14 +31,15 @@ class LanguageProvider extends ChangeNotifier {
 
   /// Looks up [key] in the active language map. Placeholders like
   /// `{count}` are substituted from [params] (e.g. `t('memories_count',
-  /// {'count': '6'})`). Unknown keys fall back to the key itself.
+  /// {'count': '6'})`). Falls back to English, then to the key itself
+  /// so a missing translation never blanks the UI.
   String t(String key, [Map<String, String>? params]) {
     final map = switch (_language) {
       AppLanguage.english => translationsEn,
       AppLanguage.tagalog => translationsTl,
       AppLanguage.bicol => translationsBi,
     };
-    var text = map[key] ?? key;
+    var text = map[key] ?? translationsEn[key] ?? key;
     if (params != null) {
       for (final entry in params.entries) {
         text = text.replaceAll('{${entry.key}}', entry.value);

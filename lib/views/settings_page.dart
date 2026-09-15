@@ -5,10 +5,12 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
+import 'package:nita/core/navigation.dart';
 import 'package:nita/widgets/ornamental_card.dart';
 
-// TODO: replace with the real family email address.
-const String kFamilyEmail = 'family@example.com';
+// Set to the real family address when confirmed. Empty disables
+// the email button instead of opening a placeholder address.
+const String kFamilyEmail = '';
 
 /// One row in the settings menu.
 class _SettingEntry {
@@ -131,10 +133,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           fontSize: 13,
                           color: AppColors.warmMid,
                           fontFamily: 'Georgia',
-                          fontFamilyFallback: [
-                            'Times New Roman',
-                            'serif',
-                          ],
+                          fontFamilyFallback: ['Times New Roman', 'serif'],
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -148,156 +147,150 @@ class _SettingsPageState extends State<SettingsPage> {
                         },
                       ),
                       const SizedBox(height: 16),
-                  if (visible.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 32),
-                      child: Text(
-                        lang.t('settings_search_empty'),
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontStyle: FontStyle.italic,
-                          color: AppColors.muted,
-                        ),
-                      ),
-                    )
-                  else
-                    OrnamentalCard(
-                      radius: 16,
-                      borderColor: AppColors.gold,
-                      borderAlpha: 0.2,
-                      borderWidth: 0.6,
-                      shadowOpacity: 0.06,
-                      clipBehavior: Clip.antiAlias,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(
-                              20,
-                              18,
-                              20,
-                              6,
-                            ),
-                            child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  lang.t('settings_menu_title'),
-                                  style: const TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textDark,
-                                    fontFamily: 'Georgia',
-                                    fontFamilyFallback: [
-                                      'Times New Roman',
-                                      'serif',
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Container(
-                                  width: 28,
-                                  height: 2,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.gold.withValues(
-                                      alpha: 0.7,
-                                    ),
-                                    borderRadius:
-                                        BorderRadius.circular(2),
-                                  ),
-                                ),
-                              ],
+                      if (visible.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 32),
+                          child: Text(
+                            lang.t('settings_search_empty'),
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontStyle: FontStyle.italic,
+                              color: AppColors.muted,
                             ),
                           ),
-                          ListView.separated(
-                            shrinkWrap: true,
-                            physics:
-                                const NeverScrollableScrollPhysics(),
-                            itemCount: visible.length,
-                            separatorBuilder: (context, _) => Divider(
-                              height: 1,
-                              thickness: 1,
-                              indent: 66,
-                              endIndent: 0,
-                              color: AppColors.muted.withValues(
-                                alpha: 0.15,
-                              ),
-                            ),
-                            itemBuilder: (context, i) {
-                              final entry = visible[i];
-                              return ListTile(
-                                leading: Icon(
-                                  entry.icon,
-                                  size: 24,
-                                  color: entry.iconColor,
+                        )
+                      else
+                        OrnamentalCard(
+                          radius: 16,
+                          borderColor: AppColors.gold,
+                          borderAlpha: 0.2,
+                          borderWidth: 0.6,
+                          shadowOpacity: 0.06,
+                          clipBehavior: Clip.antiAlias,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  20,
+                                  18,
+                                  20,
+                                  6,
                                 ),
-                                title: Text(
-                                  lang.t(entry.titleKey),
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.textDark,
-                                    fontFamily: 'Georgia',
-                                    fontFamilyFallback: [
-                                      'Times New Roman',
-                                      'serif',
-                                    ],
-                                  ),
-                                ),
-                                subtitle: Padding(
-                                  padding: const EdgeInsets.only(top: 2),
-                                  child: Text(
-                                    lang.t(entry.descKey),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.muted,
-                                      height: 1.4,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      lang.t('settings_menu_title'),
+                                      style: const TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.textDark,
+                                        fontFamily: 'Georgia',
+                                        fontFamilyFallback: [
+                                          'Times New Roman',
+                                          'serif',
+                                        ],
+                                      ),
                                     ),
+                                    const SizedBox(height: 4),
+                                    Container(
+                                      width: 28,
+                                      height: 2,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.gold.withValues(
+                                          alpha: 0.7,
+                                        ),
+                                        borderRadius: BorderRadius.circular(2),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              ListView.separated(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: visible.length,
+                                separatorBuilder: (context, _) => Divider(
+                                  height: 1,
+                                  thickness: 1,
+                                  indent: 66,
+                                  endIndent: 0,
+                                  color: AppColors.muted.withValues(
+                                    alpha: 0.15,
                                   ),
                                 ),
-                                trailing: const Icon(
-                                  Icons.chevron_right_rounded,
-                                  size: 24,
-                                  color: AppColors.muted,
-                                ),
-                                contentPadding:
-                                    const EdgeInsets.symmetric(
+                                itemBuilder: (context, i) {
+                                  final entry = visible[i];
+                                  return ListTile(
+                                    leading: Icon(
+                                      entry.icon,
+                                      size: 24,
+                                      color: entry.iconColor,
+                                    ),
+                                    title: Text(
+                                      lang.t(entry.titleKey),
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.textDark,
+                                        fontFamily: 'Georgia',
+                                        fontFamilyFallback: [
+                                          'Times New Roman',
+                                          'serif',
+                                        ],
+                                      ),
+                                    ),
+                                    subtitle: Padding(
+                                      padding: const EdgeInsets.only(top: 2),
+                                      child: Text(
+                                        lang.t(entry.descKey),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.muted,
+                                          height: 1.4,
+                                        ),
+                                      ),
+                                    ),
+                                    trailing: const Icon(
+                                      Icons.chevron_right_rounded,
+                                      size: 24,
+                                      color: AppColors.muted,
+                                    ),
+                                    contentPadding: const EdgeInsets.symmetric(
                                       horizontal: 20,
                                       vertical: 4,
                                     ),
-                                horizontalTitleGap: 14,
-                                onTap: () => Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: entry.page,
-                                  ),
-                                ),
-                              );
-                            },
+                                    horizontalTitleGap: 14,
+                                    onTap: () => Navigator.of(
+                                      context,
+                                    ).push(fadeRoute(entry.page(context))),
+                                  );
+                                },
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
+                      const SizedBox(height: 32),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Nanay Anita · ${lang.t('settings_about_app_version')}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: AppColors.muted,
+                        ),
                       ),
-                    ),
-                  const SizedBox(height: 32),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Nanay Anita · ${lang.t('settings_about_app_version')}',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 11.5,
-                      color: AppColors.muted,
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
         ),
-      ),
-      ),
       ),
     );
   }
@@ -315,7 +308,7 @@ class _SettingsAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      backgroundColor: const Color(0xFF1C1713),
+      backgroundColor: AppColors.charcoal,
       foregroundColor: AppColors.goldLight,
       centerTitle: true,
       title: Text(
@@ -354,8 +347,7 @@ class _SearchBar extends StatelessWidget {
         style: const TextStyle(fontSize: 14, color: AppColors.textDark),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle:
-              const TextStyle(fontSize: 14, color: AppColors.muted),
+          hintStyle: const TextStyle(fontSize: 14, color: AppColors.muted),
           prefixIcon: const Icon(
             Icons.search_rounded,
             size: 20,
@@ -372,7 +364,7 @@ class _SearchBar extends StatelessWidget {
                   onPressed: onClear,
                 ),
           filled: true,
-          fillColor: const Color(0xFFF0ECE5),
+          fillColor: AppColors.fieldFill,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(99),
             borderSide: BorderSide.none,
@@ -423,8 +415,7 @@ class _AboutUsPage extends StatelessWidget {
 
   const _AboutUsPage({this.onOpenTab});
 
-  static const _spray =
-      'assets/images/Editing images/Memories_design_trim.png';
+  static const _spray = 'assets/images/Editing images/Memories_design_trim.png';
 
   void _goTab(BuildContext context, int index) {
     Navigator.of(context).popUntil((route) => route.isFirst);
@@ -461,10 +452,7 @@ class _AboutUsPage extends StatelessWidget {
                         letterSpacing: 0.8,
                         color: AppColors.textDark,
                         fontFamily: 'Georgia',
-                        fontFamilyFallback: [
-                          'Times New Roman',
-                          'serif',
-                        ],
+                        fontFamilyFallback: ['Times New Roman', 'serif'],
                       ),
                     ),
                   ],
@@ -477,10 +465,7 @@ class _AboutUsPage extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text(
                   lang.t('settings_about_app_version'),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.muted,
-                  ),
+                  style: const TextStyle(fontSize: 12, color: AppColors.muted),
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -520,10 +505,7 @@ class _AboutUsPage extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                     color: AppColors.textDark,
                     fontFamily: 'Georgia',
-                    fontFamilyFallback: [
-                      'Times New Roman',
-                      'serif',
-                    ],
+                    fontFamilyFallback: ['Times New Roman', 'serif'],
                   ),
                 ),
               ),
@@ -546,7 +528,7 @@ class _AboutUsPage extends StatelessWidget {
               children: [
                 _AboutRow(
                   icon: Icons.menu_book_outlined,
-                  iconBackground: const Color(0xFFEBCFA8),
+                  iconBackground: AppColors.iconBgSand,
                   title: lang.t('settings_about_memories_title'),
                   body: lang.t('settings_about_memories_body'),
                   onTap: () => _goTab(context, 0),
@@ -559,7 +541,7 @@ class _AboutUsPage extends StatelessWidget {
                 ),
                 _AboutRow(
                   icon: Icons.image_outlined,
-                  iconBackground: const Color(0xFFB3BC9F),
+                  iconBackground: AppColors.iconBgSage,
                   title: lang.t('settings_about_photos_title'),
                   body: lang.t('settings_about_photos_body'),
                   onTap: () => _goTab(context, 1),
@@ -572,7 +554,7 @@ class _AboutUsPage extends StatelessWidget {
                 ),
                 _AboutRow(
                   icon: Icons.chat_bubble_outline_rounded,
-                  iconBackground: const Color(0xFFF1E7CF),
+                  iconBackground: AppColors.iconBgCream,
                   title: lang.t('settings_about_messages_title'),
                   body: lang.t('settings_about_messages_body'),
                   onTap: () => _goTab(context, 3),
@@ -612,7 +594,7 @@ class _AboutUsPage extends StatelessWidget {
                         height: 48,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: AppColors.white,
+                          color: AppColors.paper,
                           border: Border.all(
                             color: AppColors.rose.withValues(alpha: 0.3),
                             width: 0.8,
@@ -664,11 +646,7 @@ class _AboutUsPage extends StatelessWidget {
           Center(
             child: Column(
               children: [
-                const Icon(
-                  Icons.eco_outlined,
-                  size: 14,
-                  color: AppColors.gold,
-                ),
+                const Icon(Icons.eco_outlined, size: 14, color: AppColors.gold),
                 const SizedBox(height: 6),
                 Text(
                   lang.t('settings_about_thanks'),
@@ -712,10 +690,7 @@ class _AboutRow extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(
             children: [
               Container(
@@ -725,11 +700,7 @@ class _AboutRow extends StatelessWidget {
                   shape: BoxShape.circle,
                   color: iconBackground,
                 ),
-                child: Icon(
-                  icon,
-                  size: 22,
-                  color: AppColors.warmDeep,
-                ),
+                child: Icon(icon, size: 22, color: AppColors.warmDeep),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -743,10 +714,7 @@ class _AboutRow extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                         color: AppColors.textDark,
                         fontFamily: 'Georgia',
-                        fontFamilyFallback: [
-                          'Times New Roman',
-                          'serif',
-                        ],
+                        fontFamilyFallback: ['Times New Roman', 'serif'],
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -788,12 +756,7 @@ class _AboutDeveloperPage extends StatelessWidget {
   final VoidCallback? onViewFamily;
 
   static const _photo = 'assets/images/Family DP/arvel.jpg';
-  static const _spray =
-      'assets/images/Editing images/Memories_design_trim.png';
-
-  /// Darker gold ink: full-strength gold is too light for small
-  /// italic text on white.
-  static const _goldInk = Color(0xFF96742A);
+  static const _spray = 'assets/images/Editing images/Memories_design_trim.png';
 
   /// Closes Settings entirely, then jumps to the real Family tab —
   /// not a separate page.
@@ -834,8 +797,7 @@ class _AboutDeveloperPage extends StatelessWidget {
                           height: 96,
                           fit: BoxFit.cover,
                           alignment: Alignment.centerLeft,
-                          errorBuilder: (_, _, _) =>
-                              const SizedBox.shrink(),
+                          errorBuilder: (_, _, _) => const SizedBox.shrink(),
                         ),
                       ),
                       Positioned(
@@ -847,8 +809,7 @@ class _AboutDeveloperPage extends StatelessWidget {
                           height: 96,
                           fit: BoxFit.cover,
                           alignment: Alignment.centerRight,
-                          errorBuilder: (_, _, _) =>
-                              const SizedBox.shrink(),
+                          errorBuilder: (_, _, _) => const SizedBox.shrink(),
                         ),
                       ),
                       Positioned(
@@ -862,9 +823,7 @@ class _AboutDeveloperPage extends StatelessWidget {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: AppColors.gold.withValues(
-                                  alpha: 0.5,
-                                ),
+                                color: AppColors.gold.withValues(alpha: 0.5),
                                 width: 2,
                               ),
                               boxShadow: [
@@ -928,10 +887,7 @@ class _AboutDeveloperPage extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                           color: AppColors.textDark,
                           fontFamily: 'Georgia',
-                          fontFamilyFallback: [
-                            'Times New Roman',
-                            'serif',
-                          ],
+                          fontFamilyFallback: ['Times New Roman', 'serif'],
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -940,9 +896,7 @@ class _AboutDeveloperPage extends StatelessWidget {
                           Expanded(
                             child: Container(
                               height: 1,
-                              color: AppColors.gold.withValues(
-                                alpha: 0.35,
-                              ),
+                              color: AppColors.gold.withValues(alpha: 0.35),
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -951,16 +905,14 @@ class _AboutDeveloperPage extends StatelessWidget {
                             style: const TextStyle(
                               fontSize: 13,
                               fontStyle: FontStyle.italic,
-                              color: _goldInk,
+                              color: AppColors.goldInk,
                             ),
                           ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Container(
                               height: 1,
-                              color: AppColors.gold.withValues(
-                                alpha: 0.35,
-                              ),
+                              color: AppColors.gold.withValues(alpha: 0.35),
                             ),
                           ),
                         ],
@@ -977,9 +929,7 @@ class _AboutDeveloperPage extends StatelessWidget {
                           Expanded(
                             child: Container(
                               height: 1,
-                              color: AppColors.rose.withValues(
-                                alpha: 0.25,
-                              ),
+                              color: AppColors.rose.withValues(alpha: 0.25),
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -993,9 +943,7 @@ class _AboutDeveloperPage extends StatelessWidget {
                           Expanded(
                             child: Container(
                               height: 1,
-                              color: AppColors.rose.withValues(
-                                alpha: 0.25,
-                              ),
+                              color: AppColors.rose.withValues(alpha: 0.25),
                             ),
                           ),
                         ],
@@ -1006,22 +954,13 @@ class _AboutDeveloperPage extends StatelessWidget {
                         spacing: 10,
                         runSpacing: 10,
                         children: [
-                          _TechChip(
-                            icon: Icons.web_rounded,
-                            label: 'HTML',
-                          ),
-                          _TechChip(
-                            icon: Icons.palette_outlined,
-                            label: 'CSS',
-                          ),
+                          _TechChip(icon: Icons.web_rounded, label: 'HTML'),
+                          _TechChip(icon: Icons.palette_outlined, label: 'CSS'),
                           _TechChip(
                             icon: Icons.javascript_rounded,
                             label: 'JavaScript',
                           ),
-                          _TechChip(
-                            icon: Icons.dns_outlined,
-                            label: 'PHP',
-                          ),
+                          _TechChip(icon: Icons.dns_outlined, label: 'PHP'),
                           _TechChip(
                             icon: Icons.terminal_rounded,
                             label: 'Python',
@@ -1030,21 +969,11 @@ class _AboutDeveloperPage extends StatelessWidget {
                             icon: Icons.window_outlined,
                             label: 'VB.NET',
                           ),
+                          _TechChip(icon: Icons.code_rounded, label: 'Dart'),
+                          _TechChip(icon: Icons.hub_outlined, label: 'React'),
+                          _TechChip(icon: Icons.flutter_dash, label: 'Flutter'),
                           _TechChip(
-                            icon: Icons.code_rounded,
-                            label: 'Dart',
-                          ),
-                          _TechChip(
-                            icon: Icons.hub_outlined,
-                            label: 'React',
-                          ),
-                          _TechChip(
-                            icon: Icons.flutter_dash,
-                            label: 'Flutter',
-                          ),
-                          _TechChip(
-                            icon:
-                                Icons.local_fire_department_rounded,
+                            icon: Icons.local_fire_department_rounded,
                             label: 'Firebase',
                           ),
                           _TechChip(
@@ -1055,9 +984,7 @@ class _AboutDeveloperPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 18),
                       _FamilyButton(
-                        label: lang.t(
-                          'settings_about_dev_view_family',
-                        ),
+                        label: lang.t('settings_about_dev_view_family'),
                         onTap: () => _openFamily(context),
                       ),
                     ],
@@ -1074,21 +1001,19 @@ class _AboutDeveloperPage extends StatelessWidget {
                 Expanded(
                   child: _DevMiniCard(
                     icon: Icons.folder_outlined,
-                    iconBackground: const Color(0xFF7C8B5F),
+                    iconBackground: AppColors.iconBgOlive,
                     title: lang.t('settings_dev_projects_title'),
                     body: lang.t('settings_dev_projects_body'),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const _ProjectsPage(),
-                      ),
-                    ),
+                    onTap: () => Navigator.of(
+                      context,
+                    ).push(fadeRoute(const _ProjectsPage())),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _DevMiniCard(
                     icon: Icons.favorite_outline_rounded,
-                    iconBackground: const Color(0xFFB26B45),
+                    iconBackground: AppColors.devCopper,
                     title: lang.t('settings_dev_for_nanay_title'),
                     body: lang.t('settings_dev_for_nanay_body'),
                     onTap: () => Navigator.of(
@@ -1115,10 +1040,9 @@ class _TechChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFF6F1E6),
+        color: AppColors.mistPaper,
         borderRadius: BorderRadius.circular(99),
         border: Border.all(
           color: AppColors.gold.withValues(alpha: 0.25),
@@ -1163,7 +1087,7 @@ class _FamilyButton extends StatelessWidget {
             gradient: const LinearGradient(
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
-              colors: [Color(0xFFB26B45), Color(0xFF8E4F2E)],
+              colors: [AppColors.devCopper, AppColors.devCopperDeep],
             ),
             borderRadius: BorderRadius.circular(99),
             boxShadow: [
@@ -1230,8 +1154,7 @@ class _DevMiniCard extends StatelessWidget {
     required this.onTap,
   });
 
-  static const _spray =
-      'assets/images/Editing images/Memories_design_trim.png';
+  static const _spray = 'assets/images/Editing images/Memories_design_trim.png';
 
   @override
   Widget build(BuildContext context) {
@@ -1272,11 +1195,7 @@ class _DevMiniCard extends StatelessWidget {
                         color: iconBackground,
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(
-                        icon,
-                        size: 20,
-                        color: Colors.white,
-                      ),
+                      child: Icon(icon, size: 20, color: Colors.white),
                     ),
                     const SizedBox(height: 10),
                     Text(
@@ -1286,10 +1205,7 @@ class _DevMiniCard extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                         color: AppColors.textDark,
                         fontFamily: 'Georgia',
-                        fontFamilyFallback: [
-                          'Times New Roman',
-                          'serif',
-                        ],
+                        fontFamilyFallback: ['Times New Roman', 'serif'],
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -1342,11 +1258,7 @@ class _ProjectsPage extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(
-                  Icons.eco,
-                  size: 22,
-                  color: AppColors.gold,
-                ),
+                const Icon(Icons.eco, size: 22, color: AppColors.gold),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -1356,10 +1268,7 @@ class _ProjectsPage extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                       color: AppColors.textDark,
                       fontFamily: 'Georgia',
-                      fontFamilyFallback: [
-                        'Times New Roman',
-                        'serif',
-                      ],
+                      fontFamilyFallback: ['Times New Roman', 'serif'],
                     ),
                   ),
                 ),
@@ -1386,8 +1295,7 @@ class _ProjectsPage extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               lang.t('settings_about_app_version'),
-              style:
-                  const TextStyle(fontSize: 12, color: AppColors.muted),
+              style: const TextStyle(fontSize: 12, color: AppColors.muted),
             ),
           ],
         ),
@@ -1443,27 +1351,37 @@ class _ContactPageState extends State<_ContactPage> {
       if (email.isNotEmpty) email,
     ].join(' · ');
     final body = signature.isEmpty ? message : '$message\n\n— $signature';
-    final uri = Uri(
-      scheme: 'mailto',
-      path: kFamilyEmail,
-      queryParameters: {'subject': 'Para kay Nanay', 'body': body},
-    );
-    try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri);
-        if (!mounted) return;
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(lang.t('settings_contact_opening')),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        return;
+    // No family inbox configured yet: copy to clipboard so words are
+    // never lost to a placeholder address.
+    if (kFamilyEmail.isNotEmpty) {
+      final uri = Uri(
+        scheme: 'mailto',
+        path: kFamilyEmail,
+        queryParameters: {'subject': 'Para kay Nanay', 'body': body},
+      );
+      try {
+        if (await canLaunchUrl(uri).timeout(const Duration(seconds: 5))) {
+          await launchUrl(uri).timeout(const Duration(seconds: 5));
+          if (!mounted) return;
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text(lang.t('settings_contact_opening')),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          return;
+        }
+      } catch (e) {
+        debugPrint('[Contact] mailto failed, clipboard fallback: $e');
       }
-    } catch (_) {
-      // Fall through to the clipboard fallback below.
     }
-    await Clipboard.setData(ClipboardData(text: body));
+    try {
+      await Clipboard.setData(
+        ClipboardData(text: body),
+      ).timeout(const Duration(seconds: 5));
+    } catch (e) {
+      debugPrint('[Contact] clipboard failed: $e');
+    }
     if (!mounted) return;
     messenger.showSnackBar(
       SnackBar(
@@ -1530,8 +1448,8 @@ class _ContactPageState extends State<_ContactPage> {
                             begin: Alignment.centerLeft,
                             end: Alignment.centerRight,
                             colors: [
-                              Color(0xFFB26B45),
-                              Color(0xFF8E4F2E),
+                              AppColors.devCopper,
+                              AppColors.devCopperDeep,
                             ],
                           )
                         : null,
@@ -1540,9 +1458,7 @@ class _ContactPageState extends State<_ContactPage> {
                     boxShadow: canSend
                         ? [
                             BoxShadow(
-                              color: AppColors.warmDark.withValues(
-                                alpha: 0.2,
-                              ),
+                              color: AppColors.warmDark.withValues(alpha: 0.2),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
                             ),
@@ -1661,7 +1577,7 @@ class _ContactField extends StatelessWidget {
         hintText: hint,
         hintStyle: const TextStyle(fontSize: 14, color: AppColors.muted),
         filled: true,
-        fillColor: const Color(0xFFFBF8F2),
+        fillColor: AppColors.fieldPaper,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
           vertical: 12,

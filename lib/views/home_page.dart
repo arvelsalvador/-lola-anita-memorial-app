@@ -6,7 +6,9 @@ import 'package:visibility_detector/visibility_detector.dart';
 import 'package:provider/provider.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
+import 'package:nita/core/navigation.dart';
 import 'package:nita/core/responsive.dart';
+import 'package:nita/core/utils/motion.dart';
 import 'package:nita/controllers/gallery_controller.dart';
 import 'package:nita/controllers/home_controller.dart';
 import 'package:nita/controllers/memories_controller.dart';
@@ -50,11 +52,16 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _controller.addListener(() => setState(() {}));
+    _controller.addListener(_onTabChanged);
+  }
+
+  void _onTabChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _controller.removeListener(_onTabChanged);
     _controller.dispose();
     _memoriesController.dispose();
     _galleryController.dispose();
@@ -130,11 +137,9 @@ class _HomeShellState extends State<HomeShell> {
   void initState() {
     super.initState();
     _controllers = List.generate(5, (_) => ScrollController());
-    // Mirror the Story tab's scroll position into the notifier. Only the
-    // hero listens to it, so the per-frame cost while scrolling stays tiny.
-    _controllers[0].addListener(() {
-      _storyOffset.value = _controllers[0].offset;
-    });
+    // Named listener so it can be removed in dispose — an anonymous
+    // closure here would leak the ScrollController subscription.
+    _controllers[0].addListener(_mirrorStoryOffset);
   }
 
   // Built fresh on every build() instead of cached once in initState, so
@@ -173,10 +178,19 @@ class _HomeShellState extends State<HomeShell> {
     _heroTabTimer?.cancel();
     _activeTab.dispose();
     _storyOffset.dispose();
+    _controllers[0].removeListener(_mirrorStoryOffset);
     for (final controller in _controllers) {
       controller.dispose();
     }
     super.dispose();
+  }
+
+  void _mirrorStoryOffset() {
+    // Mirror the Story tab's scroll position into the notifier. Only the
+    // hero listens to it, so the per-frame cost while scrolling stays tiny.
+    if (_controllers.isNotEmpty && _controllers[0].hasClients) {
+      _storyOffset.value = _controllers[0].offset;
+    }
   }
 
   @override
@@ -373,7 +387,7 @@ class _TopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFF1C1713),
+      color: AppColors.charcoal,
       child: SafeArea(
         bottom: false,
         child: Column(
@@ -388,15 +402,11 @@ class _TopBar extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Flexible(
-                      child: const Row(
+                    const Flexible(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            Icons.eco,
-                            size: 22,
-                            color: AppColors.goldLight,
-                          ),
+                          Icon(Icons.eco, size: 22, color: AppColors.goldLight),
                           SizedBox(width: 8),
                           Flexible(
                             child: Text(
@@ -434,14 +444,14 @@ class _TopBar extends StatelessWidget {
                             color: AppColors.goldLight,
                           ),
                           onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => SettingsPage(
-                              onViewFamily: onOpenFamily,
-                              onOpenTab: onOpenTab,
-                            ),
-                          ),
-                        );
+                            Navigator.of(context).push(
+                              fadeRoute(
+                                SettingsPage(
+                                  onViewFamily: onOpenFamily,
+                                  onOpenTab: onOpenTab,
+                                ),
+                              ),
+                            );
                           },
                         ),
                       ],
@@ -521,8 +531,8 @@ class LolaHeroHeader extends StatelessWidget {
           final taglineFont = narrow ? 14.0 : 16.0;
           final nameFont = narrow ? 36.0 : 42.0;
 
-          final statusTop = _topPad;
-          final fixed =
+          const statusTop = _topPad;
+          const fixed =
               _memorialBlock +
               _gapMemorial +
               _gapPhoto +
@@ -554,15 +564,22 @@ class LolaHeroHeader extends StatelessWidget {
               // Warm dark scrim over the image so the cream text and gold
               // frame stay readable; darker toward the bottom where the name
               // and tagline sit.
-              const DecoratedBox(
+              DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
+                    // Alpha bytes preserved exactly (0x4D / 0x8C / 0xE6).
                     colors: [
-                      Color(0x4D1A100D), // ~30% at top
-                      Color(0x8C2E1F17), // ~55% mid
-                      Color(0xE61A100D), // ~90% bottom
+                      AppColors.heroScrim.withValues(
+                        alpha: 77 / 255,
+                      ), // ~30% at top
+                      AppColors.warmDark.withValues(
+                        alpha: 140 / 255,
+                      ), // ~55% mid
+                      AppColors.heroScrim.withValues(
+                        alpha: 230 / 255,
+                      ), // ~90% bottom
                     ],
                   ),
                 ),
@@ -583,16 +600,18 @@ class LolaHeroHeader extends StatelessWidget {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          SizedBox(height: statusTop),
+                          const SizedBox(height: statusTop),
                           _memorialHeader(lang.t('tribute_in_loving_memory')),
                           const SizedBox(height: _gapMemorial),
-                          _portrait(circleSize),
+                          _portrait(lang, circleSize),
                           const SizedBox(height: _gapPhoto),
                           _name(nameFont),
                           const SizedBox(height: _gapName),
                           Semantics(
-                            label:
-                                'Lived from ${model.birthYear} to ${model.passingYear}',
+                            label: lang.t('hero_years_label', {
+                              'birth': '${model.birthYear}',
+                              'passing': '${model.passingYear}',
+                            }),
                             child: Text(
                               '${model.birthYear} • ${model.passingYear}',
                               textAlign: TextAlign.center,
@@ -623,7 +642,7 @@ class LolaHeroHeader extends StatelessWidget {
                                 fontFamilyFallback: _serifFallback,
                                 fontSize: taglineFont,
                                 fontStyle: FontStyle.italic,
-                                color: const Color(0xFFE6D3A3),
+                                color: AppColors.paleGold,
                               ),
                             ),
                           ),
@@ -650,10 +669,10 @@ class LolaHeroHeader extends StatelessWidget {
     return _CurvedMemorialHeader(text: text);
   }
 
-  Widget _portrait(double size) {
+  Widget _portrait(LanguageProvider lang, double size) {
     final frameWidth = size * _frameScale;
     return Semantics(
-      label: 'Photo of ${model.name}',
+      label: lang.t('hero_portrait_label', {'name': model.name}),
       image: true,
       child: _Pressable(
         borderRadius: BorderRadius.circular(frameWidth / 2),
@@ -734,7 +753,6 @@ class _CurvedMemorialHeader extends StatefulWidget {
 
   final String text;
 
-  static const _gold = Color(0xFFE6D3A3);
   // Radius of the arc the text follows. Larger = gentler curve.
   static const _radius = 300.0;
   // Arc-length gap between the text ends and the flanking dots.
@@ -749,10 +767,17 @@ class _CurvedMemorialHeaderState extends State<_CurvedMemorialHeader>
     with SingleTickerProviderStateMixin {
   // One cycle sweeps a soft light across the letters once, then rests
   // before repeating — an occasional shimmer, not a constant glimmer.
+  // Stays at 0 (static text) when the OS requests reduced motion.
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 4800),
-  )..repeat();
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (!animationsDisabled()) _controller.repeat();
+  }
 
   @override
   void dispose() {
@@ -763,12 +788,12 @@ class _CurvedMemorialHeaderState extends State<_CurvedMemorialHeader>
   @override
   Widget build(BuildContext context) {
     final textScaler = MediaQuery.textScalerOf(context);
-    final style = TextStyle(
+    const style = TextStyle(
       fontFamily: 'Georgia',
       fontFamilyFallback: LolaHeroHeader._serifFallback,
       fontSize: 13,
       letterSpacing: 4,
-      color: _CurvedMemorialHeader._gold,
+      color: AppColors.paleGold,
       height: 1.1,
     );
 
@@ -819,7 +844,7 @@ class _CurvedMemorialHeaderState extends State<_CurvedMemorialHeader>
               radius: radius,
               dotAngle: dotAngle,
               dotRadius: dotRadius,
-              color: _CurvedMemorialHeader._gold,
+              color: AppColors.paleGold,
               shimmerPhase: _controller.value,
             ),
           );
@@ -942,7 +967,7 @@ class StoryPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final data = HomeController.data;
+    const data = HomeController.data;
     final lang = context.watch<LanguageProvider>();
 
     return CustomScrollView(
@@ -1006,9 +1031,7 @@ class StoryPage extends StatelessWidget {
                 id: 'memories-section',
                 index: 7,
                 floatUp: true,
-                child: MemoriesSection(
-                  memoriesController: memoriesController,
-                ),
+                child: MemoriesSection(memoriesController: memoriesController),
               ),
             ]),
           ),
@@ -1054,10 +1077,7 @@ class AboutCard extends StatelessWidget {
 class MemoriesSection extends StatefulWidget {
   final MemoriesController memoriesController;
 
-  const MemoriesSection({
-    super.key,
-    required this.memoriesController,
-  });
+  const MemoriesSection({super.key, required this.memoriesController});
 
   @override
   State<MemoriesSection> createState() => _MemoriesSectionState();
@@ -1091,10 +1111,7 @@ class _MemoriesSectionState extends State<MemoriesSection> {
           _StaggeredEntry(
             key: ValueKey(memories[i].id),
             index: i,
-            child: MemoryCard(
-              memory: memories[i],
-              index: i,
-            ),
+            child: MemoryCard(memory: memories[i], index: i),
           ),
           if (i != memories.length - 1) const SizedBox(height: 12),
         ],
@@ -1148,11 +1165,7 @@ class MemoryCard extends StatelessWidget {
   final MemoryItem memory;
   final int index;
 
-  const MemoryCard({
-    super.key,
-    required this.memory,
-    required this.index,
-  });
+  const MemoryCard({super.key, required this.memory, required this.index});
 
   static const double _cardHeight = 244;
   static const double _photoWidth = 150;
@@ -1185,11 +1198,8 @@ class MemoryCard extends StatelessWidget {
     // gallery is reached from the section header instead.
     final photo = _Pressable(
       borderRadius: photoRadius,
-      onTap: () => _openMemoryPhotoPreview(
-        context,
-        memory: memory,
-        heroTag: heroTag,
-      ),
+      onTap: () =>
+          _openMemoryPhotoPreview(context, memory: memory, heroTag: heroTag),
       child: Hero(
         tag: heroTag,
         child: _MemoryPhoto(
@@ -1248,7 +1258,7 @@ class MemoryCard extends StatelessWidget {
     return Container(
       height: _cardHeight,
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: AppColors.paper,
         borderRadius: BorderRadius.circular(_radius),
         border: Border.all(
           color: AppColors.rose.withValues(alpha: 0.14),
@@ -1366,7 +1376,7 @@ class _PhotoPlaceholder extends StatelessWidget {
         child: Icon(
           Icons.image_outlined,
           size: iconSize,
-          color: AppColors.white.withValues(alpha: 0.85),
+          color: AppColors.paper.withValues(alpha: 0.85),
         ),
       ),
     );
@@ -1621,10 +1631,21 @@ class _GlowPulse extends StatefulWidget {
 
 class _GlowPulseState extends State<_GlowPulse>
     with SingleTickerProviderStateMixin {
+  // Static mid-glow when the OS requests reduced motion.
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 3600),
-  )..repeat(reverse: true);
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (animationsDisabled()) {
+      _controller.value = 0.5;
+    } else {
+      _controller.repeat(reverse: true);
+    }
+  }
 
   @override
   void dispose() {
@@ -1645,8 +1666,8 @@ class _GlowPulseState extends State<_GlowPulse>
             shape: BoxShape.circle,
             gradient: RadialGradient(
               colors: [
-                const Color(0xFFE6D3A3).withValues(alpha: 0.10 + 0.16 * t),
-                const Color(0xFFE6D3A3).withValues(alpha: 0),
+                AppColors.paleGold.withValues(alpha: 0.10 + 0.16 * t),
+                AppColors.paleGold.withValues(alpha: 0),
               ],
             ),
           ),
@@ -1657,10 +1678,21 @@ class _GlowPulseState extends State<_GlowPulse>
 }
 
 class _PulseState extends State<_Pulse> with SingleTickerProviderStateMixin {
+  // Fully opaque when the OS requests reduced motion.
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 900),
-  )..repeat(reverse: true);
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (animationsDisabled()) {
+      _controller.value = 1.0;
+    } else {
+      _controller.repeat(reverse: true);
+    }
+  }
 
   @override
   void dispose() {

@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -9,9 +8,9 @@ import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/widgets/candle_video.dart';
 
 /// The "Sindihan ang kandila" card: a video of a candle being lit in
-/// Nanay's memory, with a live count streamed from Firestore (falling back
-/// to a local counter when Firebase is unavailable). Originally part of the
-/// Tribute page, now hosted on the Pakikiramay (condolences) tab.
+/// Nanay's memory, with a local session counter (Firebase paused).
+/// Originally part of the Tribute page, now hosted on the Pakikiramay
+/// (condolences) tab.
 ///
 /// The circle shows the video's first (unlit) frame paused — nothing
 /// autoplays. Tapping "light the candle" (on the video or the card
@@ -71,26 +70,19 @@ class _CandleSectionState extends State<CandleSection> {
     controller.lightCandle();
   }
 
-  /// Sends the visitor's words for Nanay. Tries to store them under the
-  /// memorial's Firestore messages; offline or unconfigured backends
-  /// still get the thank-you — the gesture never fails loudly.
+  /// Local-only thanks: no backend yet, so the words stay on-device
+  /// and the visitor always gets the thank-you — the gesture never fails.
   Future<void> _sendMessage() async {
     final message = _messageController.text.trim();
-    if (message.isEmpty || _sending || !mounted) return;
-    setState(() => _sending = true);
-    try {
-      await FirebaseFirestore.instance
-          .collection('memorial')
-          .doc('anita_lumbao')
-          .collection('messages')
-          .add({
-            'text': message,
-            'createdAt': FieldValue.serverTimestamp(),
-          });
-    } catch (_) {
-      // Offline / unconfigured backend: the message still gets its thanks.
-    }
+    if (message.isEmpty || _sending) return;
     if (!mounted) return;
+    setState(() => _sending = true);
+    // Brief pause so the sending spinner is visible, then thank.
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (!mounted) {
+      _sending = false;
+      return;
+    }
     final lang = context.read<LanguageProvider>();
     _messageController.clear();
     setState(() => _sending = false);
@@ -152,40 +144,28 @@ class _CandleSectionState extends State<CandleSection> {
           ),
         ),
         const SizedBox(height: 8),
-        StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-          stream: controller.candleStream,
-          builder: (context, snapshot) {
-            int count = controller.localCount;
-            if (!snapshot.hasError &&
-                snapshot.hasData &&
-                snapshot.data!.exists) {
-              final data = snapshot.data!.data();
-              final remoteCount = data?['candleCount'];
-              if (remoteCount is int) count = remoteCount;
-            }
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.local_fire_department_rounded,
-                  size: 14,
-                  color: AppColors.gold,
-                ),
-                const SizedBox(width: 6),
-                // How many times visitors have lit the candle.
-                Text(
-                  lang.t('candle_lit_times', {'count': '$count'}),
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    fontStyle: FontStyle.italic,
-                    color: AppColors.warmMid,
-                    letterSpacing: 0.3,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            );
-          },
+        // Local session count (Firebase paused).
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.local_fire_department_rounded,
+              size: 14,
+              color: AppColors.gold,
+            ),
+            const SizedBox(width: 6),
+            // How many times visitors have lit the candle.
+            Text(
+              lang.t('candle_lit_times', {'count': '${controller.localCount}'}),
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontStyle: FontStyle.italic,
+                color: AppColors.warmMid,
+                letterSpacing: 0.3,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
         // The single light action: full-width dark pill. Hidden once
         // lit — the video then rests on its final frame.
@@ -198,7 +178,7 @@ class _CandleSectionState extends State<CandleSection> {
               onPressed: controller.loading ? null : _handleLightTap,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.warmDark,
-                foregroundColor: const Color(0xFFFAF0E6),
+                foregroundColor: AppColors.linen,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(99),
                 ),
@@ -249,10 +229,7 @@ class _CandleSectionState extends State<CandleSection> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                icon: const Icon(
-                  Icons.volunteer_activism_outlined,
-                  size: 16,
-                ),
+                icon: const Icon(Icons.volunteer_activism_outlined, size: 16),
                 label: Text(lang.t('candle_condolences_button')),
               ),
             ),
@@ -347,15 +324,7 @@ class _ShortRuledLine extends StatelessWidget {
 class _CandleRow extends StatelessWidget {
   const _CandleRow();
 
-  static const List<double> _alphas = [
-    1.0,
-    0.85,
-    0.7,
-    0.55,
-    0.4,
-    0.28,
-    0.18,
-  ];
+  static const List<double> _alphas = [1.0, 0.85, 0.7, 0.55, 0.4, 0.28, 0.18];
 
   @override
   Widget build(BuildContext context) {
@@ -387,9 +356,7 @@ class _CandleRow extends StatelessWidget {
                 child: Icon(
                   Icons.local_fire_department_rounded,
                   size: 14,
-                  color: const Color(0xFFB06A2B).withValues(
-                    alpha: _alphas[i],
-                  ),
+                  color: AppColors.amber.withValues(alpha: _alphas[i]),
                 ),
               ),
           ],
@@ -416,16 +383,14 @@ class _MessageBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lang = context.read<LanguageProvider>();
+    final lang = context.watch<LanguageProvider>();
     final canSend = controller.text.trim().isNotEmpty && !sending;
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
       decoration: BoxDecoration(
         color: AppColors.cream,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.gold.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: AppColors.gold.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -437,10 +402,7 @@ class _MessageBar extends StatelessWidget {
             style: const TextStyle(fontSize: 14, color: AppColors.textDark),
             decoration: InputDecoration(
               hintText: lang.t('candle_message_hint'),
-              hintStyle: const TextStyle(
-                fontSize: 12,
-                color: AppColors.muted,
-              ),
+              hintStyle: const TextStyle(fontSize: 12, color: AppColors.muted),
               border: InputBorder.none,
               isDense: true,
               contentPadding: EdgeInsets.zero,
@@ -453,10 +415,8 @@ class _MessageBar extends StatelessWidget {
               onPressed: canSend ? onSend : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.terracotta,
-                foregroundColor: AppColors.white,
-                disabledBackgroundColor: AppColors.muted.withValues(
-                  alpha: 0.3,
-                ),
+                foregroundColor: AppColors.paper,
+                disabledBackgroundColor: AppColors.muted.withValues(alpha: 0.3),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 20,
                   vertical: 8,
@@ -472,7 +432,7 @@ class _MessageBar extends StatelessWidget {
                       height: 14,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: AppColors.white,
+                        color: AppColors.paper,
                       ),
                     )
                   : const Icon(Icons.send_rounded, size: 14),
@@ -586,7 +546,7 @@ class CandleFlamePainter extends CustomPainter {
     canvas.translate(-cx, -(baseY - 4));
     canvas.drawPath(
       body(),
-      Paint()..color = const Color(0xFFFFF6E3).withValues(alpha: 0.95 * alpha),
+      Paint()..color = AppColors.haloCream.withValues(alpha: 0.95 * alpha),
     );
     canvas.restore();
   }
@@ -596,4 +556,3 @@ class CandleFlamePainter extends CustomPainter {
     return oldDelegate.unfurl != unfurl || oldDelegate.glow != glow;
   }
 }
-

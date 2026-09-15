@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:nita/core/constants/memorial.dart';
 import 'package:nita/models/home_model.dart';
 
 class HomeController extends ChangeNotifier {
+  static const int tabCount = 5;
+
   int _selectedTab = 0;
   int get selectedTab => _selectedTab;
 
   void selectTab(int index) {
-    if (_selectedTab != index && index >= 0 && index <= 4) {
+    if (_selectedTab != index && index >= 0 && index < tabCount) {
       _selectedTab = index;
       notifyListeners();
     }
@@ -15,26 +18,23 @@ class HomeController extends ChangeNotifier {
   static const HomeModel grandmother = HomeModel(
     name: 'Anita Daiz Lumbao',
     initial: 'A',
-    birthYear: 1940,
-    passingYear: 2025,
+    birthYear: Memorial.birthYear,
+    passingYear: Memorial.passingYear,
   );
 
   // --- Story data (merged from story_controller.dart) ---
+  // Favorites copy lives in translations as `story_favorites` (all 3
+  // languages) so every surface stays translatable per product principle 4.
   static const StoryModel data = StoryModel(
     quoteKey: 'story_quote',
     quoteAttributionKey: 'story_quote_attribution',
     aboutKey: 'story_about',
-    favorites:
-        'Mga Paborito at Gawi ni Nanay:\n'
-        'Mahilig si Nanay manood ng TV, lalo na ang Eat Bulaga at mga palabas tungkol sa kalikasan gaya ng Nat Geo Wild at mga hayop. '
-        'Isa rin siyang masigasig na kusinera, paborito niyang lutuin ang sa natong (laing) at iba pang masasarap na putahe.\n\n'
-        'Pangunahing gawain niya ang pagtutupi ng damit at pagdarasal. Hindi rin mawawala ang kape sa kanyang araw, lalo na ang Coffee Mate, Coffee Combo, o gatas na Bear Brand.\n\n'
-        'Makadyos si Nanay—palaging nagdarasal gabi-gabi at aktibong dumadalo sa simbahan, lalo na tuwing Simbang Gabi.\n\n'
-        'Masayahin siya, laging handang makinig at tumulong kapag may problema, at mapagbigay lalo na pagdating sa pagkain.\n'
-        'Ipinagmamalaki niya ang kanyang mga apo at laging proud sa kanila.',
+    favoritesKey: 'story_favorites',
+    // Years come from Memorial so home/family can never drift apart.
+    // (String interpolation of a const int stays const.)
     timeline: [
       LifeEvent(
-        year: '1940',
+        year: '${Memorial.birthYear}',
         titleKey: 'timeline_birth_title',
         descriptionKey: 'timeline_birth_desc',
       ),
@@ -54,7 +54,7 @@ class HomeController extends ChangeNotifier {
         descriptionKey: 'timeline_anniversary_desc',
       ),
       LifeEvent(
-        year: '2025',
+        year: '${Memorial.passingYear}',
         titleKey: 'timeline_passing_title',
         descriptionKey: 'timeline_passing_desc',
         isLast: true,

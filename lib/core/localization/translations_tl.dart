@@ -17,6 +17,8 @@ const Map<String, String> translationsTl = {
   'splash_subtitle': 'SA MAHAL NA ALAALA',
   'splash_tap': 'Pindutin upang pumasok',
   'hero_tagline': 'Minamahal na lola, tagapagkuwento ng mga alaala',
+  'hero_portrait_label': 'Larawan ni {name}',
+  'hero_years_label': 'Nabuhay mula {birth} hanggang {passing}',
   'section_her_words': 'Kanyang mga salita',
   'section_her_journey': 'Kanyang paglalakbay',
   'section_about_her': 'Tungkol sa kanya',
@@ -75,11 +77,9 @@ const Map<String, String> translationsTl = {
   'settings_about_dev_view_family': 'Tingnan sa Pamilya',
   'settings_about_dev_built_with': 'Ginawa gamit',
   'settings_dev_projects_title': 'Mga Proyekto',
-  'settings_dev_projects_body':
-      'Tingnan ang mga app at proyekto ni Arvel.',
+  'settings_dev_projects_body': 'Tingnan ang mga app at proyekto ni Arvel.',
   'settings_dev_for_nanay_title': 'Para kay Nanay',
-  'settings_dev_for_nanay_body':
-      'Isang espesyal na page para sa aming Nanay.',
+  'settings_dev_for_nanay_body': 'Isang espesyal na page para sa aming Nanay.',
   'settings_dev_project_memorial_body':
       'Isang trilingual na memorial para kay Lola Anita — ang kanyang kwento, pamilya, at mga larawan, na ingatan nang may pagmamahal.',
   'settings_contact_title': 'Makipag-ugnayan',
@@ -93,7 +93,8 @@ const Map<String, String> translationsTl = {
   'settings_contact_message_hint': 'Isulat ang iyong mensahe para sa pamilya…',
   'settings_contact_send_message': 'Mag-send ng mensahe',
   'settings_contact_opening': 'Binubuksan ang mail app…',
-  'settings_contact_privacy': 'Ang iyong mensahe ay iingatan nang may pagmamahal.',
+  'settings_contact_privacy':
+      'Ang iyong mensahe ay iingatan nang may pagmamahal.',
   'settings_contact_copied': 'Na-copy ang email address',
   'settings_search_hint': 'Maghanap ng setting...',
   'settings_search_empty': 'Walang nahanap na setting.',
@@ -101,23 +102,33 @@ const Map<String, String> translationsTl = {
   'candle_virtual': 'Virtual na kandila na nakasindi sa kanyang alaala',
   'no_images':
       'Walang mga larawan sa galeri.\nSubukan ang buong pag-restart pagkatapos magdagdag ng mga larawan.',
-  'story_quote': 'Marunong and Diyos',
-  'story_quote_attribution': 'Nanay Nita, palaging sinasabi',
+  'story_quote':
+      'Ang kusina ay kung saan ang pagmamahal ay nagiging lasa. Magluto gamit ang dalawang kamay at bukas na puso.',
+  'story_quote_attribution': '— Nanay Nita, palaging sinasabi',
   'story_about':
       'Si Lola Anita Daiz Lumbao ay namuhay ng 85 taon na may biyaya, halakhak, at matibay na pananampalataya. '
       'Isa siyang mapagmahal na asawa, mapag-arugang ina, at puso ng pamilyang umaabot sa tatlong henerasyon. '
       'Laging abala ang kanyang mga kamay nagluluto, nananahi, o nakatiklop sa panalangin at ang kanyang tahanan ay laging bukas.\n\n'
       'Malalim ang kanyang paniniwala na ang pamilya ang pinakamahalagang yaman, at ibinigay niya ang lahat upang bumuo ng tahanang puno ng pagmamahal.',
+  'story_favorites':
+      'Mga Paborito at Gawi ni Nanay:\n'
+      'Mahilig si Nanay manood ng TV, lalo na ang Eat Bulaga at mga palabas tungkol sa kalikasan gaya ng Nat Geo Wild at mga hayop. '
+      'Isa rin siyang masigasig na kusinera, paborito niyang lutuin ang sa natong (laing) at iba pang masasarap na putahe.\n\n'
+      'Pangunahing gawain niya ang pagtutupi ng damit at pagdarasal. Hindi rin mawawala ang kape sa kanyang araw, lalo na ang Coffee Mate, Coffee Combo, o gatas na Bear Brand.\n\n'
+      'Makadyos si Nanay—palaging nagdarasal gabi-gabi at aktibong dumadalo sa simbahan, lalo na tuwing Simbang Gabi.\n\n'
+      'Masayahin siya, laging handang makinig at tumulong kapag may problema, at mapagbigay lalo na pagdating sa pagkain.\n'
+      'Ipinagmamalaki niya ang kanyang mga apo at laging proud sa kanila.',
   'timeline_birth_title':
-      'Ipinanganak sa Barangay 7, Mercedes, Camarines Norte',
+      'Ipinanganak sa Purok 3, Barangay 7, Mercedes, Camarines Norte',
   'timeline_birth_desc':
       'Ikatlo sa pitong magkakapatid, ipinanganak sa probinsyang mahal niya.',
-  'timeline_marriage_title': 'Napangaaswa kay Lolo Salvador Lumbao',
+  'timeline_marriage_title': 'Nagpakasal kay Lolo Salvador V. Lumbao',
   'timeline_marriage_desc':
       '54 na taon ng pagsasama. Magkasama nilang pinalaki ang anim na anak at nagmahalan ng walang hanggan. '
       'Pumanaw si Lolo Salvador dahil sa atake sa puso.',
   'timeline_first_apo_title': 'Unang apo ay isinilang',
-  'timeline_first_apo_desc': 'Isa syang naging ganap na lola.',
+  'timeline_first_apo_desc':
+      'Naging Lola siya — isang titulong pinahahalagahan niya nang higit sa lahat.',
   'timeline_anniversary_title': 'Ipinagdiwang ang anibersaryo',
   'timeline_anniversary_desc':
       'Nagtipon ang buong pamilya upang parangalan ang 37 taon ng tapat na pagmamahalan.',
@@ -227,6 +238,7 @@ const Map<String, String> translationsTl = {
   'family_sheet_grandchildren': 'Mga apo',
   'family_sheet_grandchildren_count': '{count} na apo',
   'family_sheet_not_recorded': 'Walang naitala',
+  'family_sheet_view_photo': 'Tingnan ang buong larawan',
   'family_view_full_tree': 'Tingnan ang buong family tree',
   'family_footer_note':
       'Ang mga miyembro ng pamilya ay maaaring ikonekta sa mga alaala.',
@@ -419,8 +431,8 @@ const Map<String, String> translationsTl = {
       'Gugugulin ko ang buong buhay ko sa pagsisikap na mahalin ang mga tao sa paraang minahal niya kami.',
   'family_quote_3_name': 'Ana, apo',
   // ── Words tab ─────────────────────────────────────────────────────────
-  'words_subtitle':
-      'Mga salita ng pagmamahal ng pamilya para kay Nanay',
+  'words_subtitle': 'Mga salita ng pagmamahal ng pamilya para kay Nanay',
+  'words_empty': 'Wala pang salita sa grupong ito.',
   'words_leave_cta': 'Mag-iwan ng salita',
   'words_filter_all': 'Lahat',
   'words_filter_children': 'Mga anak',
