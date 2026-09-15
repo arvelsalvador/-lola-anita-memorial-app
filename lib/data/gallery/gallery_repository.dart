@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:nita/core/gallery_assets.dart';
+import 'package:nita/core/utils/gallery_assets.dart';
 import 'package:nita/models/gallery_group.dart';
 import 'package:nita/models/gallery_model.dart';
 

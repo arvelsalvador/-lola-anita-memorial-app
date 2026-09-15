@@ -6,7 +6,7 @@
 // IMPORTANT: this reuses your existing architecture as-is —
 // FamilyController, FamilyModel/FamilyGroup/FamilyMember, LanguageProvider,
 // AppColors, and your shared widgets (OrnamentalCard, GradientAvatar,
-// TagChip, Dot, OrnamentDivider, DisplayController.initialsOf). I only used
+// TagChip, Dot, OrnamentDivider, DisplayUtils.initialsOf). I only used
 // AppColors tokens that were already present in your original file
 // (gold, rose, warmDark, warmMid, textDark, muted, roseLight, roseDeep) —
 // I have not seen app_constants.dart, so I didn't invent new ones.
@@ -27,8 +27,8 @@ import 'package:provider/provider.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/utils/image_decode.dart';
 import 'package:nita/core/localization/language_provider.dart';
-import 'package:nita/core/navigation.dart';
-import 'package:nita/controllers/display_controller.dart';
+import 'package:nita/core/utils/navigation.dart';
+import 'package:nita/core/utils/display_utils.dart';
 import 'package:nita/controllers/family_controller.dart';
 import 'package:nita/models/family_model.dart';
 import 'package:nita/widgets/gradient_avatar.dart';

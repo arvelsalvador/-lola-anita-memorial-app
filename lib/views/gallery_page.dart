@@ -11,7 +11,7 @@ import 'package:nita/controllers/gallery_controller.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/utils/image_decode.dart';
 import 'package:nita/core/localization/language_provider.dart';
-import 'package:nita/core/navigation.dart';
+import 'package:nita/core/utils/navigation.dart';
 import 'package:nita/core/utils/motion.dart';
 import 'package:nita/models/gallery_model.dart';
 import 'package:nita/models/gallery_group.dart';

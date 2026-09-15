@@ -5,7 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/utils/image_decode.dart';
 import 'package:nita/core/localization/language_provider.dart';
-import 'package:nita/core/navigation.dart';
+import 'package:nita/core/utils/navigation.dart';
 import 'package:nita/widgets/ornamental_card.dart';
 
 part 'settings/settings_about.dart';

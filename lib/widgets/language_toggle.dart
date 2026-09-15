@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:nita/controllers/display_controller.dart';
+import 'package:nita/core/utils/display_utils.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
 
@@ -12,7 +12,7 @@ class LanguageToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
-    final flag = DisplayController.languageFlag(lang.language);
+    final flag = DisplayUtils.languageFlag(lang.language);
 
     return Material(
       color: Colors.white.withValues(alpha: 0.15),
@@ -45,7 +45,7 @@ class LanguageToggle extends StatelessWidget {
                 const SizedBox(width: 4),
               ],
               Text(
-                DisplayController.languageCode(lang.language),
+                DisplayUtils.languageCode(lang.language),
                 style: TextStyle(
                   fontSize: 11,
                   color: AppColors.linen,
@@ -136,7 +136,7 @@ class _LangOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isPlainCode = DisplayController.isPlainText(flag);
+    final isPlainCode = DisplayUtils.isPlainText(flag);
 
     return InkWell(
       onTap: onTap,

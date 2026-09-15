@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/utils/image_decode.dart';
 import 'package:nita/core/localization/language_provider.dart';
-import 'package:nita/controllers/display_controller.dart';
+import 'package:nita/core/utils/display_utils.dart';
 import 'package:nita/controllers/family_controller.dart';
 import 'package:nita/models/family_model.dart';
 import 'package:nita/views/family_page.dart' show showMemberDetailSheet;
@@ -451,7 +451,7 @@ class _TreeNodeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
-    final initials = DisplayController.initialsOf(member.name);
+    final initials = DisplayUtils.initialsOf(member.name);
     final avatarSize = isRoot ? 56.0 : 44.0;
 
     return GestureDetector(

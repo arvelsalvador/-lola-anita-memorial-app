@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:nita/core/gallery_assets.dart';
+import 'package:nita/core/utils/gallery_assets.dart';
 import 'package:nita/models/home_model.dart';
 
 class MemoriesController extends ChangeNotifier {

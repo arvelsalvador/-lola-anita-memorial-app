@@ -460,7 +460,7 @@ class _ApoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
-    final initials = DisplayController.initialsOf(member.name);
+    final initials = DisplayUtils.initialsOf(member.name);
 
     // Pick a pastel color pair based on this card's position, so a run
     // of no-photo cards doesn't all look the same (matches LD/JD/BD in

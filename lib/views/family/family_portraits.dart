@@ -123,7 +123,7 @@ class _MemberPortrait extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
-    final initials = DisplayController.initialsOf(member.name);
+    final initials = DisplayUtils.initialsOf(member.name);
 
     // Family border mode uses a slightly larger photo circle and a tighter
     // overlay expansion so the portrait sits more naturally in the wreath.

@@ -197,7 +197,7 @@ class _SearchResultTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
-    final initials = DisplayController.initialsOf(member.name);
+    final initials = DisplayUtils.initialsOf(member.name);
     final colorIndex = member.name.hashCode.abs();
     final bg = _apoAvatarBg[colorIndex % _apoAvatarBg.length];
     final fg = _apoAvatarText[colorIndex % _apoAvatarText.length];
