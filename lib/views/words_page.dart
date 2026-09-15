@@ -315,7 +315,7 @@ class _FeaturedQuoteCard extends StatelessWidget {
                 // ── Quote body (homepage serif-italic body type) ─────────
                 Text(
                   '\u201C${lang.t(quote.quoteKey)}\u201D',
-                  style: AppTextStyles.serifItalic.copyWith(
+                  style: AppTextStyles.bodyItalic.copyWith(
                     fontSize: 17,
                     height: 1.55,
                     color: AppColors.warmDark,
@@ -412,7 +412,7 @@ class FamilyQuoteCard extends StatelessWidget {
                   children: [
                     Text(
                       '\u201C${lang.t(quote.quoteKey)}\u201D',
-                      style: AppTextStyles.serifItalic.copyWith(
+                      style: AppTextStyles.bodyItalic.copyWith(
                         fontSize: 13.5,
                         height: 1.55,
                         color: AppColors.warmDark,

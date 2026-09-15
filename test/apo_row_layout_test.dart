@@ -87,7 +87,11 @@ void main() {
     );
 
     // Lorie's four kids share one column.
-    expect(arvel!.dx, closeTo(aivan!.dx, 1.0), reason: 'Arvel Salvador & Aivan Salvador share a column');
+    expect(
+      arvel!.dx,
+      closeTo(aivan!.dx, 1.0),
+      reason: 'Arvel Salvador & Aivan Salvador share a column',
+    );
     expect(
       honey!.dx,
       closeTo(daniel!.dx, 1.0),
@@ -125,9 +129,21 @@ void main() {
       greaterThan(jongjong.dy),
       reason: 'Rose-ann Lumbao stacks below Rodel Lumbao Jr.',
     );
-    expect(aivan.dy, greaterThan(arvel.dy), reason: 'Aivan Salvador stacks below Arvel Salvador');
-    expect(honey.dy, greaterThan(aivan.dy), reason: 'Honey Salvador stacks below Aivan Salvador');
-    expect(daniel.dy, greaterThan(honey.dy), reason: 'Daniel Salvador stacks below Honey Salvador');
+    expect(
+      aivan.dy,
+      greaterThan(arvel.dy),
+      reason: 'Aivan Salvador stacks below Arvel Salvador',
+    );
+    expect(
+      honey.dy,
+      greaterThan(aivan.dy),
+      reason: 'Honey Salvador stacks below Aivan Salvador',
+    );
+    expect(
+      daniel.dy,
+      greaterThan(honey.dy),
+      reason: 'Daniel Salvador stacks below Honey Salvador',
+    );
 
     // Branch columns sit left→right in data order.
     expect(

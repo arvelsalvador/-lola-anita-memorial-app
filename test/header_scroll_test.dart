@@ -85,71 +85,71 @@ void main() {
     expect(tester.getTopLeft(find.text('nanay anita')).dy, brandBefore);
   });
 
-  testWidgets(
-    'hero tracks the scroll 1:1 and never flaps mid-scroll',
-    (tester) async {
-      // The hero height is a pure function of the Story tab's scroll offset
-      // ((expandedHeight - offset), clamped). The regression guarded against
-      // here is any state that breaks that mapping — e.g. the hero popping
-      // open mid-scroll and collapsing again ("flapping"), which used to
-      // happen when a short page reported pixels=0 while the visible page
-      // was still scrolled down.
-      await tester.pumpWidget(
-        ChangeNotifierProvider(
-          create: (_) => LanguageProvider(),
-          child: MaterialApp(home: _shell(0)),
-        ),
+  testWidgets('hero tracks the scroll 1:1 and never flaps mid-scroll', (
+    tester,
+  ) async {
+    // The hero height is a pure function of the Story tab's scroll offset
+    // ((expandedHeight - offset), clamped). The regression guarded against
+    // here is any state that breaks that mapping — e.g. the hero popping
+    // open mid-scroll and collapsing again ("flapping"), which used to
+    // happen when a short page reported pixels=0 while the visible page
+    // was still scrolled down.
+    await tester.pumpWidget(
+      ChangeNotifierProvider(
+        create: (_) => LanguageProvider(),
+        child: MaterialApp(home: _shell(0)),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 400));
+
+    // Viewport is 390x844, so this matches the expandedHeight formula in
+    // _HomeShellState.build.
+    const viewportHeight = 844.0;
+    final expandedHeight = (viewportHeight * 0.46).clamp(400.0, 540.0);
+
+    // The visible (Story) page's scroll offset.
+    double storyPixels() {
+      final f = find.descendant(
+        of: find.byType(StoryPage),
+        matching: find.byType(Scrollable),
       );
-      await tester.pump(const Duration(milliseconds: 400));
+      return tester.state<ScrollableState>(f.first).position.pixels;
+    }
 
-      // Viewport is 390x844, so this matches the expandedHeight formula in
-      // _HomeShellState.build.
-      const viewportHeight = 844.0;
-      final expandedHeight = (viewportHeight * 0.46).clamp(400.0, 540.0);
+    // Scroll down a lot so the hero fully collapses.
+    await tester.dragFrom(const Offset(100, 520), const Offset(0, -1200));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(_heroHeight(tester), 0);
 
-      // The visible (Story) page's scroll offset.
-      double storyPixels() {
-        final f = find.descendant(
-          of: find.byType(StoryPage),
-          matching: find.byType(Scrollable),
+    // Scroll back up in steps, sampling every frame. At every instant the
+    // hero height must equal the offset mapping — it may grow smoothly as
+    // the page nears the top, but it must never pop open and re-collapse.
+    for (int i = 0; i < 4; i++) {
+      await tester.dragFrom(const Offset(100, 520), const Offset(0, 300));
+      for (int j = 0; j < 5; j++) {
+        await tester.pump(const Duration(milliseconds: 50));
+        final pixels = storyPixels();
+        final expected = (expandedHeight - pixels).clamp(0.0, expandedHeight);
+        expect(
+          _heroHeight(tester),
+          closeTo(expected, 1.0),
+          reason:
+              'hero height must track the scroll offset exactly '
+              '(no flapping) at step $i, frame $j, offset $pixels',
         );
-        return tester.state<ScrollableState>(f.first).position.pixels;
       }
+    }
 
-      // Scroll down a lot so the hero fully collapses.
-      await tester.dragFrom(const Offset(100, 520), const Offset(0, -1200));
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.pump(const Duration(milliseconds: 300));
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(_heroHeight(tester), 0);
-
-      // Scroll back up in steps, sampling every frame. At every instant the
-      // hero height must equal the offset mapping — it may grow smoothly as
-      // the page nears the top, but it must never pop open and re-collapse.
-      for (int i = 0; i < 4; i++) {
-        await tester.dragFrom(const Offset(100, 520), const Offset(0, 300));
-        for (int j = 0; j < 5; j++) {
-          await tester.pump(const Duration(milliseconds: 50));
-          final pixels = storyPixels();
-          final expected = (expandedHeight - pixels).clamp(0.0, expandedHeight);
-          expect(
-            _heroHeight(tester),
-            closeTo(expected, 1.0),
-            reason: 'hero height must track the scroll offset exactly '
-                '(no flapping) at step $i, frame $j, offset $pixels',
-          );
-        }
-      }
-
-      // Once the page reaches the very top the hero is fully expanded.
-      await tester.dragFrom(const Offset(100, 520), const Offset(0, 2000));
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.pump(const Duration(milliseconds: 300));
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(storyPixels(), lessThanOrEqualTo(1.0));
-      expect(_heroHeight(tester), greaterThan(0));
-    },
-  );
+    // Once the page reaches the very top the hero is fully expanded.
+    await tester.dragFrom(const Offset(100, 520), const Offset(0, 2000));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(storyPixels(), lessThanOrEqualTo(1.0));
+    expect(_heroHeight(tester), greaterThan(0));
+  });
 
   testWidgets('hero only appears on the home tab', (tester) async {
     Future<void> pumpTab(int tab) async {

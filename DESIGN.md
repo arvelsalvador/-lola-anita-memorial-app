@@ -1,6 +1,6 @@
 ---
 name: In Loving Memory — A Memorial for Lola Anita
-description: A trilingual memorial for Lola Anita Daiz Lumbao — cream ground, rose ruled lines, gold diamonds, paper cards, Georgia serif throughout.
+description: A trilingual memorial for Lola Anita Daiz Lumbao — cream ground, rose ruled lines, gold diamonds, paper cards, Playfair Display and Lora serif throughout.
 colors:
   warm-dark: "#2E1F17"
   warm-mid: "#6B4C3B"
@@ -16,30 +16,30 @@ colors:
   muted: "#8C7267"
 typography:
   display:
-    fontFamily: "Georgia, Times New Roman, serif"
+    fontFamily: "Playfair Display (bundled)"
     fontSize: "42px"
     fontWeight: 400
     lineHeight: 1.1
   headline:
-    fontFamily: "Georgia, Times New Roman, serif"
+    fontFamily: "Playfair Display (bundled)"
     fontSize: "26px"
     fontWeight: 700
   title:
-    fontFamily: "Georgia, Times New Roman, serif"
+    fontFamily: "Playfair Display (bundled)"
     fontSize: "15px"
     fontWeight: 600
   body:
-    fontFamily: "Georgia, Times New Roman, serif"
+    fontFamily: "Lora (bundled)"
     fontSize: "14px"
     fontWeight: 400
     lineHeight: 1.8
   label:
-    fontFamily: "Georgia, Times New Roman, serif"
+    fontFamily: "Lora (bundled)"
     fontSize: "10px"
     fontWeight: 500
     letterSpacing: "3px"
   caption:
-    fontFamily: "Georgia, Times New Roman, serif"
+    fontFamily: "Lora (bundled)"
     fontSize: "12px"
     fontWeight: 400
 rounded:
@@ -112,13 +112,13 @@ components:
 
 This is a memorial, not a product: a kept house where a visitor walks in and reads a life. The world is a novena booklet bound for her family — Anita's portrait is the cover leaf, and each family group is its own ruled page, names written on the faint rose ruled lines of a white page rather than seated at benches or joined by stems. The line of descent runs page by page down the booklet: children first, then siblings, then grandchildren. Nothing here is a wireframe: no boxes-and-connector trees, no statistics dashboard. Counts are carved into the ground as printed inscriptions; each page closes with a lone gold diamond, the period, and opens onto the next across a leaf section break.
 
-The materials are warm and domestic: a cream ground, white ornamental cards with hairline borders and soft warm shadows, rose hairlines as the pages' ruled lines and page edges, and gold used sparingly as the ornament metal — the diamond, the hairline rule, the leaf. Every character in the app, from hero name to nav caption, is set in Georgia. The build is code-led throughout; ornament is drawn with 45°-rotated squares, 1px rules, and the leaf motif, never photographic decoration.
+The materials are warm and domestic: a cream ground, white ornamental cards with hairline borders and soft warm shadows, rose hairlines as the pages' ruled lines and page edges, and gold used sparingly as the ornament metal — the diamond, the hairline rule, the leaf. Every character in the app, from hero name to nav caption, is set in one of the two bundled serif voices — Playfair Display for display type, Lora for everything else. The build is code-led throughout; ornament is drawn with 45°-rotated squares, 1px rules, and the leaf motif, never photographic decoration.
 
 **Key Characteristics:**
 - The novena booklet: cover leaf → leaf page breaks → ruled group pages → lone diamond page feet, centered on the family tab's warm cream ground.
 - Cream ground with paper cards as the only raised surfaces (hairline border + diffuse warm shadow).
 - Rose hairlines as ruled lines, page edges, and the active nav state; gold diamonds and 1px rules as ornament.
-- Georgia serif everywhere — a single voice, from 42px hero name to 9px chip text.
+- Two bundled serif voices — Playfair Display for display/headings, Lora for body, labels, and chips — from the 42px hero name to the 9px chip text.
 - Carved inscriptions (hairline rules flanking serif numerals) instead of stat cards.
 
 ## Colors
@@ -152,9 +152,9 @@ Note: **terracotta** (#CB6A4B) is declared in the token source but unused anywhe
 
 ## Typography
 
-**Display Font:** Georgia (fallback Times New Roman, serif)
-**Body Font:** Georgia (fallback Times New Roman, serif)
-**Label Font:** Georgia (fallback Times New Roman, serif) — there is no second voice
+**Display Font:** Playfair Display — bundled (Regular 400, Italic 400, SemiBold 600, Bold 700)
+**Body Font:** Lora — bundled (Regular 400, Italic 400, Medium 500, SemiBold 600)
+**Label Font:** Lora — labels stay in the body voice; Playfair is reserved for display sizes
 
 **Character:** The whole app is one serif voice — the quiet, carved confidence of a memorial plaque. Weights carry the hierarchy (light display, regular body, 600–700 for names and titles); italics mark quoted or spoken words (quotes, roles, subtitles). Letter-spacing grows as type shrinks, so tiny labels stay legible and dignified.
 
@@ -170,7 +170,7 @@ Note: **terracotta** (#CB6A4B) is declared in the token source but unused anywhe
 - **Micro** (600, 9px): tag chips and nav captions (nav captions at 9px, letter-spacing 0.5px). Gold era headers on memory cards run 12px (300, letter-spacing 4px).
 
 ### Named Rules
-**The One Voice Rule.** Every character in the app is Georgia — set globally in the theme, then explicitly on every label, chip, and caption. On platforms where Georgia is unavailable, the fallback is Times New Roman then serif; no sans-serif face ever appears. Introducing a second voice is a deliberate redesign, not a styling choice.
+**The Two-Voice Rule.** Every character is set in one of two bundled serif faces: Playfair Display carries display type (hero name, page titles, section headings), and Lora carries everything else — body copy, labels, chips, captions — as the theme's base `fontFamily`. Both faces ship inside the app bundle (declared in `pubspec.yaml`), so nothing is fetched at runtime and the memorial renders correctly offline. Georgia — the original single voice — was dropped as the base font because it is a licensed system font that does not exist on Android; it survives only in the `fontFamilyFallback` chain, ahead of Times New Roman and generic serif. Introducing a third voice or a sans-serif face is a deliberate redesign, not a styling choice.
 
 ## Layout
 
@@ -219,7 +219,7 @@ The avatar is a circle: a rose-to-gold diagonal gradient (rose light → gold li
 - **Hover / Focus:** taps use the theme's Material ink ripple on the same pill silhouette; no state shadows.
 
 ### Chips
-- **Style:** tiny 9px Georgia semibold tags with 0.5px hairline borders at 20% alpha, 6px radius, 7px/2px padding, letter-spacing 0.3px.
+- **Style:** tiny 9px Lora semibold tags with 0.5px hairline borders at 20% alpha, 6px radius, 7px/2px padding, letter-spacing 0.3px.
 - **Variants:** gold chip (gold-light fill at 50%, warm-deep text) for regular tags; rose chip (rose-light fill at 60%, rose-deep text) for "+N pa" extras.
 
 ### Cards / Containers
@@ -230,7 +230,7 @@ The avatar is a circle: a rose-to-gold diagonal gradient (rose light → gold li
 - **Internal Padding:** 16px standard, 18px feature, 20px about card, 12px/4px group pages, 14px/12px summary entries, 6px cover leaf (with 14px/18px/14px/14px inside the inner frame).
 
 ### Inputs / Fields
-- **The Search Tray:** a slim 44px-tall paper field with a gold hairline (0.8px, 28% alpha), 14px radius, and a whisper shadow (3%, blur 8, offset 0/2). A 19px search icon and a 19px tune (filter) icon at warm-mid 75% frame a muted Georgia hint text (13.5px). There is no visible focus treatment in the build — the field is a quiet place-card, not a control.
+- **The Search Tray:** a slim 44px-tall paper field with a gold hairline (0.8px, 28% alpha), 14px radius, and a whisper shadow (3%, blur 8, offset 0/2). A 19px search icon and a 19px tune (filter) icon at warm-mid 75% frame a muted Lora hint text (13.5px). There is no visible focus treatment in the build — the field is a quiet place-card, not a control.
 
 ### Navigation
 - **Style:** a floating paper shell (32px radius, rose hairline at 15%, floating shadow) capped at 500px, holding five equal tabs. The active tab is a solid rose pill (24px radius) with white ink; inactive tabs are muted icons (20px) with 9px tracked labels. Switching animates at 180ms with easeOutCubic; the hero above collapses/expands at 280ms with the same curve.
@@ -256,12 +256,12 @@ The avatar is a circle: a rose-to-gold diagonal gradient (rose light → gold li
 - **Do** set the page ground on cream and let the hero and brand bar sit on warm dark — the world alternates between these two grounds only.
 - **Do** render the family as a novena booklet: a cover leaf, then ruled pages whose names sit on faint rose lines (1px, 12% alpha), opened by leaf section breaks and closed by lone gold diamonds.
 - **Do** center the gold diamond (6px, 60–70% alpha) wherever a line needs a middle — dividers, page edges, lintels — and let a smaller one (5px) stand alone as the page foot.
-- **Do** keep all type in Georgia with the serif fallback, and let letter-spacing carry the small sizes (3px at 10px labels, 4px at 12px years).
+- **Do** keep all type in the two bundled voices — Playfair for display sizes, Lora everywhere else — and let letter-spacing carry the small sizes (3px at 10px labels, 4px at 12px years).
 - **Do** use the 4–8–12–16–20–26–32 spacing rhythm and the 20px family-page gutter.
 
 ### Don't:
 - **Don't** use hard offset shadows, opaque borders, or black-tinted shadows — the shadow vocabulary is diffuse, warm, and downward only.
-- **Don't** introduce a sans-serif face; the One Voice Rule holds at every size, including chips and nav captions.
+- **Don't** introduce a sans-serif face or a third family; the Two-Voice Rule holds at every size, including chips and nav captions. Don't switch the base font back to system Georgia — it doesn't exist on Android.
 - **Don't** turn the family back into boxes, benches, and connector stems — the booklet of ruled pages is the only permitted family geometry.
 - **Don't** raise statistics into cards; counts are carved between hairline rules.
 - **Don't** use the cream family-page ground for cards — paper is the only card fill.

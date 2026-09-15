@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:nita/core/constants/app_constants.dart';
@@ -313,7 +312,8 @@ class _SettingsAppBar extends StatelessWidget implements PreferredSizeWidget {
       centerTitle: true,
       title: Text(
         title,
-        style: GoogleFonts.playfairDisplay(
+        style: const TextStyle(
+          fontFamily: 'PlayfairDisplay',
           fontSize: 20,
           fontWeight: FontWeight.w700,
           color: AppColors.goldLight,
@@ -460,7 +460,7 @@ class _AboutUsPage extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text(
                   lang.t('settings_about_app_body'),
-                  style: AppTextStyles.serifBody,
+                  style: AppTextStyles.bodyText,
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -514,7 +514,7 @@ class _AboutUsPage extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             lang.t('settings_about_why_body'),
-            style: AppTextStyles.serifBody,
+            style: AppTextStyles.bodyText,
           ),
           const SizedBox(height: 20),
           OrnamentalCard(
@@ -921,7 +921,7 @@ class _AboutDeveloperPage extends StatelessWidget {
                       Text(
                         lang.t('settings_about_dev_dedication'),
                         textAlign: TextAlign.justify,
-                        style: AppTextStyles.serifBody,
+                        style: AppTextStyles.bodyText,
                       ),
                       const SizedBox(height: 16),
                       Row(
@@ -1277,7 +1277,7 @@ class _ProjectsPage extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               lang.t('settings_dev_project_memorial_body'),
-              style: AppTextStyles.serifBody,
+              style: AppTextStyles.bodyText,
             ),
             const SizedBox(height: 12),
             const Wrap(
@@ -1409,7 +1409,7 @@ class _ContactPageState extends State<_ContactPage> {
           children: [
             Text(
               lang.t('settings_contact_intro'),
-              style: AppTextStyles.serifBody,
+              style: AppTextStyles.bodyText,
             ),
             const SizedBox(height: 18),
             _FieldLabel(text: lang.t('settings_contact_name_label')),

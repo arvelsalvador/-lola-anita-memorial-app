@@ -11,15 +11,10 @@ dependencies:
   flutter:
     sdk: flutter
   visibility_detector: ^0.4.0+2
-  cupertino_icons: ^1.0.8
   provider: ^6.1.5+1
-  transparent_image: ^2.0.1
   firebase_core: ^4.13.0
   cloud_firestore: ^6.8.0
   flutter_staggered_grid_view: ^0.7.0
-  flutter_animate: ^4.5.0
-  shimmer: ^3.0.0
-  google_fonts: ^6.2.1
   audioplayers: ^6.7.1
   url_launcher: ^6.3.2
   video_player: ^2.11.1
@@ -33,6 +28,9 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
+  # NOTE: subfolders with spaces must be listed explicitly — a bare
+  # `assets/images/` parent entry silently skips spaced dirs on Windows
+  # (empty folders in the bundle, zero image files). Keep every entry.
   assets:
     - assets/images/
     - assets/images/Best Pictures/
@@ -48,3 +46,26 @@ flutter:
     - assets/images/gallery/Solo/
     - assets/Video/
     - assets/audio/
+
+  # Two-Voice Rule (DESIGN.md): PlayfairDisplay = display/headings,
+  # Lora = body. Bundled locally (no runtime font fetch); only weights
+  # actually referenced in code are bundled.
+  fonts:
+    - family: PlayfairDisplay
+      fonts:
+        - asset: assets/fonts/playfair_display/PlayfairDisplay-Regular.ttf
+        - asset: assets/fonts/playfair_display/PlayfairDisplay-Italic.ttf
+          style: italic
+        - asset: assets/fonts/playfair_display/PlayfairDisplay-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/playfair_display/PlayfairDisplay-Bold.ttf
+          weight: 700
+    - family: Lora
+      fonts:
+        - asset: assets/fonts/lora/Lora-Regular.ttf
+        - asset: assets/fonts/lora/Lora-Italic.ttf
+          style: italic
+        - asset: assets/fonts/lora/Lora-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/lora/Lora-SemiBold.ttf
+          weight: 600

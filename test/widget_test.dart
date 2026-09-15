@@ -125,7 +125,7 @@ void main() {
     expect(find.byType(HomePage), findsOneWidget);
 
     // The Story tab shows the Tagalog quote by default.
-    expect(storyQuote('Marunong and Diyos'), findsOneWidget);
+    expect(storyQuote('Ang kusina ay kung saan'), findsOneWidget);
 
     // Switch to English via the language toggle. Fixed-duration pumps only
     // (the gallery spinners animate forever, so pumpAndSettle would time out).
@@ -169,7 +169,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
 
     // Home/Story tab
-    expect(storyQuote('Marunong and Diyos'), findsOneWidget);
+    expect(storyQuote('Ang kusina ay kung saan'), findsOneWidget);
 
     // Memories section on the home tab
     await expectMemoriesTitle(tester, 'Ang Kanyang Tahanan');
@@ -339,7 +339,10 @@ void main() {
 
     // Typing a message enables sending without throwing.
     await tester.enterText(
-      find.widgetWithText(TextField, 'Isulat ang iyong mensahe para sa pamilya…'),
+      find.widgetWithText(
+        TextField,
+        'Isulat ang iyong mensahe para sa pamilya…',
+      ),
       'Salamat, Nay',
     );
     await tester.pump();

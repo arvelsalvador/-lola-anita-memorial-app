@@ -101,7 +101,7 @@ class TimelineWidget extends StatelessWidget {
                     children: [
                       Text(
                         lang.t(e.titleKey),
-                        style: AppTextStyles.serifHeading,
+                        style: AppTextStyles.displayHeading,
                       ),
                       const SizedBox(height: 4),
                       Text(

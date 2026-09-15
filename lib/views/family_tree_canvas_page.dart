@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
@@ -302,7 +301,8 @@ class _FamilyTreeCanvasPageState extends State<FamilyTreeCanvasPage> {
         foregroundColor: AppColors.warmDark,
         title: Text(
           lang.t('family_name'),
-          style: GoogleFonts.playfairDisplay(
+          style: const TextStyle(
+            fontFamily: 'PlayfairDisplay',
             fontWeight: FontWeight.w700,
             color: AppColors.warmDark,
           ),
@@ -490,7 +490,8 @@ class _TreeNodeCard extends StatelessWidget {
                   ? Center(
                       child: Text(
                         initials,
-                        style: GoogleFonts.playfairDisplay(
+                        style: TextStyle(
+                          fontFamily: 'PlayfairDisplay',
                           fontSize: isRoot ? 18 : 14,
                           fontWeight: FontWeight.w700,
                           color: AppColors.roseDeep,
@@ -504,7 +505,8 @@ class _TreeNodeCard extends StatelessWidget {
                         errorBuilder: (c, e, s) => Center(
                           child: Text(
                             initials,
-                            style: GoogleFonts.playfairDisplay(
+                            style: TextStyle(
+                              fontFamily: 'PlayfairDisplay',
                               fontSize: isRoot ? 18 : 14,
                               fontWeight: FontWeight.w700,
                               color: AppColors.roseDeep,
@@ -520,7 +522,8 @@ class _TreeNodeCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-              style: GoogleFonts.playfairDisplay(
+              style: TextStyle(
+                fontFamily: 'PlayfairDisplay',
                 fontSize: isRoot ? 15 : 12,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textDark,
@@ -534,7 +537,8 @@ class _TreeNodeCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.playfairDisplay(
+                  style: const TextStyle(
+                    fontFamily: 'PlayfairDisplay',
                     fontSize: 9,
                     fontStyle: FontStyle.italic,
                     color: AppColors.warmMid,
@@ -555,7 +559,8 @@ class _TreeNodeCard extends StatelessWidget {
                   ),
                   child: Text(
                     lang.t(member.roleKey),
-                    style: GoogleFonts.playfairDisplay(
+                    style: const TextStyle(
+                      fontFamily: 'PlayfairDisplay',
                       fontSize: 9.5,
                       fontWeight: FontWeight.w600,
                       color: AppColors.roseDeep,
@@ -592,7 +597,8 @@ class _HintBanner extends StatelessWidget {
             child: Text(
               text,
               textAlign: TextAlign.center,
-              style: GoogleFonts.playfairDisplay(
+              style: const TextStyle(
+                fontFamily: 'PlayfairDisplay',
                 fontSize: 11.5,
                 color: AppColors.roseDeep,
               ),

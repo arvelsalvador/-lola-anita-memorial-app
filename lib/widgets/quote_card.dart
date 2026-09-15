@@ -42,7 +42,7 @@ class QuoteCard extends StatelessWidget {
           Text(
             quote,
             textAlign: TextAlign.center,
-            style: AppTextStyles.serifItalic,
+            style: AppTextStyles.bodyItalic,
           ),
           const SizedBox(height: 16),
           const OrnamentDivider(

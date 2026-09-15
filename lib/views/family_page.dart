@@ -23,7 +23,6 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
@@ -659,7 +658,8 @@ class FamilyPageHeader extends StatelessWidget {
                 child: Text(
                   lang.t('family_name'),
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.playfairDisplay(
+                  style: const TextStyle(
+                    fontFamily: 'PlayfairDisplay',
                     fontSize: 31,
                     height: 1,
                     fontWeight: FontWeight.w700,
@@ -676,7 +676,8 @@ class FamilyPageHeader extends StatelessWidget {
         Text(
           lang.t('family_subtitle'),
           textAlign: TextAlign.center,
-          style: GoogleFonts.playfairDisplay(
+          style: const TextStyle(
+            fontFamily: 'PlayfairDisplay',
             fontStyle: FontStyle.italic,
             fontSize: 13.5,
             color: AppColors.warmMid,
@@ -796,13 +797,15 @@ class _FamilySearchBarState extends State<FamilySearchBar> {
                   controller: _controller,
                   focusNode: _focus,
                   onChanged: (value) => setState(() => _query = value),
-                  style: GoogleFonts.playfairDisplay(
+                  style: const TextStyle(
+                    fontFamily: 'PlayfairDisplay',
                     fontSize: 13.5,
                     color: AppColors.textDark,
                   ),
                   decoration: InputDecoration.collapsed(
                     hintText: lang.t('family_search_hint'),
-                    hintStyle: GoogleFonts.playfairDisplay(
+                    hintStyle: const TextStyle(
+                      fontFamily: 'PlayfairDisplay',
                       fontSize: 13.5,
                       color: AppColors.muted,
                     ),
@@ -851,7 +854,8 @@ class _FamilySearchBarState extends State<FamilySearchBar> {
                     child: Center(
                       child: Text(
                         lang.t('family_search_empty'),
-                        style: GoogleFonts.playfairDisplay(
+                        style: const TextStyle(
+                          fontFamily: 'PlayfairDisplay',
                           fontSize: 13,
                           color: AppColors.muted,
                         ),
@@ -868,7 +872,8 @@ class _FamilySearchBarState extends State<FamilySearchBar> {
                             lang.t('family_search_results', {
                               'count': '${results.length}',
                             }),
-                            style: GoogleFonts.playfairDisplay(
+                            style: const TextStyle(
+                              fontFamily: 'PlayfairDisplay',
                               fontSize: 11,
                               letterSpacing: 0.6,
                               color: AppColors.muted,
@@ -919,7 +924,8 @@ class _SearchResultTile extends StatelessWidget {
                   ? Center(
                       child: Text(
                         initials,
-                        style: GoogleFonts.playfairDisplay(
+                        style: TextStyle(
+                          fontFamily: 'PlayfairDisplay',
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: fg,
@@ -933,7 +939,8 @@ class _SearchResultTile extends StatelessWidget {
                         errorBuilder: (_, _, _) => Center(
                           child: Text(
                             initials,
-                            style: GoogleFonts.playfairDisplay(
+                            style: TextStyle(
+                              fontFamily: 'PlayfairDisplay',
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
                               color: fg,
@@ -949,7 +956,8 @@ class _SearchResultTile extends StatelessWidget {
                 member.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.playfairDisplay(
+                style: const TextStyle(
+                  fontFamily: 'PlayfairDisplay',
                   fontSize: 13.5,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textDark,
@@ -964,7 +972,8 @@ class _SearchResultTile extends StatelessWidget {
                     }),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.playfairDisplay(
+              style: const TextStyle(
+                fontFamily: 'PlayfairDisplay',
                 fontSize: 11.5,
                 color: AppColors.muted,
               ),
@@ -1085,7 +1094,8 @@ class _FilterPill extends StatelessWidget {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.playfairDisplay(
+                style: TextStyle(
+                  fontFamily: 'PlayfairDisplay',
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
                   color: selected ? Colors.white : AppColors.textDark,
@@ -1152,7 +1162,8 @@ class FamilyRootCard extends StatelessWidget {
                           member.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.playfairDisplay(
+                          style: const TextStyle(
+                            fontFamily: 'PlayfairDisplay',
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
                             color: AppColors.textDark,
@@ -1167,7 +1178,8 @@ class FamilyRootCard extends StatelessWidget {
                                 lang.t(member.roleKey),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.playfairDisplay(
+                                style: const TextStyle(
+                                  fontFamily: 'PlayfairDisplay',
                                   fontStyle: FontStyle.italic,
                                   fontSize: 12,
                                   color: AppColors.rose,
@@ -1240,7 +1252,8 @@ class FamilyRootCard extends StatelessWidget {
                               if (member.yearsLabel != null)
                                 Text(
                                   member.yearsLabel!,
-                                  style: GoogleFonts.playfairDisplay(
+                                  style: const TextStyle(
+                                    fontFamily: 'PlayfairDisplay',
                                     fontSize: 10,
                                     letterSpacing: 2,
                                     fontWeight: FontWeight.w600,
@@ -1249,13 +1262,12 @@ class FamilyRootCard extends StatelessWidget {
                                 ),
                               if (member.yearsLabel != null &&
                                   member.photoCount != null)
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                  ),
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 6),
                                   child: Text(
                                     '·',
-                                    style: GoogleFonts.playfairDisplay(
+                                    style: TextStyle(
+                                      fontFamily: 'PlayfairDisplay',
                                       fontSize: 10,
                                       color: AppColors.muted,
                                     ),
@@ -1264,7 +1276,8 @@ class FamilyRootCard extends StatelessWidget {
                               if (member.photoCount != null)
                                 Text(
                                   '${member.photoCount} ${_familyText(lang, 'family_photos_with', 'larawan kasama')}',
-                                  style: GoogleFonts.playfairDisplay(
+                                  style: const TextStyle(
+                                    fontFamily: 'PlayfairDisplay',
                                     fontStyle: FontStyle.italic,
                                     fontSize: 10.5,
                                     color: AppColors.muted,
@@ -1439,16 +1452,18 @@ class _FamilyApoSectionState extends State<FamilyApoSection> {
                                   lang.t(group.labelKey),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.playfairDisplay(
+                                  style: const TextStyle(
+                                    fontFamily: 'PlayfairDisplay',
                                     fontSize: 14.5,
                                     fontWeight: FontWeight.w700,
                                     color: AppColors.textDark,
                                   ),
                                 ),
                                 const SizedBox(width: 4),
-                                Text(
+                                const Text(
                                   '🔥',
-                                  style: GoogleFonts.playfairDisplay(
+                                  style: TextStyle(
+                                    fontFamily: 'PlayfairDisplay',
                                     fontSize: 14,
                                   ),
                                 ),
@@ -1468,7 +1483,8 @@ class _FamilyApoSectionState extends State<FamilyApoSection> {
                                 '${group.count} ${lang.t(group.subtitleKey)}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.playfairDisplay(
+                                style: const TextStyle(
+                                  fontFamily: 'PlayfairDisplay',
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                   color: AppColors.rose,
@@ -1490,7 +1506,8 @@ class _FamilyApoSectionState extends State<FamilyApoSection> {
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.playfairDisplay(
+                                style: const TextStyle(
+                                  fontFamily: 'PlayfairDisplay',
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                   color: AppColors.roseDeep,
@@ -1792,7 +1809,8 @@ class _ApoCard extends StatelessWidget {
                 ? Center(
                     child: Text(
                       initials,
-                      style: GoogleFonts.playfairDisplay(
+                      style: TextStyle(
+                        fontFamily: 'PlayfairDisplay',
                         fontSize: initialsFontSize,
                         fontWeight: FontWeight.w700,
                         color: fg,
@@ -1806,7 +1824,8 @@ class _ApoCard extends StatelessWidget {
                       errorBuilder: (context, error, stackTrace) => Center(
                         child: Text(
                           initials,
-                          style: GoogleFonts.playfairDisplay(
+                          style: TextStyle(
+                            fontFamily: 'PlayfairDisplay',
                             fontSize: initialsFontSize,
                             fontWeight: FontWeight.w700,
                             color: fg,
@@ -1823,7 +1842,8 @@ class _ApoCard extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
-            style: GoogleFonts.playfairDisplay(
+            style: const TextStyle(
+              fontFamily: 'PlayfairDisplay',
               fontSize: 12,
               fontWeight: FontWeight.w700,
               color: AppColors.textDark,
@@ -1837,7 +1857,8 @@ class _ApoCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-              style: GoogleFonts.playfairDisplay(
+              style: const TextStyle(
+                fontFamily: 'PlayfairDisplay',
                 fontSize: 10,
                 color: AppColors.muted,
               ),
@@ -1848,7 +1869,8 @@ class _ApoCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-              style: GoogleFonts.playfairDisplay(
+              style: const TextStyle(
+                fontFamily: 'PlayfairDisplay',
                 fontSize: 10,
                 color: AppColors.muted,
               ),
@@ -1891,7 +1913,8 @@ class FamilyGroupSection extends StatelessWidget {
                     lang.t(group.labelKey),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.playfairDisplay(
+                    style: const TextStyle(
+                      fontFamily: 'PlayfairDisplay',
                       fontSize: 14.5,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textDark,
@@ -1905,7 +1928,8 @@ class FamilyGroupSection extends StatelessWidget {
           ),
           Text(
             '${group.count} ${lang.t(group.subtitleKey)}',
-            style: GoogleFonts.playfairDisplay(
+            style: const TextStyle(
+              fontFamily: 'PlayfairDisplay',
               fontSize: 11.5,
               fontStyle: FontStyle.italic,
               color: AppColors.muted,
@@ -2253,7 +2277,8 @@ class _MemberPhotoViewer extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: GoogleFonts.playfairDisplay(
+                style: const TextStyle(
+                  fontFamily: 'PlayfairDisplay',
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
@@ -2370,7 +2395,8 @@ class _MemberDetailSheet extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: GoogleFonts.playfairDisplay(
+                style: const TextStyle(
+                  fontFamily: 'PlayfairDisplay',
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textDark,
@@ -2383,7 +2409,8 @@ class _MemberDetailSheet extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-              style: GoogleFonts.playfairDisplay(
+              style: const TextStyle(
+                fontFamily: 'PlayfairDisplay',
                 fontStyle: FontStyle.italic,
                 fontSize: 13,
                 color: AppColors.warmMid,
@@ -2409,7 +2436,8 @@ class _MemberDetailSheet extends StatelessWidget {
                   ),
                   child: Text(
                     ageText,
-                    style: GoogleFonts.playfairDisplay(
+                    style: const TextStyle(
+                      fontFamily: 'PlayfairDisplay',
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
                       color: AppColors.warmDeep,
@@ -2439,7 +2467,8 @@ class _MemberDetailSheet extends StatelessWidget {
                     const SizedBox(width: 5),
                     Text(
                       member.statusLabel!,
-                      style: GoogleFonts.playfairDisplay(
+                      style: const TextStyle(
+                        fontFamily: 'PlayfairDisplay',
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
                         color: AppColors.warmDeep,
@@ -2455,7 +2484,8 @@ class _MemberDetailSheet extends StatelessWidget {
                   child: Text(
                     member.tagline!,
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.playfairDisplay(
+                    style: const TextStyle(
+                      fontFamily: 'PlayfairDisplay',
                       fontStyle: FontStyle.italic,
                       fontSize: 11.5,
                       color: AppColors.warmMid,
@@ -2479,7 +2509,8 @@ class _MemberDetailSheet extends StatelessWidget {
                   const SizedBox(width: 5),
                   Text(
                     '${member.photoCount} ${lang.t('family_photos_with')}',
-                    style: GoogleFonts.playfairDisplay(
+                    style: const TextStyle(
+                      fontFamily: 'PlayfairDisplay',
                       fontSize: 11.5,
                       fontStyle: FontStyle.italic,
                       color: AppColors.warmMid,
@@ -2499,7 +2530,8 @@ class _MemberDetailSheet extends StatelessWidget {
                   children: [
                     Text(
                       lang.t('family_sheet_full_story').toUpperCase(),
-                      style: GoogleFonts.playfairDisplay(
+                      style: const TextStyle(
+                        fontFamily: 'PlayfairDisplay',
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1.2,
@@ -2513,7 +2545,8 @@ class _MemberDetailSheet extends StatelessWidget {
                         // Oversized opening quote mark hugging the text.
                         Text(
                           '\u201C',
-                          style: GoogleFonts.playfairDisplay(
+                          style: TextStyle(
+                            fontFamily: 'PlayfairDisplay',
                             fontSize: 44,
                             height: 1,
                             fontWeight: FontWeight.w700,
@@ -2527,7 +2560,8 @@ class _MemberDetailSheet extends StatelessWidget {
                                 ? lang.t(member.storyKey!)
                                 : lang.t(member.bioKey!),
                             textAlign: TextAlign.justify,
-                            style: GoogleFonts.playfairDisplay(
+                            style: const TextStyle(
+                              fontFamily: 'PlayfairDisplay',
                               fontSize: 12.5,
                               height: 1.7,
                               color: AppColors.warmDark,
@@ -2556,7 +2590,8 @@ class _MemberDetailSheet extends StatelessWidget {
                   children: [
                     Text(
                       lang.t('family_sheet_identity').toUpperCase(),
-                      style: GoogleFonts.playfairDisplay(
+                      style: const TextStyle(
+                        fontFamily: 'PlayfairDisplay',
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1.2,
@@ -2610,7 +2645,8 @@ class _MemberDetailSheet extends StatelessWidget {
                   children: [
                     Text(
                       lang.t('family_sheet_family').toUpperCase(),
-                      style: GoogleFonts.playfairDisplay(
+                      style: const TextStyle(
+                        fontFamily: 'PlayfairDisplay',
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1.2,
@@ -2665,7 +2701,8 @@ class _MemberDetailSheet extends StatelessWidget {
                 ),
                 child: Text(
                   '"${lang.t(member.quoteKey!)}"',
-                  style: GoogleFonts.playfairDisplay(
+                  style: const TextStyle(
+                    fontFamily: 'PlayfairDisplay',
                     fontStyle: FontStyle.italic,
                     fontSize: 12.5,
                     height: 1.5,
@@ -2738,7 +2775,8 @@ class _SheetRow extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: GoogleFonts.playfairDisplay(
+              style: const TextStyle(
+                fontFamily: 'PlayfairDisplay',
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textDark,
@@ -2750,7 +2788,8 @@ class _SheetRow extends StatelessWidget {
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: GoogleFonts.playfairDisplay(
+              style: const TextStyle(
+                fontFamily: 'PlayfairDisplay',
                 fontSize: 11.5,
                 color: AppColors.muted,
               ),
@@ -2805,7 +2844,8 @@ class _MemberThumbnailCard extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-              style: GoogleFonts.playfairDisplay(
+              style: const TextStyle(
+                fontFamily: 'PlayfairDisplay',
                 fontWeight: FontWeight.w700,
                 fontSize: 13,
                 color: AppColors.textDark,
@@ -2817,7 +2857,8 @@ class _MemberThumbnailCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-              style: GoogleFonts.playfairDisplay(
+              style: const TextStyle(
+                fontFamily: 'PlayfairDisplay',
                 fontStyle: FontStyle.italic,
                 fontSize: 10.5,
                 color: AppColors.warmMid,
@@ -3009,7 +3050,8 @@ class _InitialsTile extends StatelessWidget {
       alignment: Alignment.center,
       child: Text(
         initials,
-        style: GoogleFonts.playfairDisplay(
+        style: TextStyle(
+          fontFamily: 'PlayfairDisplay',
           fontSize: fontSize,
           fontWeight: FontWeight.w700,
           color: AppColors.roseDeep,
@@ -3070,7 +3112,8 @@ class FamilySummaryCard extends StatelessWidget {
                     lang.t(viewAllLabelKey),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.playfairDisplay(
+                    style: const TextStyle(
+                      fontFamily: 'PlayfairDisplay',
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
                       color: AppColors.roseDeep,
@@ -3081,7 +3124,8 @@ class FamilySummaryCard extends StatelessWidget {
                     '$count ${_familyText(lang, 'family_members_word', 'miyembro')}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.playfairDisplay(
+                    style: const TextStyle(
+                      fontFamily: 'PlayfairDisplay',
                       fontSize: 10.5,
                       color: AppColors.muted,
                     ),
@@ -3137,7 +3181,8 @@ class FamilyFooterNote extends StatelessWidget {
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.playfairDisplay(
+              style: const TextStyle(
+                fontFamily: 'PlayfairDisplay',
                 fontSize: 11,
                 color: AppColors.muted,
               ),

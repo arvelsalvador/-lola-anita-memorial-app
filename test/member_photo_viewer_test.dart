@@ -43,10 +43,11 @@ void main() {
     await openSheet(tester, 'Hanna Lumbao');
 
     // Card + sheet instances, plus the tap affordance on the portrait.
+    // Default language is Tagalog, so the tooltip is the TL translation.
     expect(find.text('Hanna Lumbao'), findsNWidgets(2));
-    expect(find.byTooltip('View full photo'), findsOneWidget);
+    expect(find.byTooltip('Tingnan ang buong larawan'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('View full photo'));
+    await tester.tap(find.byTooltip('Tingnan ang buong larawan'));
     await tester.pumpAndSettle();
 
     // Viewer: zoomable image, name caption, dedicated close button.
@@ -69,7 +70,7 @@ void main() {
     await pumpFamilyPage(tester);
     await openSheet(tester, 'Hanna Lumbao');
 
-    await tester.tap(find.byTooltip('View full photo'));
+    await tester.tap(find.byTooltip('Tingnan ang buong larawan'));
     await tester.pumpAndSettle();
     expect(find.byType(InteractiveViewer), findsOneWidget);
 
@@ -123,7 +124,7 @@ void main() {
     await openSheet(tester, 'Rodolfo Daiz');
 
     expect(find.text('Rodolfo Daiz'), findsNWidgets(2));
-    await tester.tap(find.byTooltip('View full photo'));
+    await tester.tap(find.byTooltip('Tingnan ang buong larawan'));
     await tester.pumpAndSettle();
 
     expect(find.byType(InteractiveViewer), findsOneWidget);

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
   AppColors._();
@@ -122,32 +121,42 @@ class AppAssets {
 class AppTextStyles {
   AppTextStyles._();
 
-  static final serifHeading = GoogleFonts.inter(
+  /// Display voice (Two-Voice Rule): Playfair Display for headings/titles.
+  static const displayHeading = TextStyle(
+    fontFamily: 'PlayfairDisplay',
     fontSize: 15,
     fontWeight: FontWeight.w600,
     color: AppColors.textDark,
   );
-  static final serifBody = GoogleFonts.inter(
+
+  /// Body voice: Lora for all body copy.
+  static const bodyText = TextStyle(
+    fontFamily: 'Lora',
     fontSize: 14,
     color: AppColors.warmMid,
     height: 1.8,
   );
-  static final serifItalic = GoogleFonts.inter(
+
+  static const bodyItalic = TextStyle(
+    fontFamily: 'Lora',
     fontStyle: FontStyle.italic,
     fontSize: 16,
     color: AppColors.textDark,
     height: 1.7,
   );
+
   static const sectionLabel = TextStyle(
+    fontFamily: 'Lora',
     fontSize: 10,
     fontWeight: FontWeight.w500,
     letterSpacing: 3,
     color: AppColors.rose,
   );
+
   static const caption = TextStyle(
+    fontFamily: 'Lora',
     fontSize: 12,
     color: AppColors.muted,
     height: 1.5,
-    fontFamily: 'Inter',
   );
 }

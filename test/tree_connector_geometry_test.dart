@@ -30,10 +30,7 @@ void main() {
 
   /// Boxes of [finder] sorted top→bottom.
   List<RenderBox> boxesOf(Finder finder) =>
-      finder
-          .evaluate()
-          .map((e) => e.renderObject! as RenderBox)
-          .toList()
+      finder.evaluate().map((e) => e.renderObject! as RenderBox).toList()
         ..sort((a, b) => topOf(a).compareTo(topOf(b)));
 
   /// First connector box whose top edge sits at or below [minTop].
@@ -142,9 +139,7 @@ void main() {
     await tester.pumpAndSettle();
     final countFinder = find.text('8 miyembro');
     expect(countFinder, findsOneWidget);
-    final headerBottom = bottomOf(
-      tester.renderObject<RenderBox>(countFinder),
-    );
+    final headerBottom = bottomOf(tester.renderObject<RenderBox>(countFinder));
 
     // Straight per-column lines below the header (the descent onto the
     // first card row) — and no bus connector anymore.
@@ -168,68 +163,65 @@ void main() {
     );
   });
 
-  testWidgets(
-    'every section has descent lines below its header '
-    '(branch connector, or straight spines for Mga Apo)',
-    (tester) async {
-      await pumpFamilyPage(tester);
+  testWidgets('every section has descent lines below its header '
+      '(branch connector, or straight spines for Mga Apo)', (tester) async {
+    await pumpFamilyPage(tester);
 
-      // Jump to a fixed mid-scroll offset: far enough that the apo
-      // section is built, close enough that the Kapatid and Anak sections
-      // above it are still alive (scrolling to the bottom disposes them).
-      final position = tester.state<ScrollableState>(
-        find.byType(Scrollable).first,
-      ).position;
-      position.jumpTo(300);
-      await tester.pumpAndSettle();
+    // Jump to a fixed mid-scroll offset: far enough that the apo
+    // section is built, close enough that the Kapatid and Anak sections
+    // above it are still alive (scrolling to the bottom disposes them).
+    final position = tester
+        .state<ScrollableState>(find.byType(Scrollable).first)
+        .position;
+    position.jumpTo(300);
+    await tester.pumpAndSettle();
 
-      // Mga Anak and Mga Kapatid render the org-chart branch connector;
-      // Mga Apo draws straight per-column lines instead. Any new group
-      // added later flows through FamilyGroupSection and inherits the
-      // connector automatically, so the connector count must stay in
-      // lockstep with the non-apo card-row sections.
+    // Mga Anak and Mga Kapatid render the org-chart branch connector;
+    // Mga Apo draws straight per-column lines instead. Any new group
+    // added later flows through FamilyGroupSection and inherits the
+    // connector automatically, so the connector count must stay in
+    // lockstep with the non-apo card-row sections.
+    expect(
+      boxesOf(connectorFinder()).length,
+      2,
+      reason:
+          'Mga Anak and Mga Kapatid must each render exactly one branch '
+          'connector',
+    );
+
+    // 'Mga Apo' also appears on a filter chip — anchor on the unique
+    // count text for that section's header.
+    final sections = <String, Finder>{
+      'Mga Anak': find.text('Mga Anak'),
+      'Mga Kapatid': find.text('Mga Kapatid'),
+      'Mga Apo': find.text('8 miyembro'),
+    };
+
+    sections.forEach((label, headerFinder) {
       expect(
-        boxesOf(connectorFinder()).length,
-        2,
-        reason:
-            'Mga Anak and Mga Kapatid must each render exactly one branch '
-            'connector',
+        headerFinder,
+        findsOneWidget,
+        reason: '"$label" header not found or not unique',
+      );
+      final headerBottom = bottomOf(
+        tester.renderObject<RenderBox>(headerFinder),
       );
 
-      // 'Mga Apo' also appears on a filter chip — anchor on the unique
-      // count text for that section's header.
-      final sections = <String, Finder>{
-        'Mga Anak': find.text('Mga Anak'),
-        'Mga Kapatid': find.text('Mga Kapatid'),
-        'Mga Apo': find.text('8 miyembro'),
-      };
+      final below = [
+        ...boxesOf(connectorFinder()),
+        ...boxesOf(spineFinder()),
+      ].where((b) => topOf(b) >= headerBottom - 6).toList();
+      expect(
+        below,
+        isNotEmpty,
+        reason: 'no descent lines below the "$label" header',
+      );
 
-      sections.forEach((label, headerFinder) {
-        expect(
-          headerFinder,
-          findsOneWidget,
-          reason: '"$label" header not found or not unique',
-        );
-        final headerBottom = bottomOf(
-          tester.renderObject<RenderBox>(headerFinder),
-        );
-
-        final below = [
-          ...boxesOf(connectorFinder()),
-          ...boxesOf(spineFinder()),
-        ].where((b) => topOf(b) >= headerBottom - 6).toList();
-        expect(
-          below,
-          isNotEmpty,
-          reason: 'no descent lines below the "$label" header',
-        );
-
-        expect(
-          topOf(below.first),
-          greaterThanOrEqualTo(headerBottom - 6),
-          reason: '"$label" descent lines do not clear its header text',
-        );
-      });
-    },
-  );
+      expect(
+        topOf(below.first),
+        greaterThanOrEqualTo(headerBottom - 6),
+        reason: '"$label" descent lines do not clear its header text',
+      );
+    });
+  });
 }

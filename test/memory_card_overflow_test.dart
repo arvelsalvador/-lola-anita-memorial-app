@@ -22,7 +22,11 @@ void expectTextFits(
   String reason,
 ) {
   final matches = find.text(text).evaluate().toList();
-  expect(matches, hasLength(1), reason: 'expected to find rendered text: $reason');
+  expect(
+    matches,
+    hasLength(1),
+    reason: 'expected to find rendered text: $reason',
+  );
   final widget = matches.first.widget as Text;
   final renderedWidth = tester.getSize(find.text(text)).width;
 
@@ -37,11 +41,12 @@ void expectTextFits(
   try {
     diag.parent.createSync(recursive: true);
     diag.writeAsStringSync(
-        '[fit] "$text" width=$renderedWidth maxLines=$maxLines '
-        'chars=${text.length} exceeded=${painter.didExceedMaxLines} '
-        'paintedH=${painter.height} '
-        'family=${widget.style?.fontFamily}\n',
-        mode: FileMode.append);
+      '[fit] "$text" width=$renderedWidth maxLines=$maxLines '
+      'chars=${text.length} exceeded=${painter.didExceedMaxLines} '
+      'paintedH=${painter.height} '
+      'family=${widget.style?.fontFamily}\n',
+      mode: FileMode.append,
+    );
   } catch (_) {
     // Diagnostics are best-effort; never fail the test on a write error.
   }
@@ -58,77 +63,55 @@ void expectTextFits(
   painter.dispose();
 }
 
-/// Fetches the real Inter TTFs — the same files google_fonts serves from
-/// fonts.gstatic.com — and registers them under the 'Inter' family (the
-/// family name GoogleFonts.inter() uses) so the no-ellipsis probes measure
-/// with true device metrics.
+/// Loads every font declared in pubspec.yaml (via the app's
+/// FontManifest.json) so the no-ellipsis probes measure with the real
+/// bundled Lora/Playfair Display metrics.
 ///
-/// google_fonts downloads its fonts over HTTP at runtime, which the
-/// flutter_test engine blocks, so without this every glyph falls back to the
-/// square test font (~12px per glyph — about twice as wide as real Inter)
-/// and copy that fits on devices reads as overflowing here.
+/// The flutter_test engine does not auto-register pubspec-declared custom
+/// fonts — without this every glyph falls back to the square test font
+/// (~12px per glyph, about twice as wide as real Lora) and copy that fits
+/// on devices reads as overflowing here. Unlike the old google_fonts setup
+/// (which needed an HTTP fetch that flutter_test blocks), the TTFs now ship
+/// in the app bundle, so this needs no network at all.
 ///
-/// Returns false when the fonts can't be fetched (e.g. offline CI); callers
-/// skip metric-sensitive probes in that case instead of failing on fake
-/// metrics.
-Future<bool> _loadRealInterFont() async {
-  final client = HttpClient();
-  client.connectionTimeout = const Duration(seconds: 10);
+/// Returns false when no fonts could be loaded (e.g. corrupt bundle);
+/// callers skip metric-sensitive probes in that case instead of failing on
+/// fake metrics.
+Future<bool> _loadBundledFonts() async {
   try {
-    for (final weight in const [300, 400, 600]) {
-      final cssReq = await client
-          .getUrl(Uri.parse(
-              'https://fonts.googleapis.com/css2?family=Inter:wght@$weight'))
-          .timeout(const Duration(seconds: 10));
-      final css =
-          await cssReq.close().then((r) => r.transform(utf8.decoder).join());
-
-      // css2 lists one @font-face per unicode subset; load every subset file
-      // so latin glyphs (and the ellipsis) resolve from Inter. GoogleFonts
-      // names families per weight ('Inter_600', fallback 'Inter'), and plain
-      // styles resolve to the default family — register each weight exactly
-      // where the engine will look for it.
-      final urls =
-          RegExp(r'url\((https://[^)]+\.ttf)\)').allMatches(css).toList();
-      if (urls.isEmpty) return false;
-      final families = switch (weight) {
-        400 => const ['Inter', 'Roboto', 'FlutterTest', 'Ahem'],
-        // GoogleFonts names weighted families '{family}_{weight}' with the
-        // bare family as fallback; plain styles resolve to the default
-        // family, so only w400 goes there.
-        300 => const ['Inter_300'],
-        600 => const ['Inter_600'],
-        _ => const <String>[],
-      };
-      for (final match in urls) {
-        final fontReq = await client
-            .getUrl(Uri.parse(match.group(1)!))
-            .timeout(const Duration(seconds: 10));
-        final bytes = await fontReq
-            .close()
-            .then((r) => r.fold<List<int>>(<int>[], (b, d) => b..addAll(d)));
-        for (final family in families) {
-          final loader = FontLoader(family)
-            ..addFont(Future.value(
-                ByteData.view(Uint8List.fromList(bytes).buffer)));
-          await loader.load();
-        }
+    final manifestRaw = await rootBundle.loadString('FontManifest.json');
+    final manifest = jsonDecode(manifestRaw) as List<dynamic>;
+    var loadedFamilies = 0;
+    for (final entry in manifest) {
+      final family = entry['family'] as String?;
+      final fonts = entry['fonts'] as List<dynamic>?;
+      if (family == null || fonts == null || family == 'MaterialIcons') {
+        continue;
       }
+      final loader = FontLoader(family);
+      for (final font in fonts) {
+        final asset = font['asset'] as String?;
+        if (asset == null) continue;
+        loader.addFont(rootBundle.load(asset));
+      }
+      await loader.load();
+      loadedFamilies++;
     }
-    return true;
+    return loadedFamilies > 0;
   } catch (_) {
-    // Offline or blocked network — caller skips the precision probes.
+    // Missing or unreadable manifest — caller skips the precision probes.
     return false;
-  } finally {
-    client.close();
   }
 }
 
 Future<void> main() async {
-  // The no-ellipsis probes measure with real Inter metrics. Fetching the
-  // font needs network access, so on an offline runner these probes skip
+  // Initialize the binding before touching rootBundle — the font loader
+  // reads the asset manifest from main(), outside any testWidgets zone.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  // The no-ellipsis probes measure with the real bundled Lora/Playfair
+  // metrics. If the bundle somehow carries no fonts, these probes skip
   // rather than fail against the square test font.
-  final fontsReady = _loadRealInterFont();
+  final fontsReady = _loadBundledFonts();
 
   // Regression probe: the memory card's photo is a fixed 150x200 slot in
   // the card row. When its asset wasn't bundled, the default load-failure
@@ -198,10 +181,7 @@ Future<void> main() async {
                 body: Center(
                   child: Padding(
                     padding: const EdgeInsets.all(20),
-                    child: MemoryCard(
-                      memory: memories[i],
-                      index: i,
-                    ),
+                    child: MemoryCard(memory: memories[i], index: i),
                   ),
                 ),
               ),
@@ -214,7 +194,8 @@ Future<void> main() async {
         expect(
           tester.takeException(),
           isNull,
-          reason: '${memories[i].id} overflow/exception at '
+          reason:
+              '${memories[i].id} overflow/exception at '
               '${width.toInt()}px width',
         );
       });
@@ -266,14 +247,15 @@ Future<void> main() async {
   final widths = <double>[360, 390, 412];
   final allMemories = MemoriesController.data.memories;
   if (!(await fontsReady)) {
-    testWidgets('no-ellipsis probes skipped (Inter font unavailable)', (
-      WidgetTester tester,
-    ) async {});
+    testWidgets(
+      'no-ellipsis probes skipped (bundled fonts unavailable)',
+      (WidgetTester tester) async {},
+    );
     return;
   }
 
   // Canary: the square flutter_test font draws every glyph exactly 12px
-  // wide, so ten M's measure 120px under it. Real Inter measures ~85-95px.
+  // wide, so ten M's measure 120px under it. Real Lora measures ~104-110px.
   // This catches a silently failed font registration so the probes below
   // can never pass/fail on fake metrics.
   testWidgets('real font metrics are active (canary)', (
@@ -289,8 +271,9 @@ Future<void> main() async {
     expect(
       width,
       lessThan(115),
-      reason: 'text measured with the square test font (10 M = $width px); '
-          'real Inter registration did not take effect',
+      reason:
+          'text measured with the square test font (10 M = $width px); '
+          'real bundled font registration did not take effect',
     );
   });
 
@@ -306,8 +289,7 @@ Future<void> main() async {
         (WidgetTester tester) async {
           tester.view.devicePixelRatio = 1.0;
           addTearDown(tester.view.reset);
-          final lang = LanguageProvider()
-            ..setLanguage(language);
+          final lang = LanguageProvider()..setLanguage(language);
 
           for (var i = 0; i < allMemories.length; i++) {
             tester.view.physicalSize = Size(width, 844);
@@ -341,7 +323,7 @@ Future<void> main() async {
             expectTextFits(
               tester,
               title,
-              AppTextStyles.serifHeading,
+              AppTextStyles.displayHeading,
               2,
               '${allMemories[i].id} title @ ${width.toInt()}px ($languageName)',
             );

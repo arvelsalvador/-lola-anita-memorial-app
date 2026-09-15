@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:nita/core/constants/app_constants.dart';
 
 /// Shared centered page title, copied from the Family page header
@@ -31,7 +30,8 @@ class PageTitleHeader extends StatelessWidget {
                 child: Text(
                   title,
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.playfairDisplay(
+                  style: const TextStyle(
+                    fontFamily: 'PlayfairDisplay',
                     fontSize: 31,
                     height: 1,
                     fontWeight: FontWeight.w700,
@@ -48,7 +48,8 @@ class PageTitleHeader extends StatelessWidget {
         Text(
           subtitle,
           textAlign: TextAlign.center,
-          style: GoogleFonts.playfairDisplay(
+          style: const TextStyle(
+            fontFamily: 'PlayfairDisplay',
             fontStyle: FontStyle.italic,
             fontSize: 13.5,
             color: AppColors.warmMid,

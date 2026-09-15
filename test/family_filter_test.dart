@@ -30,7 +30,10 @@ void main() {
   // 'family_filter_chips' (the same labels also appear in the section
   // headers further down the page, so scope by that key).
   Finder chipText(String label, {bool skipOffstage = true}) => find.descendant(
-    of: find.byKey(const Key('family_filter_chips'), skipOffstage: skipOffstage),
+    of: find.byKey(
+      const Key('family_filter_chips'),
+      skipOffstage: skipOffstage,
+    ),
     matching: find.text(label, skipOffstage: skipOffstage),
     skipOffstage: skipOffstage,
   );

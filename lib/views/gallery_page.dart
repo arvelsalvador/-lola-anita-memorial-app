@@ -5,7 +5,6 @@ import 'dart:ui' show ImageFilter;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import 'package:nita/controllers/gallery_controller.dart';
@@ -349,7 +348,8 @@ class _HeroSlideshowCardState extends State<HeroSlideshowCard> {
                               key: ValueKey('date_$_heroIndex'),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.playfairDisplay(
+                              style: const TextStyle(
+                                fontFamily: 'PlayfairDisplay',
                                 fontSize: 19,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.warmDark,
@@ -1505,7 +1505,8 @@ class _GalleryLightboxState extends State<GalleryLightbox> {
                         const SizedBox(height: 10),
                         Text(
                           lang.t(item.group.key),
-                          style: GoogleFonts.playfairDisplay(
+                          style: const TextStyle(
+                            fontFamily: 'PlayfairDisplay',
                             fontStyle: FontStyle.italic,
                             fontWeight: FontWeight.w700,
                             fontSize: 20,
@@ -1736,7 +1737,8 @@ class _CandleGateState extends State<CandleGate> with TickerProviderStateMixin {
                         child: Text(
                           lang.t('remembrance_gate_title'),
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.playfairDisplay(
+                          style: const TextStyle(
+                            fontFamily: 'PlayfairDisplay',
                             fontStyle: FontStyle.italic,
                             fontSize: 20,
                             height: 1.4,
@@ -1878,14 +1880,15 @@ class _CandleGateState extends State<CandleGate> with TickerProviderStateMixin {
                                                       ),
                                                       textAlign:
                                                           TextAlign.center,
-                                                      style:
-                                                          GoogleFonts.playfairDisplay(
-                                                            fontStyle: FontStyle
-                                                                .italic,
-                                                            fontSize: 12,
-                                                            color: AppColors
-                                                                .goldLight,
-                                                          ),
+                                                      style: const TextStyle(
+                                                        fontFamily:
+                                                            'PlayfairDisplay',
+                                                        fontStyle:
+                                                            FontStyle.italic,
+                                                        fontSize: 12,
+                                                        color:
+                                                            AppColors.goldLight,
+                                                      ),
                                                     ),
                                                   ),
                                                 ),
@@ -2409,7 +2412,8 @@ class _HighlightSlideshowState extends State<HighlightSlideshow> {
               children: [
                 Text(
                   lang.t('gallery_choose_music'),
-                  style: GoogleFonts.playfairDisplay(
+                  style: const TextStyle(
+                    fontFamily: 'PlayfairDisplay',
                     fontWeight: FontWeight.w700,
                     fontSize: 17,
                     color: AppColors.paper,
@@ -2581,7 +2585,8 @@ class _HighlightSlideshowState extends State<HighlightSlideshow> {
                         children: [
                           Text(
                             lang.t(item.group.key),
-                            style: GoogleFonts.playfairDisplay(
+                            style: const TextStyle(
+                              fontFamily: 'PlayfairDisplay',
                               fontStyle: FontStyle.italic,
                               fontSize: 15,
                               color: AppColors.paper,

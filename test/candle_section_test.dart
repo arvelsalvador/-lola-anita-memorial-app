@@ -67,36 +67,24 @@ void main() {
     // The words-for-Nanay bar sits behind the Condolences button even
     // when lit — tap it to reveal the box (no popup) with send
     // disabled on an empty draft.
-    expect(
-      find.text('Write your message for Nanay…'),
-      findsNothing,
-    );
+    expect(find.text('Write your message for Nanay…'), findsNothing);
     await tester.tap(find.text('Condolences'));
     await tester.pump();
-    expect(
-      find.text('Write your message for Nanay…'),
-      findsOneWidget,
-    );
+    expect(find.text('Write your message for Nanay…'), findsOneWidget);
     final sendButton = find.widgetWithText(ElevatedButton, 'Send');
     expect(sendButton, findsOneWidget);
     expect(tester.widget<ElevatedButton>(sendButton).onPressed, isNull);
 
     await tester.enterText(find.byType(TextField), 'Thank you, Nanay');
     await tester.pump();
-    expect(
-      tester.widget<ElevatedButton>(sendButton).onPressed,
-      isNotNull,
-    );
+    expect(tester.widget<ElevatedButton>(sendButton).onPressed, isNotNull);
     await tester.tap(sendButton);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
     // Offline backend: no throw, message still gets its thanks.
     expect(tester.takeException(), isNull);
-    expect(
-      find.text('Your message has reached Nanay 🕊️'),
-      findsOneWidget,
-    );
+    expect(find.text('Your message has reached Nanay 🕊️'), findsOneWidget);
   });
 
   testWidgets('Condolences button reveals message box and footer', (

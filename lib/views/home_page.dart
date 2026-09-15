@@ -1062,7 +1062,7 @@ class AboutCard extends StatelessWidget {
         child: Text(
           text,
           textAlign: TextAlign.justify,
-          style: AppTextStyles.serifBody,
+          style: AppTextStyles.bodyText,
         ),
       ),
     );
@@ -1226,7 +1226,7 @@ class MemoryCard extends StatelessWidget {
                   child: Text(
                     lang.t(memory.titleKey),
                     textAlign: TextAlign.center,
-                    style: AppTextStyles.serifHeading,
+                    style: AppTextStyles.displayHeading,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
