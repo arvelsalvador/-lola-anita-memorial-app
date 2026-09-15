@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:nita/core/constants/app_constants.dart';
+import 'package:nita/core/utils/image_decode.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/controllers/display_controller.dart';
 import 'package:nita/controllers/family_controller.dart';
@@ -502,6 +503,7 @@ class _TreeNodeCard extends StatelessWidget {
                       child: Image.asset(
                         member.photoPath!,
                         fit: BoxFit.cover,
+                        cacheWidth: ImageDecode.width(avatarSize, context),
                         errorBuilder: (c, e, s) => Center(
                           child: Text(
                             initials,

@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:nita/core/constants/app_constants.dart';
+import 'package:nita/core/utils/image_decode.dart';
 import 'package:nita/core/constants/app_routes.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/core/utils/motion.dart';
@@ -336,6 +337,7 @@ class _PortraitPhoto extends StatelessWidget {
               width: size - 20,
               height: size - 20,
               fit: BoxFit.cover,
+              cacheWidth: ImageDecode.width(size - 20, context),
               errorBuilder: (context, error, stackTrace) => const Center(
                 child: Text(
                   'A',

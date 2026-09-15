@@ -25,6 +25,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 import 'package:nita/core/constants/app_constants.dart';
+import 'package:nita/core/utils/image_decode.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/core/navigation.dart';
 import 'package:nita/controllers/display_controller.dart';
@@ -936,6 +937,7 @@ class _SearchResultTile extends StatelessWidget {
                       child: Image.asset(
                         member.photoPath!,
                         fit: BoxFit.cover,
+                        cacheWidth: ImageDecode.width(38, context),
                         errorBuilder: (_, _, _) => Center(
                           child: Text(
                             initials,
@@ -1821,6 +1823,7 @@ class _ApoCard extends StatelessWidget {
                     child: Image.asset(
                       member.photoPath!,
                       fit: BoxFit.cover,
+                      cacheWidth: ImageDecode.width(avatarSize, context),
                       errorBuilder: (context, error, stackTrace) => Center(
                         child: Text(
                           initials,
@@ -2241,6 +2244,13 @@ class _MemberPhotoViewer extends StatelessWidget {
                     child: Image.asset(
                       photoPath,
                       fit: BoxFit.contain,
+                      // Full-screen viewer: bounded to the longest screen
+                      // edge (covers both orientations) instead of native
+                      // camera resolution.
+                      cacheWidth: ImageDecode.width(
+                        MediaQuery.sizeOf(context).longestSide,
+                        context,
+                      ),
                       errorBuilder: (context, error, stackTrace) => const Icon(
                         Icons.broken_image,
                         size: 80,
@@ -2950,6 +2960,7 @@ class _MemberPortrait extends StatelessWidget {
             : Image.asset(
                 member.photoPath!,
                 fit: BoxFit.cover,
+                cacheWidth: ImageDecode.width(photoSize, context),
                 errorBuilder: (context, error, stackTrace) => _InitialsTile(
                   initials: initials,
                   fontSize: initialsFontSize,
@@ -3005,6 +3016,10 @@ class _MemberPortrait extends StatelessWidget {
                 child: Image.asset(
                   _familyBorderAsset,
                   fit: BoxFit.cover,
+                  cacheWidth: ImageDecode.width(
+                    size * (1 + _familyBorderOverflowFactor * 2),
+                    context,
+                  ),
                   errorBuilder: (context, error, stackTrace) =>
                       const SizedBox.shrink(),
                 ),

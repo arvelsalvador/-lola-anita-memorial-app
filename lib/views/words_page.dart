@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:nita/core/constants/app_constants.dart';
+import 'package:nita/core/utils/image_decode.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/core/utils/display_utils.dart';
 import 'package:nita/controllers/tribute_controller.dart';
@@ -506,6 +507,7 @@ class _MemberAvatar extends StatelessWidget {
         child: Image.asset(
           path,
           fit: BoxFit.cover,
+          cacheWidth: ImageDecode.width(size, context),
           errorBuilder: (_, _, _) =>
               GradientAvatar(size: size, initials: _initialsOf(name)),
         ),

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:nita/core/constants/app_constants.dart';
+import 'package:nita/core/utils/image_decode.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/core/navigation.dart';
 import 'package:nita/widgets/ornamental_card.dart';
@@ -489,6 +490,7 @@ class _AboutUsPage extends StatelessWidget {
                 width: 30,
                 height: 46,
                 fit: BoxFit.cover,
+                cacheWidth: ImageDecode.width(30, context),
                 alignment: Alignment.centerLeft,
                 errorBuilder: (_, _, _) => const Icon(
                   Icons.eco_outlined,
@@ -581,6 +583,7 @@ class _AboutUsPage extends StatelessWidget {
                     width: 90,
                     height: 52,
                     fit: BoxFit.cover,
+                    cacheWidth: ImageDecode.width(90, context),
                     alignment: Alignment.centerRight,
                     errorBuilder: (_, _, _) => const SizedBox.shrink(),
                   ),
@@ -796,6 +799,7 @@ class _AboutDeveloperPage extends StatelessWidget {
                           width: 150,
                           height: 96,
                           fit: BoxFit.cover,
+                          cacheWidth: ImageDecode.width(150, context),
                           alignment: Alignment.centerLeft,
                           errorBuilder: (_, _, _) => const SizedBox.shrink(),
                         ),
@@ -808,6 +812,7 @@ class _AboutDeveloperPage extends StatelessWidget {
                           width: 150,
                           height: 96,
                           fit: BoxFit.cover,
+                          cacheWidth: ImageDecode.width(150, context),
                           alignment: Alignment.centerRight,
                           errorBuilder: (_, _, _) => const SizedBox.shrink(),
                         ),
@@ -840,6 +845,7 @@ class _AboutDeveloperPage extends StatelessWidget {
                               child: Image.asset(
                                 _photo,
                                 fit: BoxFit.cover,
+                                cacheWidth: ImageDecode.width(96, context),
                                 errorBuilder: (_, _, _) => Container(
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
@@ -1179,6 +1185,7 @@ class _DevMiniCard extends StatelessWidget {
                   width: 84,
                   height: 48,
                   fit: BoxFit.cover,
+                  cacheWidth: ImageDecode.width(84, context),
                   alignment: Alignment.centerRight,
                   errorBuilder: (_, _, _) => const SizedBox.shrink(),
                 ),

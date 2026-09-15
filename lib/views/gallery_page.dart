@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 
 import 'package:nita/controllers/gallery_controller.dart';
 import 'package:nita/core/constants/app_constants.dart';
+import 'package:nita/core/utils/image_decode.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/core/navigation.dart';
 import 'package:nita/core/utils/motion.dart';
@@ -469,7 +470,7 @@ class _HeroSlideshowCardState extends State<HeroSlideshowCard> {
               Image.asset(
                 item.path,
                 fit: BoxFit.cover,
-                cacheWidth: 200,
+                cacheWidth: ImageDecode.width(200, context),
                 errorBuilder: (c, e, s) => Container(
                   color: AppColors.cream,
                   child: const Icon(
@@ -1083,7 +1084,7 @@ class _PhotoCard extends StatelessWidget {
                       child: Image.asset(
                         item.path,
                         fit: BoxFit.cover,
-                        cacheWidth: 400,
+                        cacheWidth: ImageDecode.width(400, context),
                         filterQuality: FilterQuality.medium,
                         errorBuilder: (c, e, s) => Container(
                           color: AppColors.cream,
@@ -1233,6 +1234,9 @@ class GalleryLightbox extends StatefulWidget {
 }
 
 class _GalleryLightboxState extends State<GalleryLightbox> {
+  // Absolute pixel decode budget for the zoomable lightbox (the
+  // InteractiveViewer scales up to 3×), not a logical size — deliberately
+  // NOT DPR-multiplied, or high-DPI devices would decode 3000px+ bitmaps.
   static const _lightboxWidth = 1080;
 
   late final PageController _controller = PageController(
@@ -2052,7 +2056,7 @@ class _PortraitMedallion extends StatelessWidget {
         child: Image.asset(
           asset,
           fit: BoxFit.cover,
-          cacheWidth: 256,
+          cacheWidth: ImageDecode.width(256, context),
           errorBuilder: (c, e, s) => Container(
             color: AppColors.cream,
             child: const Icon(
@@ -2725,6 +2729,8 @@ class _KenBurnsPhotoState extends State<_KenBurnsPhoto>
       child: Image.asset(
         widget.item.path,
         fit: BoxFit.cover,
+        // Absolute pixel decode budget for the zoomable Ken Burns slideshow
+        // (not a logical size — same reasoning as _lightboxWidth).
         cacheWidth: 1200,
         filterQuality: FilterQuality.medium,
         errorBuilder: (c, e, s) => const Center(

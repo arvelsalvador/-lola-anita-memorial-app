@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'package:provider/provider.dart';
 import 'package:nita/core/constants/app_constants.dart';
+import 'package:nita/core/utils/image_decode.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/core/navigation.dart';
 import 'package:nita/core/responsive.dart';
@@ -554,10 +555,15 @@ class LolaHeroHeader extends StatelessWidget {
           return Stack(
             fit: StackFit.expand,
             children: [
-              // Full-bleed background image.
+              // Full-bleed background image. Decoded at screen width so the
+              // header background never holds a full camera bitmap.
               Image.asset(
                 _backgroundAsset,
                 fit: BoxFit.cover,
+                cacheWidth: ImageDecode.width(
+                  MediaQuery.sizeOf(context).width,
+                  context,
+                ),
                 errorBuilder: (context, error, stackTrace) =>
                     const SizedBox.shrink(),
               ),
@@ -603,7 +609,7 @@ class LolaHeroHeader extends StatelessWidget {
                           const SizedBox(height: statusTop),
                           _memorialHeader(lang.t('tribute_in_loving_memory')),
                           const SizedBox(height: _gapMemorial),
-                          _portrait(lang, circleSize),
+                          _portrait(context, lang, circleSize),
                           const SizedBox(height: _gapPhoto),
                           _name(nameFont),
                           const SizedBox(height: _gapName),
@@ -669,7 +675,7 @@ class LolaHeroHeader extends StatelessWidget {
     return _CurvedMemorialHeader(text: text);
   }
 
-  Widget _portrait(LanguageProvider lang, double size) {
+  Widget _portrait(BuildContext context, LanguageProvider lang, double size) {
     final frameWidth = size * _frameScale;
     return Semantics(
       label: lang.t('hero_portrait_label', {'name': model.name}),
@@ -684,13 +690,14 @@ class LolaHeroHeader extends StatelessWidget {
             alignment: Alignment.center,
             children: [
               _GlowPulse(size: frameWidth * 1.3),
-              _photoOval(size),
+              _photoOval(context, size),
               // Memorial frame PNG with a transparent hole — the photo shows
               // through it and the frame's own gold ring wraps the photo edge.
               Positioned.fill(
                 child: Image.asset(
                   _frameAsset,
                   fit: BoxFit.fill,
+                  cacheWidth: ImageDecode.width(frameWidth, context),
                   errorBuilder: (context, error, stackTrace) =>
                       const SizedBox.shrink(),
                 ),
@@ -702,7 +709,7 @@ class LolaHeroHeader extends StatelessWidget {
     );
   }
 
-  Widget _photoOval(double size) {
+  Widget _photoOval(BuildContext context, double size) {
     final frameWidth = size * _frameScale;
     return SizedBox(
       width: frameWidth * 2 * _holeRxFrac * _photoOverscan,
@@ -711,6 +718,10 @@ class LolaHeroHeader extends StatelessWidget {
         child: Image.asset(
           _photoAsset,
           fit: BoxFit.cover,
+          cacheWidth: ImageDecode.width(
+            frameWidth * 2 * _holeRxFrac * _photoOverscan,
+            context,
+          ),
           errorBuilder: (context, error, stackTrace) => Container(
             color: AppColors.warmMid,
             child: const Icon(Icons.person, size: 70, color: AppColors.cream),
@@ -1146,6 +1157,7 @@ class _TitleAccent extends StatelessWidget {
           _assetPath,
           height: 48,
           fit: BoxFit.contain,
+          cacheHeight: ImageDecode.height(48, context),
           // The spray is purely decorative — never let an asset problem
           // break the card's layout.
           errorBuilder: (_, _, _) => const SizedBox.shrink(),
@@ -1326,6 +1338,7 @@ class _MemoryPhoto extends StatelessWidget {
         width: width,
         height: height,
         fit: BoxFit.cover,
+        cacheWidth: ImageDecode.width(width, context),
         errorBuilder: (context, error, stackTrace) => _PhotoPlaceholder(
           width: width,
           height: height,
