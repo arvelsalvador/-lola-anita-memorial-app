@@ -11,6 +11,8 @@ const Map<String, String> translationsBi = {
   'nav_family': 'Pamilya',
   'nav_tribute': 'Pagkilala',
   'nav_words': 'Mga Tataramon',
+  'nav_condolences': 'Pakikiramay',
+  // Deprecated alias — use nav_condolences (matches condolences_page.dart).
   'nav_favorites': 'Pakikiramay',
   'splash_quote':
       'An mga namomotan ta dai nawawara,\nSinda yaon sa kataid ta lambang aldaw.',
@@ -90,7 +92,7 @@ const Map<String, String> translationsBi = {
   'settings_contact_name_label': 'Saimong pangaran',
   'settings_contact_name_hint': 'Ilaog an saimong pangaran',
   'settings_contact_email_label': 'Email address',
-  'settings_contact_email_hint': 'you@example.com',
+  'settings_contact_email_hint': 'Ilaog an saimong email',
   'settings_contact_message_label': 'Mensahe',
   'settings_contact_message_hint': 'Isurat an saimong mensahe para sa pamilya…',
   'settings_contact_send_message': 'Mag-send nin mensahe',

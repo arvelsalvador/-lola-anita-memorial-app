@@ -1,4 +1,4 @@
-part of '../home_page.dart';
+part of 'home_page.dart';
 
 /// The memorial hero: full-bleed background photo with a warm scrim, the
 /// arched "In Loving Memory" header, the framed oval portrait, her name,
@@ -90,8 +90,12 @@ class LolaHeroHeader extends StatelessWidget {
               Image.asset(
                 _backgroundAsset,
                 fit: BoxFit.cover,
-                cacheWidth: ImageDecode.width(
-                  MediaQuery.sizeOf(context).width,
+                filterQuality: FilterQuality.high,
+                // Height-axis budget: the background is landscape
+                // (2560x1440) behind a portrait phone screen, so height
+                // is the cover-limiting axis.
+                cacheHeight: ImageDecode.height(
+                  MediaQuery.sizeOf(context).height,
                   context,
                 ),
                 errorBuilder: (context, error, stackTrace) =>
@@ -152,7 +156,7 @@ class LolaHeroHeader extends StatelessWidget {
                               '${model.birthYear} • ${model.passingYear}',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontFamily: 'Georgia',
+                                fontFamily: 'PlayfairDisplay',
                                 fontFamilyFallback: _serifFallback,
                                 fontSize: 18,
                                 letterSpacing: 2,
@@ -174,7 +178,7 @@ class LolaHeroHeader extends StatelessWidget {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontFamily: 'Georgia',
+                                fontFamily: 'PlayfairDisplay',
                                 fontFamilyFallback: _serifFallback,
                                 fontSize: taglineFont,
                                 fontStyle: FontStyle.italic,
@@ -228,6 +232,7 @@ class LolaHeroHeader extends StatelessWidget {
                   _frameAsset,
                   fit: BoxFit.fill,
                   cacheWidth: ImageDecode.width(frameWidth, context),
+                  cacheHeight: ImageDecode.height(frameWidth, context),
                   errorBuilder: (context, error, stackTrace) =>
                       const SizedBox.shrink(),
                 ),
@@ -248,8 +253,11 @@ class LolaHeroHeader extends StatelessWidget {
         child: Image.asset(
           _photoAsset,
           fit: BoxFit.cover,
-          cacheWidth: ImageDecode.width(
-            frameWidth * 2 * _holeRxFrac * _photoOverscan,
+          filterQuality: FilterQuality.high,
+          // Height-axis budget: Nanay_dp is landscape (1000x550) in a
+          // near-square oval hole, so height is the cover-limiting axis.
+          cacheHeight: ImageDecode.height(
+            frameWidth * 2 * _holeRyFrac * _photoOverscan,
             context,
           ),
           errorBuilder: (context, error, stackTrace) => Container(
@@ -272,7 +280,7 @@ class LolaHeroHeader extends StatelessWidget {
             model.name,
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontFamily: 'Georgia',
+              fontFamily: 'PlayfairDisplay',
               fontFamilyFallback: _serifFallback,
               fontSize: fontSize,
               fontWeight: FontWeight.w400,
@@ -330,7 +338,7 @@ class _CurvedMemorialHeaderState extends State<_CurvedMemorialHeader>
   Widget build(BuildContext context) {
     final textScaler = MediaQuery.textScalerOf(context);
     const style = TextStyle(
-      fontFamily: 'Georgia',
+      fontFamily: 'PlayfairDisplay',
       fontFamilyFallback: LolaHeroHeader._serifFallback,
       fontSize: 13,
       letterSpacing: 4,
@@ -486,3 +494,4 @@ class _CurvedTextPainter extends CustomPainter {
         oldDelegate.dotAngle != dotAngle;
   }
 }
+

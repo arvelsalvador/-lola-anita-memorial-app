@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/models/family_model.dart';
-import 'package:nita/views/family_page.dart';
+import 'package:nita/views/family/family_page.dart';
 
 /// Tests for the member-DP fullscreen viewer: only the large portrait in
 /// the member detail sheet opens it, with pinch-to-zoom and dismiss that
@@ -147,3 +147,4 @@ void main() {
     expect(size.height, greaterThan(700));
   });
 }
+

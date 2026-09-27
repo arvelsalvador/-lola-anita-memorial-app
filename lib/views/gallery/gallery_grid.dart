@@ -1,4 +1,4 @@
-part of '../gallery_page.dart';
+part of 'gallery_page.dart';
 
 class GalleryGridView extends StatefulWidget {
   final List<GalleryImageItem> images;
@@ -95,12 +95,12 @@ class _GalleryGridViewState extends State<GalleryGridView>
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
                 colors: [
-                  Colors.white,
-                  Colors.white,
+                  AppColors.paper,
+                  AppColors.paper,
                   // No fade at all once there's nothing left to scroll
                   // to — the gradient becomes fully opaque white,
                   // meaning BlendMode.dstIn changes nothing.
-                  _pillsCanScrollMore ? Colors.transparent : Colors.white,
+                  _pillsCanScrollMore ? Colors.transparent : AppColors.paper,
                 ],
                 stops: const [0.0, 0.92, 1.0],
               ).createShader(bounds),
@@ -310,6 +310,7 @@ class _GalleryGridViewState extends State<GalleryGridView>
   }
 
   void _updatePillsFade() {
+    if (!mounted) return;
     if (!_pillsScrollController.hasClients) return;
     final position = _pillsScrollController.position;
     // "Can scroll more" means we're not already within half a pixel of
@@ -332,11 +333,12 @@ class _GalleryGridViewState extends State<GalleryGridView>
   }();
 
   void _onTabChanged() {
+    if (!mounted) return;
     // The gallery is tab index 1 in the home shell. The hero card owns
     // its own rotation timer (see [HeroSlideshowCard]); here we only
     // reset entrance-visit tracking.
     if (widget.activeTab?.value == 1) {
-      if (_visited.isNotEmpty) setState(_visited.clear);
+      if (_visited.isNotEmpty && mounted) setState(_visited.clear);
     }
   }
 
@@ -575,7 +577,7 @@ class _PhotoCard extends StatelessWidget {
                         item.path,
                         fit: BoxFit.cover,
                         cacheWidth: ImageDecode.width(400, context),
-                        filterQuality: FilterQuality.medium,
+                        filterQuality: FilterQuality.high,
                         errorBuilder: (c, e, s) => Container(
                           color: AppColors.cream,
                           child: const Icon(
@@ -593,7 +595,7 @@ class _PhotoCard extends StatelessWidget {
                           end: Alignment.bottomCenter,
                           colors: [
                             Colors.transparent,
-                            AppColors.warmDark.withValues(alpha: 0.55),
+                            AppColors.viewerBackground.withValues(alpha: 0.65),
                           ],
                           stops: const [0.35, 1.0],
                         ),
@@ -639,10 +641,10 @@ class _PhotoCard extends StatelessWidget {
                                 style: const TextStyle(
                                   fontSize: 9.5,
                                   fontWeight: FontWeight.w600,
-                                  color: Colors.white,
+                                  color: AppColors.paper,
                                   shadows: [
                                     Shadow(
-                                      color: Colors.black54,
+                                      color: AppColors.viewerBackground,
                                       blurRadius: 4,
                                     ),
                                   ],
@@ -677,7 +679,7 @@ class _PhotoCard extends StatelessWidget {
                                       fontWeight: FontWeight.w500,
                                       shadows: [
                                         Shadow(
-                                          color: Colors.black45,
+                                          color: AppColors.viewerBackground,
                                           blurRadius: 4,
                                         ),
                                       ],
@@ -701,3 +703,4 @@ class _PhotoCard extends StatelessWidget {
     );
   }
 }
+

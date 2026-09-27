@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import 'package:nita/core/localization/language_provider.dart';
-import 'package:nita/views/family_page.dart';
+import 'package:nita/views/family/family_page.dart';
 import 'package:nita/widgets/ornamental_card.dart';
 
 void main() {
@@ -92,3 +92,4 @@ void main() {
     );
   });
 }
+

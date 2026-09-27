@@ -18,6 +18,6 @@ void main() async {
     LanguageProvider.debugCheckTranslationKeysMatch();
   }
   // Local-only for now: no Firebase init. Candle count is session-only,
-  // messages show thanks without a backend (see TributeController).
+  // messages show thanks without a backend (see WordsController).
   runApp(const LolaApp());
 }

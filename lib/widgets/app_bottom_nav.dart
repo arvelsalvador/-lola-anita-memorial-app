@@ -22,7 +22,7 @@ class AppBottomNav extends StatelessWidget {
     (
       Icons.local_fire_department_outlined,
       Icons.local_fire_department_rounded,
-      'nav_favorites',
+      'nav_condolences',
     ),
   ];
 

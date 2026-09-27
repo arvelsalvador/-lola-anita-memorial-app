@@ -2,7 +2,7 @@
 /// (Lahat / Mga anak / Mga kapatid / Mga apo).
 enum QuoteGroup { children, siblings, grandchildren }
 
-class TributeModel {
+class WordsModel {
   final String tributeMessageKey;
 
   /// The family's words for Nanay, shown on the Words tab.
@@ -13,7 +13,7 @@ class TributeModel {
   /// default "Lahat" featured card content.
   final FamilyQuote featuredQuote;
 
-  const TributeModel({
+  const WordsModel({
     required this.tributeMessageKey,
     required this.familyQuotes,
     required this.featuredQuote,

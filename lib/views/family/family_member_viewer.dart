@@ -1,4 +1,4 @@
-part of '../family_page.dart';
+part of 'family_page.dart';
 
 /// Opens the member's display picture full-screen with pinch-to-zoom.
 /// Pushed above the member detail sheet, so closing it returns to the
@@ -56,6 +56,7 @@ class _MemberPhotoViewer extends StatelessWidget {
                     child: Image.asset(
                       photoPath,
                       fit: BoxFit.contain,
+                      filterQuality: FilterQuality.high,
                       // Full-screen viewer: bounded to the longest screen
                       // edge (covers both orientations) instead of native
                       // camera resolution.
@@ -622,3 +623,4 @@ class _SheetRow extends StatelessWidget {
     );
   }
 }
+

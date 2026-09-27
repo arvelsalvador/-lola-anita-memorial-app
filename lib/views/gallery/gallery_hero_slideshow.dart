@@ -1,4 +1,4 @@
-part of '../gallery_page.dart';
+part of 'gallery_page.dart';
 
 /// Auto-rotating "featured memory" card above the grid.
 ///
@@ -29,7 +29,8 @@ class _HeroSlideshowCardState extends State<HeroSlideshowCard> {
   void initState() {
     super.initState();
     widget.activeTab?.addListener(_onTabChanged);
-    if (widget.activeTab == null || widget.activeTab!.value == 1) {
+    final tab = widget.activeTab;
+    if (tab == null || tab.value == 1) {
       _startHeroTimer();
     }
   }
@@ -239,7 +240,7 @@ class _HeroSlideshowCardState extends State<HeroSlideshowCard> {
           border: Border.all(color: AppColors.paper, width: 3),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.15),
+              color: AppColors.viewerBackground.withValues(alpha: 0.25),
               blurRadius: 8,
               offset: const Offset(0, 3),
             ),
@@ -253,6 +254,7 @@ class _HeroSlideshowCardState extends State<HeroSlideshowCard> {
               Image.asset(
                 item.path,
                 fit: BoxFit.cover,
+                filterQuality: FilterQuality.high,
                 cacheWidth: ImageDecode.width(200, context),
                 errorBuilder: (c, e, s) => Container(
                   color: AppColors.cream,
@@ -292,3 +294,4 @@ class _HeroSlideshowCardState extends State<HeroSlideshowCard> {
     return _heroCard(lang);
   }
 }
+

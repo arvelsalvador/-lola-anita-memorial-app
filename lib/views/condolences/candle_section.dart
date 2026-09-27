@@ -2,23 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import 'package:nita/controllers/tribute_controller.dart';
+import 'package:nita/controllers/condolences_controller.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
-import 'package:nita/widgets/candle_video.dart';
+import 'package:nita/views/condolences/candle_video.dart';
 
 /// The "Sindihan ang kandila" card: a video of a candle being lit in
 /// Nanay's memory, with a local session counter (Firebase paused).
-/// Originally part of the Tribute page, now hosted on the Pakikiramay
-/// (condolences) tab.
+/// Hosted on the Pakikiramay (condolences) tab; quotes live on Words.
 ///
 /// The circle shows the video's first (unlit) frame paused — nothing
 /// autoplays. Tapping "light the candle" (on the video or the card
 /// button) plays it once; it pauses on the final lit frame.
 class CandleSection extends StatefulWidget {
-  final TributeController tributeController;
+  final CondolencesController condolencesController;
 
-  const CandleSection({super.key, required this.tributeController});
+  const CandleSection({super.key, required this.condolencesController});
 
   @override
   State<CandleSection> createState() => _CandleSectionState();
@@ -37,13 +36,13 @@ class _CandleSectionState extends State<CandleSection> {
   @override
   void initState() {
     super.initState();
-    widget.tributeController.addListener(_onChanged);
+    widget.condolencesController.addListener(_onChanged);
     _messageController.addListener(_onMessageChanged);
   }
 
   @override
   void dispose() {
-    widget.tributeController.removeListener(_onChanged);
+    widget.condolencesController.removeListener(_onChanged);
     _messageController.removeListener(_onMessageChanged);
     _messageController.dispose();
     _playSignal.dispose();
@@ -63,7 +62,7 @@ class _CandleSectionState extends State<CandleSection> {
   }
 
   void _handleLightTap() {
-    final controller = widget.tributeController;
+    final controller = widget.condolencesController;
     if (controller.lit || controller.loading) return;
     HapticFeedback.lightImpact();
     _playSignal.value++;
@@ -78,27 +77,48 @@ class _CandleSectionState extends State<CandleSection> {
     if (!mounted) return;
     setState(() => _sending = true);
     // Brief pause so the sending spinner is visible, then thank.
-    await Future<void>.delayed(const Duration(milliseconds: 400));
+    try {
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    } catch (_) {
+      // Timer/future interrupted — reset state safely.
+      if (!mounted) {
+        _sending = false;
+        return;
+      }
+    }
     if (!mounted) {
       _sending = false;
       return;
     }
-    final lang = context.read<LanguageProvider>();
+    String thanks;
+    try {
+      thanks = context.read<LanguageProvider>().t('candle_message_thanks');
+    } catch (_) {
+      thanks = 'Thank you.';
+    }
     _messageController.clear();
+    if (!mounted) {
+      _sending = false;
+      return;
+    }
     setState(() => _sending = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.warmDark,
-        content: Text(lang.t('candle_message_thanks')),
-      ),
-    );
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.warmDark,
+          content: Text(thanks),
+        ),
+      );
+    } catch (_) {
+      // No scaffold to show the thanks on — gesture already completed.
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
-    final controller = widget.tributeController;
+    final controller = widget.condolencesController;
     final lit = controller.lit;
 
     return Column(
@@ -118,7 +138,7 @@ class _CandleSectionState extends State<CandleSection> {
               Text(
                 lit ? lang.t('candle_lit') : lang.t('candle_light'),
                 style: const TextStyle(
-                  fontFamily: 'Georgia',
+                  fontFamily: 'PlayfairDisplay',
                   fontSize: 22,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textDark,

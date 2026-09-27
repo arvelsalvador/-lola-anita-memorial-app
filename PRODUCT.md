@@ -49,7 +49,7 @@ A family-authored, trilingual (English, Tagalog, Bicol) memorial that combines a
 ## Evidence on Hand
 
 - ~90 real family photographs in `assets/images/gallery/` (birthdays, home, hospital, family gatherings, portraits, final days).
-- `assets/images/Editing images/memorial_header_background_raw.jpg` (header background, used by `home_page.dart`), `assets/images/Family DP/Nanay_dp.jpg` (profile portrait). NOTE: `backgroundIMG.jpg`, `candle.png`, `Memories_design.png`, and `Editing images/Frame.jpg` exist on disk but are unreferenced — only `Editing images/Frame.png` is used (hero portrait frame).
+- `assets/images/Editing images/memorial_header_background_raw.jpg` (header background, used by `home_page.dart`), `assets/images/Family DP/Nanay_dp.jpg` (profile portrait), `assets/images/Editing images/candle.png` (still candle poster drawn under the condolences candle video, used by `candle_video.dart`). NOTE: `backgroundIMG.jpg`, `Memories_design.png`, and `Editing images/Frame.jpg` exist on disk but are unreferenced — only `Editing images/Frame.png` is used (hero portrait frame).
 - `assets/audio/Kiss the Rain - Yiruma.mp3` (background music).
 - Real family member names, roles, and short bios as modeled in `family_controller.dart` (Roberto, Rodolfo, Sonia, Gernan, Rodel Sr., Lorie, Hanna, Audrey, Jongjong, Rose-ann, Arvel, Aivan, Honey, Daniel). NOTE: translation keys for Maria, Carlo, Ana, Ramon, Rosario, Salvador Jr., and Ester exist but are unreferenced — confirm with the family whether to wire them in or remove them.
 - Family quotes in `tribute_controller.dart` (children, siblings, grandchildren with `words_quote_*` keys).

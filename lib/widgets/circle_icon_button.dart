@@ -20,7 +20,7 @@ class CircleIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: filled ? AppColors.paper : Colors.white.withValues(alpha: 0.14),
+      color: filled ? AppColors.paper : AppColors.paper.withValues(alpha: 0.14),
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
@@ -30,7 +30,7 @@ class CircleIconButton extends StatelessWidget {
           child: Icon(
             icon,
             size: size,
-            color: filled ? AppColors.warmDark : Colors.white,
+            color: filled ? AppColors.warmDark : AppColors.paper,
           ),
         ),
       ),

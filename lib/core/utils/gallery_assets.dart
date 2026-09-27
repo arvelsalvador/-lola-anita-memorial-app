@@ -14,8 +14,8 @@ const Set<String> gallerySupportAssets = {
 };
 
 /// All gallery photo asset paths (sorted), excluding the support assets
-/// above. Shared by the gallery page (the grid) and the memories page
-/// (the "N larawan sa Galeri" counts).
+/// above. Shared by the gallery page (the grid) and the home story
+/// memories section (the "N larawan sa Galeri" counts).
 Future<List<String>> loadGalleryPhotoPaths() async {
   final assetManifest = await AssetManifest.loadFromAssetBundle(rootBundle)
       .timeout(

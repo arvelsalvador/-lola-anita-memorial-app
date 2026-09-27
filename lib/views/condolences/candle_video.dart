@@ -3,21 +3,29 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:nita/core/constants/app_constants.dart';
 
-/// The candle circle: a paused video of a candle being lit
-/// (`assets/Video/candle.mp4`).
+/// The candle circle: a video of a candle being lit
+/// (`assets/Video/candle.mp4`) resting on its first (unlit) frame.
 ///
-/// - Shows the first (unlit) frame paused when the page opens; nothing
-///   autoplays.
+/// - Holds the first (unlit) frame when the page opens; nothing
+///   autoplays. That frame is *primed* after initialization (one muted
+///   playback tick, then pause + seek back to zero) because the desktop
+///   backend (fvp/MDK) only feeds pixels to the texture while the
+///   player is actually rendering — a merely paused controller leaves
+///   the circle blank.
 /// - Tapping the circle plays the video once from start to finish and
 ///   fires [onLight]; when the end is reached it pauses there on the
 ///   lit frame instead of looping.
+/// - A still photo of the same candle sits *under* the video, so when the
+///   backend has no frame to publish (a transparent/empty texture — the
+///   blank state this circle opened in on Windows) the circle still
+///   shows a candle instead of a hole.
 /// - [playSignal] lets the card-level button trigger the same one-shot
 ///   playback without double-lighting the counter.
 /// - [onLight] fires the shared candle-light flow (counter, thank-you).
 ///   It still fires when the video can't load, so the gesture never
 ///   dies with the asset.
-/// - While loading (or if the asset fails, e.g. in widget tests) a
-///   quiet fallback medallion shows instead of an error.
+/// - While loading (or if the asset fails, e.g. in widget tests) the
+///   medallion shows instead of an error.
 ///
 /// Owns its [VideoPlayerController]: created in [initState], disposed
 /// in [dispose].
@@ -35,6 +43,9 @@ class CandleVideo extends StatefulWidget {
 
   static const String assetPath = 'assets/Video/candle.mp4';
 
+  /// Still candle (first-frame stand-in) drawn under the video.
+  static const String stillPath = 'assets/images/Editing images/candle.png';
+
   @override
   State<CandleVideo> createState() => _CandleVideoState();
 }
@@ -45,6 +56,11 @@ class _CandleVideoState extends State<CandleVideo> {
   bool _failed = false;
   bool _completed = false;
   int _lastSignal = 0;
+
+  /// True while [_primeFirstFrame] is holding the first frame. A visitor
+  /// tap clears it, so the prime can never pause playback the visitor
+  /// started in the same breath.
+  bool _priming = false;
 
   @override
   void initState() {
@@ -60,17 +76,62 @@ class _CandleVideoState extends State<CandleVideo> {
     _controller
         .initialize()
         .timeout(const Duration(seconds: 10))
-        .then((_) {
+        .then((_) async {
           if (!mounted) return;
           // Rest on the first (unlit) frame — never autoplay.
           _controller.pause();
           setState(() => _ready = true);
+          // …then make sure that frame actually reached the texture.
+          await _primeFirstFrame();
         })
         .catchError((Object e) {
           debugPrint('[CandleVideo] initialize failed: $e');
           if (!mounted) return;
           setState(() => _failed = true);
         });
+  }
+
+  /// Renders and holds the first (unlit) frame.
+  ///
+  /// On Windows/Linux the `video_player` implementation is fvp/MDK,
+  /// which only feeds pixels to the Flutter texture from its render
+  /// callback — i.e. while the player is rendering. A controller that is
+  /// merely paused after `initialize()` therefore leaves the texture
+  /// empty and the circle opens blank. One muted playback tick publishes
+  /// the frame; pausing and seeking back to zero then holds it exactly
+  /// as designed.
+  Future<void> _primeFirstFrame() async {
+    if (!mounted || _failed || _completed) return;
+    final volume = _controller.value.volume;
+    _priming = true;
+    try {
+      // Muted so priming can never blip the video's audio track.
+      await _controller.setVolume(0).timeout(const Duration(seconds: 2));
+      await _controller.play().timeout(const Duration(seconds: 2));
+      // ~3 frames at the video's 24 fps: enough to render and publish
+      // the first frame, with no visible movement of the unlit candle.
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+      if (!mounted || !_priming) return;
+      await _controller.pause().timeout(const Duration(seconds: 2));
+      // Land exactly on the first (unlit) frame.
+      await _controller
+          .seekTo(Duration.zero)
+          .timeout(const Duration(seconds: 2));
+    } catch (e) {
+      // Priming is polish: the tap-to-light flow still works without it.
+      debugPrint('[CandleVideo] first-frame prime failed: $e');
+    } finally {
+      _priming = false;
+      if (mounted) {
+        try {
+          await _controller
+              .setVolume(volume)
+              .timeout(const Duration(seconds: 2));
+        } catch (_) {
+          // Volume restore is best-effort — never surface it to a visitor.
+        }
+      }
+    }
   }
 
   @override
@@ -84,6 +145,8 @@ class _CandleVideoState extends State<CandleVideo> {
   void _onSignal() {
     if (widget.playSignal.value == _lastSignal) return;
     _lastSignal = widget.playSignal.value;
+    // The visitor is driving now — never let the prime pause their play.
+    _priming = false;
     _playVideo();
   }
 
@@ -129,6 +192,7 @@ class _CandleVideoState extends State<CandleVideo> {
   }
 
   void _handleTap() {
+    _priming = false; // the visitor is driving now
     _playVideo();
     widget.onLight();
   }
@@ -196,7 +260,23 @@ class _CandleVideoState extends State<CandleVideo> {
                 ),
                 child: ClipOval(
                   child: _ready && !_failed
-                      ? VideoPlayer(_controller)
+                      ? Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            // Still candle under the video: an empty or
+                            // transparent texture reveals it, a painted
+                            // video frame covers it.
+                            Image.asset(
+                              CandleVideo.stillPath,
+                              fit: BoxFit.cover,
+                              // 1920px source in a 200px circle: decode
+                              // small so the poster stays cheap.
+                              cacheWidth: 400,
+                              filterQuality: FilterQuality.medium,
+                            ),
+                            VideoPlayer(_controller),
+                          ],
+                        )
                       : _FallbackMedallion(loading: !_failed),
                 ),
               ),

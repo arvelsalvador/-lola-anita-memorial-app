@@ -4,18 +4,20 @@ import 'package:provider/provider.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/controllers/gallery_controller.dart';
-import 'package:nita/controllers/memories_controller.dart';
-import 'package:nita/controllers/tribute_controller.dart';
-import 'package:nita/views/home_page.dart';
+import 'package:nita/controllers/home_controller.dart';
+import 'package:nita/controllers/words_controller.dart';
+import 'package:nita/controllers/condolences_controller.dart';
+import 'package:nita/views/home/home_page.dart';
 
 void _noop(int _) {}
 
 Widget _shell(int selectedTab) => HomeShell(
   selectedTab: selectedTab,
   onTabChanged: _noop,
-  memoriesController: MemoriesController(),
+  homeController: HomeController(),
   galleryController: GalleryController(),
-  tributeController: TributeController(),
+  wordsController: WordsController(),
+  condolencesController: CondolencesController(),
 );
 
 /// The hero's collapse container height — 0 means the hero is hidden, the
@@ -177,3 +179,4 @@ void main() {
     expect(_heroHeight(tester), greaterThan(0));
   });
 }
+

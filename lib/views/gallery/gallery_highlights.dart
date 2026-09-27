@@ -1,4 +1,4 @@
-part of '../gallery_page.dart';
+part of 'gallery_page.dart';
 
 class HighlightSlideshow extends StatefulWidget {
   final List<GalleryImageItem> images;
@@ -21,6 +21,7 @@ class HighlightSlideshow extends StatefulWidget {
 
 class _HighlightSlideshowState extends State<HighlightSlideshow> {
   static const _photoDuration = Duration(seconds: 5);
+  static final _audioExt = RegExp(r'\.(mp3|wav|m4a)$');
 
   late int _current = widget.images.isEmpty
       ? 0
@@ -149,7 +150,7 @@ class _HighlightSlideshowState extends State<HighlightSlideshow> {
                     shrinkWrap: true,
                     itemCount: _availableTracks.length,
                     separatorBuilder: (_, _) => Divider(
-                      color: Colors.white.withValues(alpha: 0.08),
+                      color: AppColors.paper.withValues(alpha: 0.12),
                       height: 1,
                     ),
                     itemBuilder: (context, index) {
@@ -158,19 +159,21 @@ class _HighlightSlideshowState extends State<HighlightSlideshow> {
                       final title = path
                           .split('/')
                           .last
-                          .replaceAll(RegExp(r'\.(mp3|wav|m4a)$'), '');
+                          .replaceAll(_audioExt, '');
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: Icon(
                           selected
                               ? Icons.play_circle_fill_rounded
                               : Icons.music_note_rounded,
-                          color: selected ? AppColors.gold : Colors.white54,
+                          color: selected
+                              ? AppColors.gold
+                              : AppColors.paper.withValues(alpha: 0.6),
                         ),
                         title: Text(
                           title,
                           style: TextStyle(
-                            color: selected ? AppColors.gold : Colors.white,
+                            color: selected ? AppColors.gold : AppColors.paper,
                             fontWeight: selected
                                 ? FontWeight.w600
                                 : FontWeight.w400,
@@ -232,10 +235,20 @@ class _HighlightSlideshowState extends State<HighlightSlideshow> {
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
     if (widget.images.isEmpty) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: AppColors.viewerBackground,
         body: Center(
-          child: Icon(Icons.broken_image, size: 80, color: Colors.grey),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.broken_image, size: 80, color: AppColors.muted),
+              const SizedBox(height: 12),
+              Text(
+                lang.t('no_images'),
+                style: const TextStyle(fontSize: 14, color: AppColors.muted),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -262,9 +275,9 @@ class _HighlightSlideshowState extends State<HighlightSlideshow> {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.black.withValues(alpha: 0.55),
+                  AppColors.viewerBackground.withValues(alpha: 0.75),
                   Colors.transparent,
-                  Colors.black.withValues(alpha: 0.45),
+                  AppColors.viewerBackground.withValues(alpha: 0.65),
                 ],
                 stops: const [0.0, 0.45, 1.0],
               ),
@@ -322,7 +335,7 @@ class _HighlightSlideshowState extends State<HighlightSlideshow> {
                             '${lang.t(item.location ?? 'loc_lipa')}  •  '
                             '${lang.t(item.date ?? 'date_1')}',
                             style: const TextStyle(
-                              color: Colors.white70,
+                              color: AppColors.paper,
                               fontSize: 11,
                             ),
                             maxLines: 1,
@@ -449,14 +462,14 @@ class _KenBurnsPhotoState extends State<_KenBurnsPhoto>
       child: Image.asset(
         widget.item.path,
         fit: BoxFit.cover,
-        // Absolute pixel decode budget for the zoomable Ken Burns slideshow
-        // (not a logical size — same reasoning as _lightboxWidth).
-        cacheWidth: 1200,
-        filterQuality: FilterQuality.medium,
+        // DPR-aware decode budget for the zoomable Ken Burns slideshow.
+        cacheWidth: ImageDecode.width(600, context),
+        filterQuality: FilterQuality.high,
         errorBuilder: (c, e, s) => const Center(
-          child: Icon(Icons.broken_image, size: 80, color: Colors.grey),
+          child: Icon(Icons.broken_image, size: 80, color: AppColors.muted),
         ),
       ),
     );
   }
 }
+

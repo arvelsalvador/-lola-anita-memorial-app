@@ -1,4 +1,4 @@
-part of '../settings_page.dart';
+part of 'settings_page.dart';
 
 /// About the Developer: portfolio card — sprig-dressed header with the
 /// profile photo, name, role between rules, dedication, icon chips,
@@ -97,6 +97,7 @@ class _AboutDeveloperPage extends StatelessWidget {
                               child: Image.asset(
                                 _photo,
                                 fit: BoxFit.cover,
+                                filterQuality: FilterQuality.high,
                                 cacheWidth: ImageDecode.width(96, context),
                                 errorBuilder: (_, _, _) => Container(
                                   alignment: Alignment.center,
@@ -118,7 +119,7 @@ class _AboutDeveloperPage extends StatelessWidget {
                                   child: const Text(
                                     'AS',
                                     style: TextStyle(
-                                      fontFamily: 'Georgia',
+                                      fontFamily: 'Lora',
                                       fontSize: 28,
                                       fontWeight: FontWeight.w600,
                                       color: AppColors.roseDeep,
@@ -144,7 +145,7 @@ class _AboutDeveloperPage extends StatelessWidget {
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
                           color: AppColors.textDark,
-                          fontFamily: 'Georgia',
+                          fontFamily: 'Lora',
                           fontFamilyFallback: ['Times New Roman', 'serif'],
                         ),
                       ),
@@ -315,7 +316,7 @@ class _TechChip extends StatelessWidget {
           Text(
             label,
             style: const TextStyle(
-              fontFamily: 'Georgia',
+              fontFamily: 'Lora',
               fontSize: 12,
               fontWeight: FontWeight.w600,
               color: AppColors.warmDeep,
@@ -374,7 +375,7 @@ class _FamilyButton extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontFamily: 'Georgia',
+                      fontFamily: 'Lora',
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                       color: Colors.white,
@@ -463,7 +464,7 @@ class _DevMiniCard extends StatelessWidget {
                         fontSize: 14.5,
                         fontWeight: FontWeight.w700,
                         color: AppColors.textDark,
-                        fontFamily: 'Georgia',
+                        fontFamily: 'Lora',
                         fontFamilyFallback: ['Times New Roman', 'serif'],
                       ),
                     ),
@@ -494,3 +495,4 @@ class _DevMiniCard extends StatelessWidget {
     );
   }
 }
+

@@ -1,4 +1,4 @@
-part of '../settings_page.dart';
+part of 'settings_page.dart';
 
 /// About Us: brand card, "why we made this", rows into the Story /
 /// Gallery / Words tabs, a made-with-love card, and a thank-you.
@@ -44,7 +44,7 @@ class _AboutUsPage extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.8,
                         color: AppColors.textDark,
-                        fontFamily: 'Georgia',
+                        fontFamily: 'Lora',
                         fontFamilyFallback: ['Times New Roman', 'serif'],
                       ),
                     ),
@@ -98,7 +98,7 @@ class _AboutUsPage extends StatelessWidget {
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textDark,
-                    fontFamily: 'Georgia',
+                    fontFamily: 'Lora',
                     fontFamilyFallback: ['Times New Roman', 'serif'],
                   ),
                 ),
@@ -212,7 +212,7 @@ class _AboutUsPage extends StatelessWidget {
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.textDark,
-                                fontFamily: 'Georgia',
+                                fontFamily: 'Lora',
                                 fontFamilyFallback: [
                                   'Times New Roman',
                                   'serif',
@@ -308,7 +308,7 @@ class _AboutRow extends StatelessWidget {
                         fontSize: 15.5,
                         fontWeight: FontWeight.w700,
                         color: AppColors.textDark,
-                        fontFamily: 'Georgia',
+                        fontFamily: 'Lora',
                         fontFamilyFallback: ['Times New Roman', 'serif'],
                       ),
                     ),
@@ -339,3 +339,4 @@ class _AboutRow extends StatelessWidget {
     );
   }
 }
+

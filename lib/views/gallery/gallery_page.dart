@@ -14,7 +14,6 @@ import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/core/utils/navigation.dart';
 import 'package:nita/core/utils/motion.dart';
 import 'package:nita/models/gallery_model.dart';
-import 'package:nita/models/gallery_group.dart';
 import 'package:nita/widgets/circle_icon_button.dart';
 import 'package:nita/widgets/floating_close_button.dart';
 import 'package:nita/widgets/ornamental_card.dart';
@@ -23,71 +22,11 @@ import 'package:nita/widgets/photo_counter_pill.dart';
 import 'package:nita/widgets/stagger_entrance.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
-part 'gallery/gallery_hero_slideshow.dart';
-part 'gallery/gallery_grid.dart';
-part 'gallery/gallery_lightbox.dart';
-part 'gallery/gallery_candle_gate.dart';
-part 'gallery/gallery_highlights.dart';
-
-/// Shared top overlay for full-screen photo viewers: a close button
-/// (top-right) and a "current / total" counter pill (top-left).
-class _ViewerChrome extends StatelessWidget {
-  final int current;
-  final int total;
-  final VoidCallback onClose;
-
-  const _ViewerChrome({
-    required this.current,
-    required this.total,
-    required this.onClose,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: Row(
-          children: [
-            const SizedBox(
-              width: 38,
-            ), // balances the close button's width so the counter stays centered
-            Expanded(
-              child: Text(
-                '${current + 1} / $total',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            _chromeIconButton(icon: Icons.close_rounded, onTap: onClose),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _chromeIconButton({
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.black.withValues(alpha: 0.35),
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Icon(icon, color: Colors.white, size: 22),
-        ),
-      ),
-    );
-  }
-}
+part 'gallery_hero_slideshow.dart';
+part 'gallery_grid.dart';
+part 'gallery_lightbox.dart';
+part 'gallery_candle_gate.dart';
+part 'gallery_highlights.dart';
 
 class GalleryPage extends StatefulWidget {
   final ScrollController? controller;
@@ -201,7 +140,7 @@ class _GalleryPageState extends State<GalleryPage> {
               Text(
                 lang.t('no_images'),
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 16, color: Colors.grey),
+                style: const TextStyle(fontSize: 16, color: AppColors.muted),
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(

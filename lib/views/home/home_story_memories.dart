@@ -1,4 +1,4 @@
-part of '../home_page.dart';
+part of 'home_page.dart';
 
 /// The Story tab (Home tab index 0): her words, her journey, about her,
 /// and the cherished memories section.
@@ -10,13 +10,13 @@ class StoryPage extends StatelessWidget {
   /// it to switch to the gallery tab.
   final VoidCallback? onOpenGallery;
 
-  final MemoriesController memoriesController;
+  final HomeController homeController;
 
   const StoryPage({
     super.key,
     this.controller,
     this.onOpenGallery,
-    required this.memoriesController,
+    required this.homeController,
   });
 
   @override
@@ -85,7 +85,7 @@ class StoryPage extends StatelessWidget {
                 id: 'memories-section',
                 index: 7,
                 floatUp: true,
-                child: MemoriesSection(memoriesController: memoriesController),
+                child: MemoriesSection(homeController: homeController),
               ),
             ]),
           ),
@@ -129,9 +129,9 @@ class AboutCard extends StatelessWidget {
 /// gallery's own filters, and with them gone the "Lahat" pill had nothing
 /// left to filter.
 class MemoriesSection extends StatefulWidget {
-  final MemoriesController memoriesController;
+  final HomeController homeController;
 
-  const MemoriesSection({super.key, required this.memoriesController});
+  const MemoriesSection({super.key, required this.homeController});
 
   @override
   State<MemoriesSection> createState() => _MemoriesSectionState();
@@ -141,12 +141,12 @@ class _MemoriesSectionState extends State<MemoriesSection> {
   @override
   void initState() {
     super.initState();
-    widget.memoriesController.addListener(_onChanged);
+    widget.homeController.addListener(_onChanged);
   }
 
   @override
   void dispose() {
-    widget.memoriesController.removeListener(_onChanged);
+    widget.homeController.removeListener(_onChanged);
     super.dispose();
   }
 
@@ -156,7 +156,7 @@ class _MemoriesSectionState extends State<MemoriesSection> {
 
   @override
   Widget build(BuildContext context) {
-    final memories = MemoriesController.data.memories;
+    final memories = HomeController.memoriesData.memories;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -200,7 +200,12 @@ class _TitleAccent extends StatelessWidget {
           _assetPath,
           height: 48,
           fit: BoxFit.contain,
-          cacheHeight: ImageDecode.height(48, context),
+          // Width-axis budget: the spray is far wider than tall, so
+          // width is the limiting axis. (Height-only starved it.)
+          cacheWidth: ImageDecode.width(
+            MediaQuery.sizeOf(context).width,
+            context,
+          ),
           // The spray is purely decorative — never let an asset problem
           // break the card's layout.
           errorBuilder: (_, _, _) => const SizedBox.shrink(),
@@ -381,7 +386,13 @@ class _MemoryPhoto extends StatelessWidget {
         width: width,
         height: height,
         fit: BoxFit.cover,
-        cacheWidth: ImageDecode.width(width, context),
+        filterQuality: FilterQuality.high,
+        // Height-axis budget (not width): the card/preview slots are
+        // taller than they are wide while the photos are mostly
+        // landscape, so height is the cover-limiting axis. A width-only
+        // budget starves it (~2x upscale blur); decoding both axes
+        // would squash the aspect (exact-fill), so height-only it is.
+        cacheHeight: ImageDecode.height(height, context),
         errorBuilder: (context, error, stackTrace) => _PhotoPlaceholder(
           width: width,
           height: height,
@@ -517,3 +528,189 @@ class _MemoryPhotoPreview extends StatelessWidget {
 // ---------------------------------------------------------------------
 // Shared micro-interaction widgets, private to this file.
 // ---------------------------------------------------------------------
+
+
+// -- Quote card (story section) --
+/// Serif quote card with a large opening quotation mark, an ornament
+/// divider, and an italic attribution.
+class QuoteCard extends StatelessWidget {
+  final String quote, attribution;
+  const QuoteCard({super.key, required this.quote, required this.attribution});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.goldLight.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: AppColors.gold.withValues(alpha: 0.25),
+          width: 0.6,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.gold.withValues(alpha: 0.10),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 26, 24, 22),
+      child: Column(
+        children: [
+          const Text(
+            '\u201C',
+            style: TextStyle(
+              fontFamily: 'Lora',
+              fontSize: 40,
+              color: AppColors.gold,
+              height: 0.6,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            quote,
+            textAlign: TextAlign.center,
+            style: AppTextStyles.bodyItalic,
+          ),
+          const SizedBox(height: 16),
+          const OrnamentDivider(
+            lineLength: 24,
+            lineAlpha: 0.4,
+            gap: 8,
+            center: OrnamentCenter.dot,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            attribution,
+            style: const TextStyle(
+              fontSize: 11,
+              color: AppColors.muted,
+              letterSpacing: 0.5,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// -- Timeline (story section) --
+/// Vertical timeline of life events: year rail with dot markers (a leaf
+/// medallion on the first event) and the event title + description.
+class TimelineWidget extends StatelessWidget {
+  final List<LifeEvent> events;
+  const TimelineWidget({super.key, required this.events});
+
+  @override
+  Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
+    return Column(
+      children: List.generate(events.length, (i) {
+        final e = events[i];
+        final isFirst = i == 0;
+        final isLast = i == events.length - 1;
+        final markerColor = e.isLast ? AppColors.gold : AppColors.rose;
+
+        return IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 52,
+                child: Column(
+                  children: [
+                    Text(
+                      e.year,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: markerColor,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    // First event gets a larger "medallion" marker with a
+                    // leaf icon, matching the reference design. Every
+                    // other event keeps the original small dot.
+                    if (isFirst)
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: markerColor,
+                          border: Border.all(color: AppColors.cream, width: 2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: markerColor.withValues(alpha: 0.35),
+                              blurRadius: 8,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.eco_outlined,
+                          size: 16,
+                          color: AppColors.paper,
+                        ),
+                      )
+                    else
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: markerColor,
+                          border: Border.all(color: AppColors.cream, width: 2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: markerColor.withValues(alpha: 0.4),
+                              blurRadius: 6,
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (!isLast)
+                      Expanded(
+                        child: Container(
+                          width: 1,
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          color: AppColors.rose.withValues(alpha: 0.25),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    bottom: isLast ? 0 : 20,
+                    top: isFirst ? 6 : 2,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        lang.t(e.titleKey),
+                        style: AppTextStyles.displayHeading,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        lang.t(e.descriptionKey),
+                        textAlign: TextAlign.justify,
+                        style: AppTextStyles.caption,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }),
+    );
+  }
+}
+

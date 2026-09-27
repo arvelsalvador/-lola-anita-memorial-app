@@ -3,11 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import 'package:nita/app.dart';
-import 'package:nita/views/family_page.dart';
-import 'package:nita/views/home_page.dart';
-import 'package:nita/views/settings_page.dart';
-import 'package:nita/views/splash_page.dart';
-import 'package:nita/views/words_page.dart';
+import 'package:nita/views/family/family_page.dart';
+import 'package:nita/views/home/home_page.dart';
+import 'package:nita/views/settings/settings_page.dart';
+import 'package:nita/views/splash/splash_page.dart';
+import 'package:nita/views/words/words_page.dart';
 import 'package:nita/widgets/app_bottom_nav.dart';
 
 void main() {
@@ -363,3 +363,4 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 }
+

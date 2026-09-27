@@ -1,4 +1,4 @@
-part of '../gallery_page.dart';
+part of 'gallery_page.dart';
 
 /// Full-screen solemn moment shown before the Remembrances photos.
 ///
@@ -480,7 +480,10 @@ class _PortraitMedallion extends StatelessWidget {
         child: Image.asset(
           asset,
           fit: BoxFit.cover,
-          cacheWidth: ImageDecode.width(256, context),
+          filterQuality: FilterQuality.high,
+          // Height-axis budget: same landscape-portrait reasoning as
+          // the splash portrait medallion.
+          cacheHeight: ImageDecode.height(256, context),
           errorBuilder: (c, e, s) => Container(
             color: AppColors.cream,
             child: const Icon(
@@ -703,3 +706,4 @@ class _CandlePainter extends CustomPainter {
       oldDelegate.bloom != bloom ||
       oldDelegate.flicker != flicker;
 }
+

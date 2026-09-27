@@ -228,7 +228,7 @@ class _SplashContent extends StatelessWidget {
               Text(
                 appTitle,
                 style: const TextStyle(
-                  fontFamily: 'Georgia',
+                  fontFamily: 'Lora',
                   fontSize: 24,
                   color: AppColors.linen,
                   fontWeight: FontWeight.w300,
@@ -259,7 +259,7 @@ class _SplashContent extends StatelessWidget {
               quote,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontFamily: 'Georgia',
+                fontFamily: 'Lora',
                 fontStyle: FontStyle.italic,
                 fontSize: 13,
                 color: AppColors.petalBlush,
@@ -337,12 +337,15 @@ class _PortraitPhoto extends StatelessWidget {
               width: size - 20,
               height: size - 20,
               fit: BoxFit.cover,
-              cacheWidth: ImageDecode.width(size - 20, context),
+              filterQuality: FilterQuality.high,
+              // Height-axis budget: Nanay_dp is landscape (1000x550) in
+              // a circular slot, so height is the cover-limiting axis.
+              cacheHeight: ImageDecode.height(size - 20, context),
               errorBuilder: (context, error, stackTrace) => const Center(
                 child: Text(
                   'A',
                   style: TextStyle(
-                    fontFamily: 'Georgia',
+                    fontFamily: 'Lora',
                     fontSize: 40,
                     color: AppColors.linen,
                     fontWeight: FontWeight.w300,

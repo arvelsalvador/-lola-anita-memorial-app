@@ -4,7 +4,7 @@ import 'package:nita/core/constants/app_constants.dart';
 import 'package:provider/provider.dart';
 
 import 'package:nita/core/localization/language_provider.dart';
-import 'package:nita/views/family_page.dart';
+import 'package:nita/views/family/family_page.dart';
 
 // The selected pill's fill — read from the app palette so this test can't
 // drift when the theme token changes.
@@ -152,3 +152,4 @@ void main() {
     expect(pillFill(tester, 'Lahat'), _activeOrange);
   });
 }
+

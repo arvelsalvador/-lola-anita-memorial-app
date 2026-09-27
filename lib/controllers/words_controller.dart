@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:nita/models/tribute_model.dart';
+import 'package:nita/models/words_model.dart';
 
-class TributeController extends ChangeNotifier {
-  static const TributeModel data = TributeModel(
+/// Quotes for the Words tab only (matches words_page.dart).
+/// Candle state lives in CondolencesController so each page owns its logic.
+class WordsController extends ChangeNotifier {
+  static const WordsModel data = WordsModel(
     tributeMessageKey: 'tribute_message',
     featuredQuote: FamilyQuote(
       quoteKey: 'words_featured_quote',
@@ -129,32 +131,4 @@ class TributeController extends ChangeNotifier {
       ),
     ],
   );
-
-  /// Seed so a fresh visit never reads as zero — the count represents
-  /// "candles lit before you arrived". Session-only (see [lightCandle]).
-  static const int initialCandleCount = 124;
-
-  int _localCount = initialCandleCount;
-  bool _lit = false;
-  bool _loading = false;
-
-  int get localCount => _localCount;
-  bool get lit => _lit;
-  bool get loading => _loading;
-
-  /// Local-only for now (no Firebase): session candle count.
-  /// Starts at 124 each launch, +1 when lit. Shared Firestore count
-  /// can be re-added later behind a flag without changing the UI,
-  /// which reads [localCount] only.
-  Future<void> lightCandle() async {
-    if (_lit || _loading) return;
-    _loading = true;
-    notifyListeners();
-    // Tiny delay so the disabled button state is visible, then light.
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    _lit = true;
-    _localCount++;
-    _loading = false;
-    notifyListeners();
-  }
 }

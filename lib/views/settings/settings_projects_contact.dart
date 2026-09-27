@@ -1,4 +1,4 @@
-part of '../settings_page.dart';
+part of 'settings_page.dart';
 
 /// Projects: the one portfolio entry this memorial can verify —
 /// the memorial app itself.
@@ -31,7 +31,7 @@ class _ProjectsPage extends StatelessWidget {
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textDark,
-                      fontFamily: 'Georgia',
+                      fontFamily: 'Lora',
                       fontFamilyFallback: ['Times New Roman', 'serif'],
                     ),
                   ),
@@ -238,7 +238,7 @@ class _ContactPageState extends State<_ContactPage> {
                         const Icon(
                           Icons.send_outlined,
                           size: 18,
-                          color: Colors.white,
+                          color: AppColors.paper,
                         ),
                         const SizedBox(width: 8),
                         Flexible(
@@ -247,10 +247,10 @@ class _ContactPageState extends State<_ContactPage> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontFamily: 'Georgia',
+                              fontFamily: 'Lora',
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
-                              color: Colors.white,
+                              color: AppColors.paper,
                             ),
                           ),
                         ),
@@ -305,7 +305,7 @@ class _FieldLabel extends StatelessWidget {
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: AppColors.textDark,
-        fontFamily: 'Georgia',
+        fontFamily: 'Lora',
         fontFamilyFallback: ['Times New Roman', 'serif'],
       ),
     );
@@ -368,3 +368,4 @@ class _ContactField extends StatelessWidget {
     );
   }
 }
+

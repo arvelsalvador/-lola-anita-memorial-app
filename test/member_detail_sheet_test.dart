@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import 'package:nita/core/localization/language_provider.dart';
-import 'package:nita/views/family_page.dart';
+import 'package:nita/views/family/family_page.dart';
 
 /// Tests for the shared member-detail bottom sheet: every relative card
 /// (Mga Anak, Mga Kapatid, Mga Apo) opens the same popup fed with that
@@ -134,3 +134,4 @@ void main() {
     expect(find.text('BUONG KUWENTO'), findsOneWidget);
   });
 }
+

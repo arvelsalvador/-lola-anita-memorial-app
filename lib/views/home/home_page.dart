@@ -12,28 +12,25 @@ import 'package:nita/core/ui/responsive.dart';
 import 'package:nita/core/utils/motion.dart';
 import 'package:nita/controllers/gallery_controller.dart';
 import 'package:nita/controllers/home_controller.dart';
-import 'package:nita/controllers/memories_controller.dart';
 
-import 'package:nita/controllers/tribute_controller.dart';
+import 'package:nita/controllers/words_controller.dart';
+import 'package:nita/controllers/condolences_controller.dart';
 import 'package:nita/models/home_model.dart';
-import 'package:nita/views/family_page.dart';
-import 'package:nita/views/condolences_page.dart';
-import 'package:nita/views/gallery_page.dart';
-import 'package:nita/views/settings_page.dart';
-import 'package:nita/views/words_page.dart';
+import 'package:nita/views/family/family_page.dart';
+import 'package:nita/views/condolences/condolences_page.dart';
+import 'package:nita/views/gallery/gallery_page.dart';
+import 'package:nita/views/settings/settings_page.dart';
+import 'package:nita/views/words/words_page.dart';
 import 'package:nita/widgets/app_bottom_nav.dart';
 
 import 'package:nita/widgets/language_toggle.dart';
 import 'package:nita/widgets/ornament_divider.dart';
 import 'package:nita/widgets/ornamental_card.dart';
-import 'package:nita/widgets/quote_card.dart';
 import 'package:nita/widgets/section_label.dart';
-import 'package:nita/widgets/timeline_widget.dart';
 
-part 'home/home_top_bar.dart';
-part 'home/home_hero_header.dart';
-part 'home/home_story_memories.dart';
-part 'home/home_effects.dart';
+part 'home_hero_header.dart';
+part 'home_story_memories.dart';
+part 'home_effects.dart';
 
 /// The Home tab: the app shell (top bar, collapsing memorial hero, the five
 /// page tabs, floating bottom nav) plus the Story tab content (quote,
@@ -51,9 +48,9 @@ class _HomePageState extends State<HomePage> {
   // here) and injected into the views below, so views never own or mutate
   // application state themselves.
   final HomeController _controller = HomeController();
-  final MemoriesController _memoriesController = MemoriesController();
   final GalleryController _galleryController = GalleryController();
-  final TributeController _tributeController = TributeController();
+  final WordsController _wordsController = WordsController();
+  final CondolencesController _condolencesController = CondolencesController();
 
   @override
   void initState() {
@@ -69,9 +66,9 @@ class _HomePageState extends State<HomePage> {
   void dispose() {
     _controller.removeListener(_onTabChanged);
     _controller.dispose();
-    _memoriesController.dispose();
     _galleryController.dispose();
-    _tributeController.dispose();
+    _wordsController.dispose();
+    _condolencesController.dispose();
     super.dispose();
   }
 
@@ -80,9 +77,10 @@ class _HomePageState extends State<HomePage> {
     return HomeShell(
       selectedTab: _controller.selectedTab,
       onTabChanged: _controller.selectTab,
-      memoriesController: _memoriesController,
+      homeController: _controller,
       galleryController: _galleryController,
-      tributeController: _tributeController,
+      wordsController: _wordsController,
+      condolencesController: _condolencesController,
     );
   }
 }
@@ -90,17 +88,19 @@ class _HomePageState extends State<HomePage> {
 class HomeShell extends StatefulWidget {
   final int selectedTab;
   final ValueChanged<int> onTabChanged;
-  final MemoriesController memoriesController;
+  final HomeController homeController;
   final GalleryController galleryController;
-  final TributeController tributeController;
+  final WordsController wordsController;
+  final CondolencesController condolencesController;
 
   const HomeShell({
     super.key,
     required this.selectedTab,
     required this.onTabChanged,
-    required this.memoriesController,
+    required this.homeController,
     required this.galleryController,
-    required this.tributeController,
+    required this.wordsController,
+    required this.condolencesController,
   });
 
   @override
@@ -160,7 +160,7 @@ class _HomeShellState extends State<HomeShell> {
         key: ValueKey('story-visit-$_storyVisitId'),
         controller: _controllers[0],
         onOpenGallery: () => widget.onTabChanged(1),
-        memoriesController: widget.memoriesController,
+        homeController: widget.homeController,
       ),
       GalleryPage(
         controller: _controllers[1],
@@ -170,11 +170,11 @@ class _HomeShellState extends State<HomeShell> {
       FamilyPage(controller: _controllers[2]),
       WordsPage(
         controller: _controllers[3],
-        tributeController: widget.tributeController,
+        wordsController: widget.wordsController,
       ),
       CondolencesPage(
         controller: _controllers[4],
-        tributeController: widget.tributeController,
+        condolencesController: widget.condolencesController,
       ),
     ];
   }
@@ -276,7 +276,7 @@ class _HomeShellState extends State<HomeShell> {
             onOpenTab: widget.onTabChanged,
           ),
           // The memorial hero belongs to the home page only — on the other
-          // tabs (gallery, family, tribute, condolences) the pages show their
+          // tabs (gallery, family, words, condolences) the pages show their
           // own headers instead. On the Story tab its height is derived
           // straight from the scroll offset, so the photo collapses and
           // re-expands in lockstep with the finger. Tab switches play a
@@ -375,3 +375,104 @@ class _HomeShellState extends State<HomeShell> {
     );
   }
 }
+
+// -- Top bar (shell chrome) --
+/// Slim fixed top bar: leaf logo + "nanay anita" on the left, language
+/// toggle on the right, with a thin gold divider underneath. Stays at the
+/// top while the hero section scrolls away.
+class _TopBar extends StatelessWidget {
+  /// Jumps straight to the Family tab in the bottom nav. Handed to
+  /// Settings so "Tingnan sa Pamilya" lands on the real tab.
+  final VoidCallback onOpenFamily;
+
+  /// Jumps to any tab in the bottom nav. Handed to Settings so the
+  /// About-Us rows land on their real tabs.
+  final ValueChanged<int> onOpenTab;
+
+  const _TopBar({required this.onOpenFamily, required this.onOpenTab});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: AppColors.charcoal,
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              height: 52,
+              child: Padding(
+                // Tight margins pin the brand to the very left edge
+                // and the toggle + gear to the very right edge.
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Flexible(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.eco, size: 22, color: AppColors.goldLight),
+                          SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              'nanay anita',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.8,
+                                color: AppColors.goldLight,
+                                fontFamily: 'Lora',
+                                fontFamilyFallback: [
+                                  'Times New Roman',
+                                  'serif',
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const LanguageToggle(),
+                        const SizedBox(width: 4),
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          visualDensity: VisualDensity.compact,
+                          icon: const Icon(
+                            Icons.settings_outlined,
+                            size: 20,
+                            color: AppColors.goldLight,
+                          ),
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              fadeRoute(
+                                SettingsPage(
+                                  onViewFamily: onOpenFamily,
+                                  onOpenTab: onOpenTab,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Thin gold divider between the brand bar and the hero.
+            Container(height: 1, color: AppColors.gold.withValues(alpha: 0.55)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

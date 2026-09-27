@@ -5,10 +5,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
-import 'package:nita/controllers/memories_controller.dart';
+import 'package:nita/controllers/home_controller.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
-import 'package:nita/views/home_page.dart';
+import 'package:nita/views/home/home_page.dart';
 
 /// Lays [text] out exactly like the card does (same style, maxLines,
 /// ellipsis, and the width the widget actually renders at) and asserts the
@@ -139,7 +139,7 @@ Future<void> main() async {
                 child: Padding(
                   padding: const EdgeInsets.all(20),
                   child: MemoryCard(
-                    memory: MemoriesController.data.memories.first,
+                    memory: HomeController.memoriesData.memories.first,
                     index: 0,
                   ),
                 ),
@@ -163,7 +163,7 @@ Future<void> main() async {
   // asset path or layout break on any of them surfaces, not just the
   // first's. Three representative widths keep the run time reasonable.
   const perMemorySizes = <double>[320, 390, 412];
-  final memories = MemoriesController.data.memories;
+  final memories = HomeController.memoriesData.memories;
   for (var i = 0; i < memories.length; i++) {
     for (final width in perMemorySizes) {
       testWidgets('${memories[i].id} overflow probe @ ${width.toInt()}px', (
@@ -218,18 +218,18 @@ Future<void> main() async {
               child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: MemoryCard(
-                  memory: MemoriesController.data.memories.first,
-                  index: 0,
+                    memory: HomeController.memoriesData.memories.first,
+                    index: 0,
+                  ),
                 ),
               ),
             ),
           ),
         ),
-      ),
-    );
-    await tester.pump(const Duration(milliseconds: 400));
+      );
+      await tester.pump(const Duration(milliseconds: 400));
 
-    // Tap the card's photo (the Hero) — the preview route pushes on top
+      // Tap the card's photo (the Hero) — the preview route pushes on top
     // with its own Hero, showing the same wired-in photo.
     await tester.tap(find.byType(Hero));
     await tester.pump();
@@ -245,7 +245,7 @@ Future<void> main() async {
   // serif-heading lines. This guard is what keeps the copy from ever
   // showing a trailing "…" — if a body here grows past ~6 lines, trim it.
   final widths = <double>[360, 390, 412];
-  final allMemories = MemoriesController.data.memories;
+  final allMemories = HomeController.memoriesData.memories;
   if (!(await fontsReady)) {
     testWidgets(
       'no-ellipsis probes skipped (bundled fonts unavailable)',
@@ -333,3 +333,4 @@ Future<void> main() async {
     }
   }
 }
+

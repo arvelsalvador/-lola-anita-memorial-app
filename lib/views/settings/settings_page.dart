@@ -8,9 +8,9 @@ import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/core/utils/navigation.dart';
 import 'package:nita/widgets/ornamental_card.dart';
 
-part 'settings/settings_about.dart';
-part 'settings/settings_developer.dart';
-part 'settings/settings_projects_contact.dart';
+part 'settings_about.dart';
+part 'settings_developer.dart';
+part 'settings_projects_contact.dart';
 
 // Set to the real family address when confirmed. Empty disables
 // the email button instead of opening a placeholder address.
@@ -136,7 +136,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         style: const TextStyle(
                           fontSize: 13,
                           color: AppColors.warmMid,
-                          fontFamily: 'Georgia',
+                          fontFamily: 'Lora',
                           fontFamilyFallback: ['Times New Roman', 'serif'],
                         ),
                       ),
@@ -191,7 +191,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                         fontSize: 17,
                                         fontWeight: FontWeight.w700,
                                         color: AppColors.textDark,
-                                        fontFamily: 'Georgia',
+                                        fontFamily: 'Lora',
                                         fontFamilyFallback: [
                                           'Times New Roman',
                                           'serif',
@@ -239,7 +239,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                         fontSize: 15,
                                         fontWeight: FontWeight.w600,
                                         color: AppColors.textDark,
-                                        fontFamily: 'Georgia',
+                                        fontFamily: 'Lora',
                                         fontFamilyFallback: [
                                           'Times New Roman',
                                           'serif',

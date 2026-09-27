@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import 'package:nita/core/localization/language_provider.dart';
-import 'package:nita/views/family_page.dart';
+import 'package:nita/views/family/family_page.dart';
 
 /// Geometry regression tests for the family page descent lines: the
 /// org-chart branch connector (_TreeBranchPainter) must clear the section
@@ -225,3 +225,4 @@ void main() {
     });
   });
 }
+

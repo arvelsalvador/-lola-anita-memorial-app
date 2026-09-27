@@ -35,18 +35,14 @@ import 'package:nita/widgets/gradient_avatar.dart';
 import 'package:nita/widgets/ornament_divider.dart';
 import 'package:nita/widgets/ornamental_card.dart';
 import 'package:nita/widgets/tag_chip.dart';
-import 'package:nita/views/family_tree_canvas_page.dart';
+import 'package:nita/views/family/family_tree_canvas_page.dart';
 
-part 'family/family_spines.dart';
-part 'family/family_header.dart';
-part 'family/family_search_bar.dart';
-part 'family/family_filter_chips.dart';
-part 'family/family_root_card.dart';
-part 'family/family_apo_section.dart';
-part 'family/family_group_section.dart';
-part 'family/family_member_viewer.dart';
-part 'family/family_portraits.dart';
-part 'family/family_summary.dart';
+part 'family_spines.dart';
+part 'family_chrome.dart';
+part 'family_search_bar.dart';
+part 'family_cards.dart';
+part 'family_sections.dart';
+part 'family_member_viewer.dart';
 
 /// Returns a translated label when available, otherwise a readable Filipino
 /// fallback. This keeps the screen usable before new locale keys are added.

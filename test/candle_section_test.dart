@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:nita/core/localization/language_provider.dart';
-import 'package:nita/controllers/tribute_controller.dart';
-import 'package:nita/widgets/candle_section.dart';
+import 'package:nita/controllers/condolences_controller.dart';
+import 'package:nita/views/condolences/candle_section.dart';
 
 /// Regression test for the CandleSection crash: when Firebase is not
 /// configured (as in widget tests / the current app), the section used to
@@ -15,7 +15,7 @@ void main() {
     child: MaterialApp(
       home: Scaffold(
         body: SingleChildScrollView(
-          child: CandleSection(tributeController: TributeController()),
+          child: CandleSection(condolencesController: CondolencesController()),
         ),
       ),
     ),

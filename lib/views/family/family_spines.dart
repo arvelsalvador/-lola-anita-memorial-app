@@ -1,4 +1,4 @@
-part of '../family_page.dart';
+part of 'family_page.dart';
 
 /// A short vertical line between two stacked group sections, so "Mga
 /// Anak", "Mga Kapatid", "Mga Apo", etc. read as branches hanging off the
@@ -371,3 +371,4 @@ class _TreeBranchPainter extends CustomPainter {
   bool shouldRepaint(covariant _TreeBranchPainter oldDelegate) =>
       oldDelegate.cardCount != cardCount;
 }
+

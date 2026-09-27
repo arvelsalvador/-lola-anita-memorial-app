@@ -11,6 +11,8 @@ const Map<String, String> translationsTl = {
   'nav_family': 'Pamilya',
   'nav_tribute': 'Pagkilala',
   'nav_words': 'Mga Salita',
+  'nav_condolences': 'Pakikiramay',
+  // Deprecated alias — use nav_condolences (matches condolences_page.dart).
   'nav_favorites': 'Pakikiramay',
   'splash_quote':
       'Ang mga mahal natin sa buhay ay hindi nawawala,\nSila ay laging kasama natin araw-araw.',
@@ -88,7 +90,7 @@ const Map<String, String> translationsTl = {
   'settings_contact_name_label': 'Iyong pangalan',
   'settings_contact_name_hint': 'Ilagay ang iyong pangalan',
   'settings_contact_email_label': 'Email address',
-  'settings_contact_email_hint': 'you@example.com',
+  'settings_contact_email_hint': 'Ilagay ang iyong email',
   'settings_contact_message_label': 'Mensahe',
   'settings_contact_message_hint': 'Isulat ang iyong mensahe para sa pamilya…',
   'settings_contact_send_message': 'Mag-send ng mensahe',

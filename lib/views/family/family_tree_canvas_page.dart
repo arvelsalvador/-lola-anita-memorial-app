@@ -6,7 +6,7 @@ import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/core/utils/display_utils.dart';
 import 'package:nita/controllers/family_controller.dart';
 import 'package:nita/models/family_model.dart';
-import 'package:nita/views/family_page.dart' show showMemberDetailSheet;
+import 'package:nita/views/family/family_page.dart' show showMemberDetailSheet;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 
@@ -503,6 +503,7 @@ class _TreeNodeCard extends StatelessWidget {
                       child: Image.asset(
                         member.photoPath!,
                         fit: BoxFit.cover,
+                        filterQuality: FilterQuality.high,
                         cacheWidth: ImageDecode.width(avatarSize, context),
                         errorBuilder: (c, e, s) => Center(
                           child: Text(

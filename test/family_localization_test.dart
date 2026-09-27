@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import 'package:nita/core/localization/language_provider.dart';
-import 'package:nita/views/family_page.dart';
+import 'package:nita/views/family/family_page.dart';
 
 /// Regression tests for the family page localization bug: the English map
 /// used to carry Tagalog values for the group labels ("Mga Anak", "Mga
@@ -68,3 +68,4 @@ void main() {
     expect(find.text('Mga Anak'), findsNothing);
   });
 }
+

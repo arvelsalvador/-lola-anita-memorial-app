@@ -1,4 +1,4 @@
-part of '../family_page.dart';
+part of 'family_page.dart';
 
 /// Slim pill-shaped search field over the whole pamilyang Lumbao — the
 /// "Lahat / Direktang pamilya / Mga Apo" filter pills keep scrolling the
@@ -231,6 +231,7 @@ class _SearchResultTile extends StatelessWidget {
                       child: Image.asset(
                         member.photoPath!,
                         fit: BoxFit.cover,
+                        filterQuality: FilterQuality.high,
                         cacheWidth: ImageDecode.width(38, context),
                         errorBuilder: (_, _, _) => Center(
                           child: Text(
@@ -280,3 +281,4 @@ class _SearchResultTile extends StatelessWidget {
     );
   }
 }
+

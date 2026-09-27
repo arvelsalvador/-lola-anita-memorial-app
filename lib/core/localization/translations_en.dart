@@ -11,6 +11,8 @@ const Map<String, String> translationsEn = {
   'nav_family': 'Family',
   'nav_tribute': 'Tribute',
   'nav_words': 'Words',
+  'nav_condolences': 'Condolences',
+  // Deprecated alias — use nav_condolences (matches condolences_page.dart).
   'nav_favorites': 'Condolences',
   'splash_quote':
       'Those we love don\'t go away,\nThey walk beside us every day.',
@@ -83,7 +85,7 @@ const Map<String, String> translationsEn = {
   'settings_contact_name_label': 'Your name',
   'settings_contact_name_hint': 'Enter your name',
   'settings_contact_email_label': 'Email address',
-  'settings_contact_email_hint': 'you@example.com',
+  'settings_contact_email_hint': 'Enter your email',
   'settings_contact_message_label': 'Message',
   'settings_contact_message_hint': 'Write your message for the family…',
   'settings_contact_send_message': 'Send message',

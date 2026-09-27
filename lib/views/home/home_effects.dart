@@ -1,4 +1,4 @@
-part of '../home_page.dart';
+part of 'home_page.dart';
 
 /// Wraps a tappable card/button with a subtle press-down scale, so taps
 /// feel responsive beyond the bare ink ripple. Keep durations short (≤150ms)
@@ -145,17 +145,6 @@ class _StaggeredEntry extends StatelessWidget {
   }
 }
 
-/// A gentle breathing-opacity placeholder shown in place of counts that are
-/// still loading (e.g. the gallery photo count), instead of a static "…"
-/// that gives no sense of something being in progress.
-class _Pulse extends StatefulWidget {
-  final Widget child;
-  const _Pulse({required this.child});
-
-  @override
-  State<_Pulse> createState() => _PulseState();
-}
-
 /// A slow, quiet warmth behind the portrait frame — a soft radial glow that
 /// breathes in and out over several seconds. Meant to feel like a candle's
 /// light, not a UI effect; kept subtle on purpose.
@@ -215,37 +204,4 @@ class _GlowPulseState extends State<_GlowPulse>
   }
 }
 
-class _PulseState extends State<_Pulse> with SingleTickerProviderStateMixin {
-  // Fully opaque when the OS requests reduced motion.
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 900),
-  );
 
-  @override
-  void initState() {
-    super.initState();
-    if (animationsDisabled()) {
-      _controller.value = 1.0;
-    } else {
-      _controller.repeat(reverse: true);
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: Tween<double>(
-        begin: 0.35,
-        end: 1,
-      ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut)),
-      child: widget.child,
-    );
-  }
-}

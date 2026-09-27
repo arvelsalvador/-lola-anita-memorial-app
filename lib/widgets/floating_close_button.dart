@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nita/core/constants/app_constants.dart';
 
 /// Circular dark close button for full-screen overlays.
 class FloatingCloseButton extends StatelessWidget {
@@ -9,14 +10,14 @@ class FloatingCloseButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.black.withValues(alpha: 0.35),
+      color: AppColors.viewerBackground.withValues(alpha: 0.55),
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onPressed,
         child: const Padding(
           padding: EdgeInsets.all(8),
-          child: Icon(Icons.close_rounded, size: 22, color: Colors.white),
+          child: Icon(Icons.close_rounded, size: 22, color: AppColors.paper),
         ),
       ),
     );

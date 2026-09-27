@@ -1,4 +1,4 @@
-part of '../gallery_page.dart';
+part of 'gallery_page.dart';
 
 class GalleryLightbox extends StatefulWidget {
   final List<GalleryImageItem> images;
@@ -121,6 +121,7 @@ class _GalleryLightboxState extends State<GalleryLightbox> {
                     child: Image.asset(
                       image.path,
                       fit: BoxFit.contain,
+                      filterQuality: FilterQuality.high,
                       // Viewer tier: bounded decode instead of native
                       // camera resolution (grid uses ~200-400).
                       cacheWidth: _lightboxWidth,
@@ -363,3 +364,65 @@ class _GalleryLightboxState extends State<GalleryLightbox> {
     );
   }
 }
+
+/// Top overlay for the full-screen photo viewer: a close button
+/// (top-right) and a "current / total" counter pill (top-left).
+/// Lives here (not the page shell) because the lightbox is its only user.
+class _ViewerChrome extends StatelessWidget {
+  final int current;
+  final int total;
+  final VoidCallback onClose;
+
+  const _ViewerChrome({
+    required this.current,
+    required this.total,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 38,
+            ), // balances the close button's width so the counter stays centered
+            Expanded(
+              child: Text(
+                '${current + 1} / $total',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppColors.paper,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            _chromeIconButton(icon: Icons.close_rounded, onTap: onClose),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _chromeIconButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: AppColors.viewerBackground.withValues(alpha: 0.55),
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Icon(icon, color: AppColors.paper, size: 22),
+        ),
+      ),
+    );
+  }
+}
+

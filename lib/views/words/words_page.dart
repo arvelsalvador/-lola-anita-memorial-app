@@ -4,8 +4,8 @@ import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/utils/image_decode.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/core/utils/display_utils.dart';
-import 'package:nita/controllers/tribute_controller.dart';
-import 'package:nita/models/tribute_model.dart';
+import 'package:nita/controllers/words_controller.dart';
+import 'package:nita/models/words_model.dart';
 import 'package:nita/widgets/ornamental_card.dart';
 import 'package:nita/widgets/gradient_avatar.dart';
 import 'package:nita/widgets/page_title_header.dart';
@@ -15,7 +15,7 @@ import 'package:nita/widgets/page_title_header.dart';
 /// Mga anak / Mga apo / Mga kapamilya), a pinned "Pinakaminamahal na
 /// alaala" featured card, and one card per member with photo, name,
 /// relation, quote, and a "Naiwan noong …" date footer.
-/// Quote data comes from [TributeController.data] (featuredQuote +
+/// Quote data comes from [WordsController.data] (featuredQuote +
 /// familyQuotes), which is shared with (but untouched by) the condolences
 /// candle feature.
 class WordsPage extends StatefulWidget {
@@ -23,13 +23,9 @@ class WordsPage extends StatefulWidget {
 
   /// Created by the home shell (composition root) and injected here — the
   /// view never constructs or owns the controller.
-  final TributeController tributeController;
+  final WordsController wordsController;
 
-  const WordsPage({
-    super.key,
-    this.controller,
-    required this.tributeController,
-  });
+  const WordsPage({super.key, this.controller, required this.wordsController});
 
   @override
   State<WordsPage> createState() => _WordsPageState();
@@ -40,7 +36,7 @@ class _WordsPageState extends State<WordsPage> {
 
   @override
   Widget build(BuildContext context) {
-    const data = TributeController.data;
+    const data = WordsController.data;
     final lang = context.watch<LanguageProvider>();
 
     final quotes = _filter == null
@@ -306,7 +302,7 @@ class _FeaturedQuoteCard extends StatelessWidget {
                 const Text(
                   '\u201C',
                   style: TextStyle(
-                    fontFamily: 'Georgia',
+                    fontFamily: 'Lora',
                     fontSize: 40,
                     color: AppColors.gold,
                     height: 0.6,
@@ -507,6 +503,7 @@ class _MemberAvatar extends StatelessWidget {
         child: Image.asset(
           path,
           fit: BoxFit.cover,
+          filterQuality: FilterQuality.high,
           cacheWidth: ImageDecode.width(size, context),
           errorBuilder: (_, _, _) =>
               GradientAvatar(size: size, initials: _initialsOf(name)),
