@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:nita/core/constants/app_constants.dart';
@@ -8,6 +9,9 @@ import 'package:nita/core/utils/image_decode.dart';
 import 'package:nita/core/constants/app_routes.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/core/utils/motion.dart';
+import 'package:nita/data/visitors/visitor_repository.dart';
+import 'package:nita/views/splash/visitor_gate_form.dart';
+import 'package:nita/widgets/app_brand_bar.dart';
 import 'package:nita/widgets/pulsing_dot.dart';
 
 /// Splash screen shown on app launch. Auto-advances to [AppRoutes.home]
@@ -39,6 +43,15 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
 
   Timer? _autoAdvanceTimer;
   bool _navigated = false;
+
+  /// Visitor gate state: required name + address, asked once per device.
+  /// Returning visitors (saved locally) skip the form entirely.
+  /// Testing switch: when true, debug builds always show the form every
+  /// run. Release builds always keep remember-me regardless of this flag.
+  static const _alwaysAskInDebugForTesting = true;
+  final VisitorRepository _visitorRepo = const VisitorRepository();
+  bool _checkingVisitor = true;
+  bool _hasVisitor = false;
 
   @override
   void initState() {
@@ -95,7 +108,55 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     } else {
       _sequenceCtrl.forward();
     }
-    _autoAdvanceTimer = Timer(_autoAdvanceDelay, _navigate);
+    _checkVisitor();
+  }
+
+  /// Remember-me: returning devices skip the gate and keep the old
+  /// auto-advance; new visitors must complete the form (no auto-enter).
+  Future<void> _checkVisitor() async {
+    bool hasVisitor = false;
+    try {
+      hasVisitor = await _visitorRepo
+          .hasVisitor()
+          .timeout(const Duration(seconds: 5));
+    } catch (_) {
+      // Local prefs unreadable — treat as new visitor, still enterable
+      // via the form. Never blocks.
+      hasVisitor = false;
+    }
+    // Testing: debug builds always ask, release keeps remember-me.
+    if (kDebugMode && _alwaysAskInDebugForTesting) {
+      hasVisitor = false;
+    }
+    if (!mounted) return;
+    setState(() {
+      _checkingVisitor = false;
+      _hasVisitor = hasVisitor;
+    });
+    debugPrint('SplashGate: hasVisitor=$hasVisitor');
+    if (hasVisitor) {
+      _autoAdvanceTimer = Timer(_autoAdvanceDelay, _navigate);
+    }
+  }
+
+  /// Debug-only: clears the remembered visitor so the gate can be
+  /// re-tested from a clean state. The button is compiled out of
+  /// release builds (see the kDebugMode guard at the call site).
+  Future<void> _resetVisitorForDebug() async {
+    try {
+      await _visitorRepo.clearVisitor();
+    } catch (_) {
+      // Prefs unavailable — nothing stored anyway.
+    }
+    debugPrint('SplashGate: visitor cleared (debug reset)');
+    if (!mounted) return;
+    setState(() => _hasVisitor = false);
+  }
+
+  void _onGateEntered() {
+    if (!mounted) return;
+    setState(() => _hasVisitor = true);
+    _navigate();
   }
 
   List<_PetalSeed> _generatePetalSeeds(int count, {required int seed}) {
@@ -113,6 +174,9 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
 
   void _navigate() {
     if (_navigated || !mounted) return;
+    // Gate: new visitors cannot proceed until the form is submitted.
+    // _onGateEntered flips _hasVisitor then calls here.
+    if (_checkingVisitor || !_hasVisitor) return;
     _navigated = true;
     Navigator.pushReplacementNamed(context, AppRoutes.home);
   }
@@ -128,51 +192,108 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
+    final showGate = !_checkingVisitor && !_hasVisitor;
 
     return Scaffold(
       backgroundColor: AppColors.warmDark,
-      body: Semantics(
-        label: lang.t('app_title'),
-        button: true,
-        hint: lang.t('splash_tap'),
-        child: GestureDetector(
-          onTap: _navigate,
-          behavior: HitTestBehavior.opaque,
-          child: Stack(
-            children: [
-              ExcludeSemantics(
-                child: RepaintBoundary(
-                  child: AnimatedBuilder(
-                    animation: _petalCtrl,
-                    builder: (context, _) => CustomPaint(
-                      painter: _PetalPainter(
-                        progress: _petalCtrl.value,
-                        seeds: _petalSeeds,
-                        color: AppColors.roseLight,
+      body: Column(
+        children: [
+          // Splash header: brand + language only. No settings gear and no
+          // visitor greeting here — greeting lives on the homepage header.
+          const AppBrandBar(),
+          Expanded(
+            child: Semantics(
+              label: lang.t('app_title'),
+              button: true,
+              hint: lang.t('splash_tap'),
+              child: GestureDetector(
+                onTap: _navigate,
+                behavior: HitTestBehavior.opaque,
+                child: Stack(
+                  children: [
+                    ExcludeSemantics(
+                      child: RepaintBoundary(
+                        child: AnimatedBuilder(
+                          animation: _petalCtrl,
+                          builder: (context, _) => CustomPaint(
+                            painter: _PetalPainter(
+                              progress: _petalCtrl.value,
+                              seeds: _petalSeeds,
+                              color: AppColors.roseLight,
+                            ),
+                            size: Size.infinite,
+                          ),
+                        ),
                       ),
-                      size: Size.infinite,
                     ),
-                  ),
+                    Center(
+                      child: _SplashContent(
+                        sequenceCtrl: _sequenceCtrl,
+                        photoScale: _photoScale,
+                        photoOpacity: _photoOpacity,
+                        textOpacity: _textOpacity,
+                        quoteOpacity: _quoteOpacity,
+                        tapOpacity: _tapOpacity,
+                        portraitSize: _portraitSize,
+                        appTitle: lang.t('app_title'),
+                        subtitle: lang.t('splash_subtitle'),
+                        quote: lang.t('splash_quote'),
+                        // While the gate is up, tapping does nothing —
+                        // the form is the only way in.
+                        tapHint: showGate ? '' : lang.t('splash_tap'),
+                      ),
+                    ),
+                    if (showGate)
+                      Positioned.fill(
+                        child: Container(
+                          color: AppColors.warmDark.withValues(alpha: 0.55),
+                          child: SafeArea(
+                            child: Center(
+                              child: SingleChildScrollView(
+                                padding: const EdgeInsets.all(24),
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 420,
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      VisitorGateForm(
+                                        onEntered: _onGateEntered,
+                                      ),
+                                      // Temporary testing hook: debug builds only,
+                                      // stripped from release via kDebugMode.
+                                      if (kDebugMode) ...[
+                                        const SizedBox(height: 8),
+                                        TextButton(
+                                          onPressed: _resetVisitorForDebug,
+                                          style: TextButton.styleFrom(
+                                            foregroundColor:
+                                                AppColors.petalBlush,
+                                            textStyle: const TextStyle(
+                                              fontFamily: 'Lora',
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            'Reset visitor (debug)',
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
-              Center(
-                child: _SplashContent(
-                  sequenceCtrl: _sequenceCtrl,
-                  photoScale: _photoScale,
-                  photoOpacity: _photoOpacity,
-                  textOpacity: _textOpacity,
-                  quoteOpacity: _quoteOpacity,
-                  tapOpacity: _tapOpacity,
-                  portraitSize: _portraitSize,
-                  appTitle: lang.t('app_title'),
-                  subtitle: lang.t('splash_subtitle'),
-                  quote: lang.t('splash_quote'),
-                  tapHint: lang.t('splash_tap'),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -260,7 +381,6 @@ class _SplashContent extends StatelessWidget {
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontFamily: 'Lora',
-                fontStyle: FontStyle.italic,
                 fontSize: 13,
                 color: AppColors.petalBlush,
                 height: 1.6,

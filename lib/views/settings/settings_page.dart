@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/utils/image_decode.dart';
 import 'package:nita/core/localization/language_provider.dart';
@@ -10,11 +8,6 @@ import 'package:nita/widgets/ornamental_card.dart';
 
 part 'settings_about.dart';
 part 'settings_developer.dart';
-part 'settings_projects_contact.dart';
-
-// Set to the real family address when confirmed. Empty disables
-// the email button instead of opening a placeholder address.
-const String kFamilyEmail = '';
 
 /// One row in the settings menu.
 class _SettingEntry {
@@ -52,13 +45,6 @@ List<_SettingEntry> _entriesFor(
     titleKey: 'settings_about_app_title',
     descKey: 'settings_desc_about',
     page: (_) => _AboutUsPage(onOpenTab: onOpenTab),
-  ),
-  _SettingEntry(
-    icon: Icons.mail_outline_rounded,
-    iconColor: AppColors.gold,
-    titleKey: 'settings_contact_title',
-    descKey: 'settings_desc_contact',
-    page: (_) => const _ContactPage(),
   ),
 ];
 
@@ -124,23 +110,6 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   child: Column(
                     children: [
-                      const Icon(
-                        Icons.eco_outlined,
-                        size: 22,
-                        color: AppColors.gold,
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        lang.t('settings_subtitle'),
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: AppColors.warmMid,
-                          fontFamily: 'Lora',
-                          fontFamilyFallback: ['Times New Roman', 'serif'],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
                       _SearchBar(
                         controller: _searchController,
                         hint: lang.t('settings_search_hint'),
@@ -158,15 +127,15 @@ class _SettingsPageState extends State<SettingsPage> {
                             lang.t('settings_search_empty'),
                             textAlign: TextAlign.center,
                             style: const TextStyle(
+                              fontFamily: 'Lora',
                               fontSize: 13,
-                              fontStyle: FontStyle.italic,
                               color: AppColors.muted,
                             ),
                           ),
                         )
                       else
                         OrnamentalCard(
-                          radius: 16,
+                          radius: 12,
                           borderColor: AppColors.gold,
                           borderAlpha: 0.2,
                           borderWidth: 0.6,
@@ -228,10 +197,20 @@ class _SettingsPageState extends State<SettingsPage> {
                                 itemBuilder: (context, i) {
                                   final entry = visible[i];
                                   return ListTile(
-                                    leading: Icon(
-                                      entry.icon,
-                                      size: 24,
-                                      color: entry.iconColor,
+                                    leading: Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        color: entry.iconColor.withValues(
+                                          alpha: 0.12,
+                                        ),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Icon(
+                                        entry.icon,
+                                        size: 20,
+                                        color: entry.iconColor,
+                                      ),
                                     ),
                                     title: Text(
                                       lang.t(entry.titleKey),
@@ -253,6 +232,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
+                                          fontFamily: 'Lora',
                                           fontSize: 12,
                                           color: AppColors.muted,
                                           height: 1.4,
@@ -284,6 +264,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         'Nanay Anita · ${lang.t('settings_about_app_version')}',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
+                          fontFamily: 'Lora',
                           fontSize: 11.5,
                           color: AppColors.muted,
                         ),
@@ -300,14 +281,14 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 }
 
-/// Dark app bar shared by the menu and detail pages: stock back arrow
-/// on the left, centered title, no trailing action.
+/// Slim dark app bar shared by the menu and detail pages: rounded
+/// chevron back on the left, centered title, no trailing action.
 class _SettingsAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   const _SettingsAppBar({required this.title});
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  Size get preferredSize => const Size.fromHeight(48);
 
   @override
   Widget build(BuildContext context) {
@@ -315,12 +296,20 @@ class _SettingsAppBar extends StatelessWidget implements PreferredSizeWidget {
       backgroundColor: AppColors.charcoal,
       foregroundColor: AppColors.goldLight,
       centerTitle: true,
+      toolbarHeight: 48,
+      leading: IconButton(
+        icon: const Icon(Icons.chevron_left_rounded, size: 28),
+        onPressed: () => Navigator.of(context).maybePop(),
+      ),
       title: Text(
         title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: const TextStyle(
-          fontFamily: 'PlayfairDisplay',
-          fontSize: 20,
+          fontFamily: 'Lora',
+          fontSize: 17,
           fontWeight: FontWeight.w700,
+          letterSpacing: 0.3,
           color: AppColors.goldLight,
         ),
       ),
@@ -349,10 +338,18 @@ class _SearchBar extends StatelessWidget {
       child: TextField(
         controller: controller,
         onChanged: onChanged,
-        style: const TextStyle(fontSize: 14, color: AppColors.textDark),
+        style: const TextStyle(
+          fontFamily: 'Lora',
+          fontSize: 14,
+          color: AppColors.textDark,
+        ),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: const TextStyle(fontSize: 14, color: AppColors.muted),
+          hintStyle: const TextStyle(
+            fontFamily: 'Lora',
+            fontSize: 14,
+            color: AppColors.muted,
+          ),
           prefixIcon: const Icon(
             Icons.search_rounded,
             size: 20,
@@ -369,10 +366,24 @@ class _SearchBar extends StatelessWidget {
                   onPressed: onClear,
                 ),
           filled: true,
-          fillColor: AppColors.fieldFill,
+          fillColor: AppColors.paper,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(99),
-            borderSide: BorderSide.none,
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+              color: AppColors.gold.withValues(alpha: 0.3),
+              width: 0.8,
+            ),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+              color: AppColors.gold.withValues(alpha: 0.3),
+              width: 0.8,
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.rose, width: 1),
           ),
           contentPadding: const EdgeInsets.symmetric(vertical: 12),
         ),
@@ -381,7 +392,7 @@ class _SearchBar extends StatelessWidget {
   }
 }
 
-/// Detail scaffold shared by the three pages: same dark centered
+/// Detail scaffold shared by the two pages: same dark centered
 /// app bar, one centered content card below.
 class _DetailScaffold extends StatelessWidget {
   final String title;

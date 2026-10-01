@@ -241,9 +241,10 @@ Future<void> main() async {
 
   // No-ellipsis probe: every memory title and body must lay out inside its
   // maxLines at typical phone widths in all three languages. The card's
-  // body is capped at 6 caption lines (12px, height 1.5); titles at 2
-  // serif-heading lines. This guard is what keeps the copy from ever
-  // showing a trailing "…" — if a body here grows past ~6 lines, trim it.
+  // body is capped at 7 homepage-content lines (13px semibold, height
+  // 1.5); titles at 2 content lines. This guard is what keeps the copy
+  // from ever showing a trailing "…" — if a body here grows past ~7
+  // lines, trim it.
   final widths = <double>[360, 390, 412];
   final allMemories = HomeController.memoriesData.memories;
   if (!(await fontsReady)) {
@@ -315,15 +316,15 @@ Future<void> main() async {
             expectTextFits(
               tester,
               body,
-              AppTextStyles.caption,
-              6,
+              AppTextStyles.homeContent,
+              7,
               '${allMemories[i].id} body @ ${width.toInt()}px ($languageName)',
             );
             final title = lang.t(allMemories[i].titleKey);
             expectTextFits(
               tester,
               title,
-              AppTextStyles.displayHeading,
+              AppTextStyles.homeContent,
               2,
               '${allMemories[i].id} title @ ${width.toInt()}px ($languageName)',
             );

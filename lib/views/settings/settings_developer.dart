@@ -11,7 +11,6 @@ class _AboutDeveloperPage extends StatelessWidget {
   final VoidCallback? onViewFamily;
 
   static const _photo = 'assets/images/Family DP/arvel.jpg';
-  static const _spray = 'assets/images/Editing images/Memories_design_trim.png';
 
   /// Closes Settings entirely, then jumps to the real Family tab —
   /// not a separate page.
@@ -28,7 +27,7 @@ class _AboutDeveloperPage extends StatelessWidget {
       child: Column(
         children: [
           OrnamentalCard(
-            radius: 16,
+            radius: 12,
             borderColor: AppColors.rose,
             borderAlpha: 0.14,
             borderWidth: 0.6,
@@ -36,102 +35,71 @@ class _AboutDeveloperPage extends StatelessWidget {
             clipBehavior: Clip.antiAlias,
             child: Column(
               children: [
-                // Cream header dressed with leafy sprigs (cropped ends
-                // of the memorial spray asset) at both top corners,
-                // portrait centered between them.
-                SizedBox(
-                  height: 140,
-                  child: Stack(
-                    children: [
-                      Positioned(
-                        left: -28,
-                        top: 0,
-                        child: Image.asset(
-                          _spray,
-                          width: 150,
-                          height: 96,
-                          fit: BoxFit.cover,
-                          cacheWidth: ImageDecode.width(150, context),
-                          alignment: Alignment.centerLeft,
-                          errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                // Clean header wash: a soft gold fade behind the portrait.
+                // (The cropped spray corners used to sit here, but the
+                // aggressive crop upscaled them into a blurry wash.)
+                Container(
+                  height: 148,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        AppColors.goldLight.withValues(alpha: 0.55),
+                        AppColors.goldLight.withValues(alpha: 0),
+                      ],
+                    ),
+                  ),
+                  child: Center(
+                    child: Container(
+                      width: 96,
+                      height: 96,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppColors.gold.withValues(alpha: 0.5),
+                          width: 2,
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.warmDark.withValues(alpha: 0.15),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                      Positioned(
-                        right: -28,
-                        top: 0,
+                      child: ClipOval(
                         child: Image.asset(
-                          _spray,
-                          width: 150,
-                          height: 96,
+                          _photo,
                           fit: BoxFit.cover,
-                          cacheWidth: ImageDecode.width(150, context),
-                          alignment: Alignment.centerRight,
-                          errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                        ),
-                      ),
-                      Positioned(
-                        top: 20,
-                        left: 0,
-                        right: 0,
-                        child: Center(
-                          child: Container(
-                            width: 96,
-                            height: 96,
+                          filterQuality: FilterQuality.high,
+                          cacheWidth: ImageDecode.width(96, context),
+                          errorBuilder: (_, _, _) => Container(
+                            alignment: Alignment.center,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              border: Border.all(
-                                color: AppColors.gold.withValues(alpha: 0.5),
-                                width: 2,
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  AppColors.roseLight.withValues(alpha: 0.6),
+                                  AppColors.goldLight.withValues(alpha: 0.6),
+                                ],
                               ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.warmDark.withValues(
-                                    alpha: 0.15,
-                                  ),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
                             ),
-                            child: ClipOval(
-                              child: Image.asset(
-                                _photo,
-                                fit: BoxFit.cover,
-                                filterQuality: FilterQuality.high,
-                                cacheWidth: ImageDecode.width(96, context),
-                                errorBuilder: (_, _, _) => Container(
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [
-                                        AppColors.roseLight.withValues(
-                                          alpha: 0.6,
-                                        ),
-                                        AppColors.goldLight.withValues(
-                                          alpha: 0.6,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  child: const Text(
-                                    'AS',
-                                    style: TextStyle(
-                                      fontFamily: 'Lora',
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.roseDeep,
-                                    ),
-                                  ),
-                                ),
+                            child: const Text(
+                              'AS',
+                              style: TextStyle(
+                                fontFamily: 'Lora',
+                                fontSize: 28,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.roseDeep,
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 ),
                 Padding(
@@ -161,9 +129,11 @@ class _AboutDeveloperPage extends StatelessWidget {
                           const SizedBox(width: 10),
                           Text(
                             lang.t('settings_about_dev_role'),
+                            textAlign: TextAlign.center,
                             style: const TextStyle(
+                              fontFamily: 'Lora',
                               fontSize: 13,
-                              fontStyle: FontStyle.italic,
+                              letterSpacing: 0.4,
                               color: AppColors.goldInk,
                             ),
                           ),
@@ -207,12 +177,10 @@ class _AboutDeveloperPage extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10),
-                      const Wrap(
-                        alignment: WrapAlignment.center,
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: [
+                      const SizedBox(height: 12),
+                      _StackGroup(
+                        label: lang.t('settings_stack_languages'),
+                        children: const [
                           _TechChip(icon: Icons.web_rounded, label: 'HTML'),
                           _TechChip(icon: Icons.palette_outlined, label: 'CSS'),
                           _TechChip(
@@ -229,8 +197,20 @@ class _AboutDeveloperPage extends StatelessWidget {
                             label: 'VB.NET',
                           ),
                           _TechChip(icon: Icons.code_rounded, label: 'Dart'),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _StackGroup(
+                        label: lang.t('settings_stack_frameworks'),
+                        children: const [
                           _TechChip(icon: Icons.hub_outlined, label: 'React'),
                           _TechChip(icon: Icons.flutter_dash, label: 'Flutter'),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _StackGroup(
+                        label: lang.t('settings_stack_tools'),
+                        children: const [
                           _TechChip(
                             icon: Icons.local_fire_department_rounded,
                             label: 'Firebase',
@@ -252,37 +232,30 @@ class _AboutDeveloperPage extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 16),
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: _DevMiniCard(
-                    icon: Icons.folder_outlined,
-                    iconBackground: AppColors.iconBgOlive,
-                    title: lang.t('settings_dev_projects_title'),
-                    body: lang.t('settings_dev_projects_body'),
-                    onTap: () => Navigator.of(
-                      context,
-                    ).push(fadeRoute(const _ProjectsPage())),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _DevMiniCard(
-                    icon: Icons.favorite_outline_rounded,
-                    iconBackground: AppColors.devCopper,
-                    title: lang.t('settings_dev_for_nanay_title'),
-                    body: lang.t('settings_dev_for_nanay_body'),
-                    onTap: () => Navigator.of(
-                      context,
-                    ).popUntil((route) => route.isFirst),
-                  ),
-                ),
-              ],
-            ),
-          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One labeled stack group (languages, frameworks, tools): a small
+/// section label over a left-aligned chip flow, so the stack reads as
+/// tidy rows instead of one ragged cloud.
+class _StackGroup extends StatelessWidget {
+  final String label;
+  final List<Widget> children;
+  const _StackGroup({required this.label, required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: AppTextStyles.sectionLabel),
+          const SizedBox(height: 8),
+          Wrap(spacing: 8, runSpacing: 8, children: children),
         ],
       ),
     );
@@ -302,7 +275,7 @@ class _TechChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
         color: AppColors.mistPaper,
-        borderRadius: BorderRadius.circular(99),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: AppColors.gold.withValues(alpha: 0.25),
           width: 0.8,
@@ -348,7 +321,7 @@ class _FamilyButton extends StatelessWidget {
               end: Alignment.centerRight,
               colors: [AppColors.devCopper, AppColors.devCopperDeep],
             ),
-            borderRadius: BorderRadius.circular(99),
+            borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
                 color: AppColors.warmDark.withValues(alpha: 0.2),
@@ -358,7 +331,7 @@ class _FamilyButton extends StatelessWidget {
             ],
           ),
           child: InkWell(
-            borderRadius: BorderRadius.circular(99),
+            borderRadius: BorderRadius.circular(12),
             onTap: onTap,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -397,102 +370,5 @@ class _FamilyButton extends StatelessWidget {
   }
 }
 
-/// Small tappable card under the portfolio: icon, title, blurb, arrow,
-/// and a sprig tucked in the bottom corner.
-class _DevMiniCard extends StatelessWidget {
-  final IconData icon;
-  final Color iconBackground;
-  final String title;
-  final String body;
-  final VoidCallback onTap;
-  const _DevMiniCard({
-    required this.icon,
-    required this.iconBackground,
-    required this.title,
-    required this.body,
-    required this.onTap,
-  });
 
-  static const _spray = 'assets/images/Editing images/Memories_design_trim.png';
-
-  @override
-  Widget build(BuildContext context) {
-    return OrnamentalCard(
-      radius: 14,
-      borderColor: AppColors.gold,
-      borderAlpha: 0.18,
-      borderWidth: 0.6,
-      shadowOpacity: 0.06,
-      clipBehavior: Clip.antiAlias,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          child: Stack(
-            children: [
-              Positioned(
-                right: -18,
-                bottom: -8,
-                child: Image.asset(
-                  _spray,
-                  width: 84,
-                  height: 48,
-                  fit: BoxFit.cover,
-                  cacheWidth: ImageDecode.width(84, context),
-                  alignment: Alignment.centerRight,
-                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 48, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: iconBackground,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(icon, size: 20, color: Colors.white),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textDark,
-                        fontFamily: 'Lora',
-                        fontFamilyFallback: ['Times New Roman', 'serif'],
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Expanded(
-                      child: Text(
-                        body,
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          color: AppColors.muted,
-                          height: 1.5,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Icon(
-                      Icons.arrow_forward_rounded,
-                      size: 22,
-                      color: AppColors.rose,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 

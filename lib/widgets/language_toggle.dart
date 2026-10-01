@@ -15,16 +15,16 @@ class LanguageToggle extends StatelessWidget {
     final flag = DisplayUtils.languageFlag(lang.language);
 
     return Material(
-      color: Colors.white.withValues(alpha: 0.15),
+      color: Colors.white.withValues(alpha: 0.07),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: AppColors.gold.withValues(alpha: 0.65),
+          color: AppColors.gold.withValues(alpha: 0.45),
           width: 1,
         ),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         onTap: () {
           showModalBottomSheet(
             context: context,
@@ -41,12 +41,33 @@ class LanguageToggle extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (!lang.isBicol) ...[
-                Text(flag, style: const TextStyle(fontSize: 14)),
-                const SizedBox(width: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.gold.withValues(alpha: 0.22),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    flag,
+                    style: const TextStyle(
+                      fontFamily: 'Lora',
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                      color: AppColors.goldLight,
+                      height: 1,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 5),
               ],
               Text(
                 DisplayUtils.languageCode(lang.language),
                 style: TextStyle(
+                  fontFamily: 'Lora',
                   fontSize: 11,
                   color: AppColors.linen,
                   fontWeight: lang.isBicol ? FontWeight.w400 : FontWeight.w600,
@@ -70,15 +91,29 @@ class _LanguageSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
 
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+          // Drag handle — the standard modern bottom-sheet affordance.
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.warmDark.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
           Text(
             lang.t('settings_language'),
             style: const TextStyle(
+              fontFamily: 'Lora',
               fontSize: 18,
               fontWeight: FontWeight.w600,
               color: AppColors.textDark,
@@ -86,7 +121,7 @@ class _LanguageSheet extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           _LangOption(
-            flag: '🇵🇭',
+            flag: 'PH',
             label: 'Tagalog',
             selected: lang.isTagalog,
             onTap: () {
@@ -106,7 +141,7 @@ class _LanguageSheet extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           _LangOption(
-            flag: '🇬🇧',
+            flag: 'UK',
             label: 'English',
             selected: lang.isEnglish,
             onTap: () {
@@ -115,7 +150,8 @@ class _LanguageSheet extends StatelessWidget {
             },
           ),
           const SizedBox(height: 16),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -147,7 +183,9 @@ class _LangOption extends StatelessWidget {
           color: selected ? AppColors.roseLight : AppColors.cream,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: selected ? AppColors.rose : Colors.transparent,
+            color: selected
+                ? AppColors.rose
+                : AppColors.stoneBorder.withValues(alpha: 0.7),
             width: 1,
           ),
         ),
@@ -156,6 +194,7 @@ class _LangOption extends StatelessWidget {
             Text(
               flag,
               style: TextStyle(
+                fontFamily: 'Lora',
                 fontSize: isPlainCode ? 15 : 24,
                 letterSpacing: isPlainCode ? 0.5 : 0,
               ),
@@ -164,6 +203,7 @@ class _LangOption extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
+                fontFamily: 'Lora',
                 fontSize: 15,
                 fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                 color: AppColors.textDark,

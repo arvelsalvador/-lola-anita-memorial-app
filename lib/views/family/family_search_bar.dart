@@ -71,7 +71,7 @@ class _FamilySearchBarState extends State<FamilySearchBar> {
       children: [
         OrnamentalCard(
           height: 48,
-          radius: 30,
+          radius: 12,
           borderColor: AppColors.gold,
           borderAlpha: 0.16,
           borderWidth: 0.8,
@@ -93,14 +93,14 @@ class _FamilySearchBarState extends State<FamilySearchBar> {
                   focusNode: _focus,
                   onChanged: (value) => setState(() => _query = value),
                   style: const TextStyle(
-                    fontFamily: 'PlayfairDisplay',
+                    fontFamily: 'Lora',
                     fontSize: 13.5,
                     color: AppColors.textDark,
                   ),
                   decoration: InputDecoration.collapsed(
                     hintText: lang.t('family_search_hint'),
                     hintStyle: const TextStyle(
-                      fontFamily: 'PlayfairDisplay',
+                      fontFamily: 'Lora',
                       fontSize: 13.5,
                       color: AppColors.muted,
                     ),
@@ -135,7 +135,7 @@ class _FamilySearchBarState extends State<FamilySearchBar> {
         if (_query.trim().isNotEmpty) ...[
           const SizedBox(height: 8),
           OrnamentalCard(
-            radius: 18,
+            radius: 12,
             borderColor: AppColors.gold,
             borderAlpha: 0.14,
             borderWidth: 0.8,
@@ -150,7 +150,7 @@ class _FamilySearchBarState extends State<FamilySearchBar> {
                       child: Text(
                         lang.t('family_search_empty'),
                         style: const TextStyle(
-                          fontFamily: 'PlayfairDisplay',
+                          fontFamily: 'Lora',
                           fontSize: 13,
                           color: AppColors.muted,
                         ),
@@ -168,7 +168,7 @@ class _FamilySearchBarState extends State<FamilySearchBar> {
                               'count': '${results.length}',
                             }),
                             style: const TextStyle(
-                              fontFamily: 'PlayfairDisplay',
+                              fontFamily: 'Lora',
                               fontSize: 11,
                               letterSpacing: 0.6,
                               color: AppColors.muted,
@@ -196,7 +196,6 @@ class _SearchResultTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lang = context.watch<LanguageProvider>();
     final initials = DisplayUtils.initialsOf(member.name);
     final colorIndex = member.name.hashCode.abs();
     final bg = _apoAvatarBg[colorIndex % _apoAvatarBg.length];
@@ -220,7 +219,7 @@ class _SearchResultTile extends StatelessWidget {
                       child: Text(
                         initials,
                         style: TextStyle(
-                          fontFamily: 'PlayfairDisplay',
+                          fontFamily: 'Lora',
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: fg,
@@ -237,7 +236,7 @@ class _SearchResultTile extends StatelessWidget {
                           child: Text(
                             initials,
                             style: TextStyle(
-                              fontFamily: 'PlayfairDisplay',
+                              fontFamily: 'Lora',
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
                               color: fg,
@@ -254,25 +253,11 @@ class _SearchResultTile extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontFamily: 'PlayfairDisplay',
+                  fontFamily: 'Lora',
                   fontSize: 13.5,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textDark,
                 ),
-              ),
-            ),
-            Text(
-              member.spouseOf == null
-                  ? lang.t(member.roleKey)
-                  : lang.t('family_search_spouse_of', {
-                      'name': member.spouseOf!,
-                    }),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontFamily: 'PlayfairDisplay',
-                fontSize: 11.5,
-                color: AppColors.muted,
               ),
             ),
           ],

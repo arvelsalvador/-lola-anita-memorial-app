@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
-import 'package:nita/widgets/ornamental_card.dart';
 
 /// Floating bottom navigation with the five tab entries.
+///
+/// Cleaner modern look: light paper shell with a hairline gold border,
+/// Lora tab labels, and a small gold indicator under the active tab
+/// instead of the old solid rose fill pill.
 class AppBottomNav extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onTap;
@@ -30,15 +33,23 @@ class AppBottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
 
-    return OrnamentalCard(
-      radius: 32,
-      borderColor: AppColors.rose,
-      borderAlpha: 0.15,
-      borderWidth: 0.5,
-      shadowOpacity: 0.12,
-      shadowBlur: 24,
-      shadowOffset: const Offset(0, 8),
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.paper,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: AppColors.gold.withValues(alpha: 0.25),
+          width: 0.6,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.warmDark.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
       child: Row(
         children: List.generate(_items.length, (i) {
           final active = selectedIndex == i;
@@ -61,8 +72,10 @@ class AppBottomNav extends StatelessWidget {
                       horizontal: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: active ? AppColors.rose : Colors.transparent,
-                      borderRadius: BorderRadius.circular(24),
+                      color: active
+                          ? AppColors.roseDeep.withValues(alpha: 0.08)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(16),
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -70,19 +83,38 @@ class AppBottomNav extends StatelessWidget {
                       children: [
                         Icon(
                           active ? _items[i].$2 : _items[i].$1,
-                          color: active ? Colors.white : AppColors.muted,
-                          size: 20,
+                          color: active
+                              ? AppColors.roseDeep
+                              : AppColors.muted,
+                          size: 22,
                         ),
                         const SizedBox(height: 2),
                         Text(
                           lang.t(_items[i].$3),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 9,
-                            letterSpacing: 0.5,
-                            color: active ? Colors.white : AppColors.muted,
+                            fontFamily: 'Lora',
+                            fontSize: 10,
+                            color: active
+                                ? AppColors.roseDeep
+                                : AppColors.muted,
                             fontWeight: active
                                 ? FontWeight.w600
                                 : FontWeight.w400,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          curve: Curves.easeOutCubic,
+                          width: active ? 16 : 4,
+                          height: 3,
+                          decoration: BoxDecoration(
+                            color: active
+                                ? AppColors.gold
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(2),
                           ),
                         ),
                       ],

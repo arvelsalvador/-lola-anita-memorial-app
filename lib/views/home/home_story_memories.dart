@@ -104,10 +104,10 @@ class AboutCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _Pressable(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(12),
       onTap: onTap,
       child: OrnamentalCard(
-        radius: 16,
+        radius: 12,
         borderColor: AppColors.rose,
         borderAlpha: 0.12,
         borderWidth: 0.5,
@@ -116,7 +116,10 @@ class AboutCard extends StatelessWidget {
         child: Text(
           text,
           textAlign: TextAlign.justify,
-          style: AppTextStyles.bodyText,
+          style: AppTextStyles.homeContent.copyWith(
+            color: AppColors.warmMid,
+            height: 1.8,
+          ),
         ),
       ),
     );
@@ -181,9 +184,9 @@ class _MemoriesSectionState extends State<MemoriesSection> {
 /// of its height, which rendered it tiny; the trim lets BoxFit.contain
 /// scale the spray to the full text-column width (tall as the width
 /// allows, 35–48px on phones).
-/// Vertical budget (worst case: 2-line title + 6-line body): 48px accent
-/// box + 4px gap + 42px title + 6px gap + 108px body = 208px, inside the
-/// 210.6px available (244px card, 16px vertical padding, 1.4px border).
+/// Vertical budget (worst case: 2-line title + 7-line body): 40px accent
+/// box + 4px gap + 34px title + 6px gap + 137px body = 221px, inside the
+/// ~242px available (276px card, 16px vertical padding, 1.4px border).
 class _TitleAccent extends StatelessWidget {
   const _TitleAccent();
 
@@ -193,12 +196,12 @@ class _TitleAccent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 48,
+      height: 40,
       width: double.infinity,
       child: Center(
         child: Image.asset(
           _assetPath,
-          height: 48,
+          height: 40,
           fit: BoxFit.contain,
           // Width-axis budget: the spray is far wider than tall, so
           // width is the limiting axis. (Height-only starved it.)
@@ -210,6 +213,34 @@ class _TitleAccent extends StatelessWidget {
           // break the card's layout.
           errorBuilder: (_, _, _) => const SizedBox.shrink(),
         ),
+      ),
+    );
+  }
+}
+
+/// Expand badge overlaid on a memory card's photo: a small dark pill
+/// with a magnifier glyph that tells visitors the photo is tappable.
+/// Decorative only (the photo's own tap handles the press), so it lives
+/// inside an [IgnorePointer] at the call site.
+class _ExpandBadge extends StatelessWidget {
+  const _ExpandBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55),
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: AppColors.goldLight.withValues(alpha: 0.8),
+          width: 1,
+        ),
+      ),
+      child: const Icon(
+        Icons.zoom_in_rounded,
+        size: 14,
+        color: Colors.white,
       ),
     );
   }
@@ -227,9 +258,9 @@ class MemoryCard extends StatelessWidget {
 
   const MemoryCard({super.key, required this.memory, required this.index});
 
-  static const double _cardHeight = 244;
+  static const double _cardHeight = 276;
   static const double _photoWidth = 150;
-  static const _radius = 18.0;
+  static const _radius = 12.0;
 
   @override
   Widget build(BuildContext context) {
@@ -245,7 +276,7 @@ class MemoryCard extends StatelessWidget {
 
     // The photo holds its usual share of the card on normal widths but
     // yields ground on narrow phones, so the text side keeps enough room
-    // for the title row's bookmark icon and the copy. Sits at the full 150px from
+    // for the copy. Sits at the full 150px from
     // ~390px screens up; the 96px floor keeps a visible photo strip on
     // very narrow viewports.
     final photoWidth = math.max(
@@ -255,18 +286,35 @@ class MemoryCard extends StatelessWidget {
 
     // The photo is the card's only tap target — it opens a full-screen
     // preview. The rest of the card (title, body) is static text; the
-    // gallery is reached from the section header instead.
-    final photo = _Pressable(
-      borderRadius: photoRadius,
-      onTap: () =>
-          _openMemoryPhotoPreview(context, memory: memory, heroTag: heroTag),
-      child: Hero(
-        tag: heroTag,
-        child: _MemoryPhoto(
-          assetPath: memory.image,
-          width: photoWidth,
-          height: _cardHeight,
-          borderRadius: photoRadius,
+    // gallery is reached from the section header instead. The expand
+    // badge overlaid on the photo tells visitors it is tappable.
+    final photo = Semantics(
+      button: true,
+      label: lang.t('memory_photo_hint'),
+      child: _Pressable(
+        borderRadius: photoRadius,
+        onTap: () =>
+            _openMemoryPhotoPreview(context, memory: memory, heroTag: heroTag),
+        child: Stack(
+          children: [
+            Hero(
+              tag: heroTag,
+              child: _MemoryPhoto(
+                assetPath: memory.image,
+                width: photoWidth,
+                height: _cardHeight,
+                borderRadius: photoRadius,
+              ),
+            ),
+            Positioned(
+              bottom: 8,
+              left: photoOnLeft ? 8 : null,
+              right: photoOnLeft ? null : 8,
+              child: const IgnorePointer(
+                child: _ExpandBadge(),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -280,34 +328,28 @@ class MemoryCard extends StatelessWidget {
           children: [
             const _TitleAccent(),
             const SizedBox(height: 4),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    lang.t(memory.titleKey),
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.displayHeading,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const Icon(
-                  Icons.bookmark_border_rounded,
-                  size: 18,
-                  color: AppColors.gold,
-                ),
-              ],
+            Text(
+              lang.t(memory.titleKey),
+              textAlign: TextAlign.center,
+              style: AppTextStyles.homeContent.copyWith(
+                color: AppColors.textDark,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 6),
-            // The body is summarized to fit ~6 lines on the card's text
-            // column (12px caption, 1.5 line height) at typical phone
-            // widths — no trailing ellipsis. The no-ellipsis probe test
-            // in test/memory_card_overflow_test.dart enforces this.
+            // The body is summarized to fit ~7 lines on the card's text
+            // column (homepage content voice, 1.5 line height) at typical
+            // phone widths — no trailing ellipsis. The no-ellipsis probe
+            // test in test/memory_card_overflow_test.dart enforces this.
             Text(
               lang.t(memory.bodyKey),
               textAlign: TextAlign.justify,
-              style: AppTextStyles.caption,
-              maxLines: 6,
+              style: AppTextStyles.homeContent.copyWith(
+                color: AppColors.muted,
+                height: 1.5,
+              ),
+              maxLines: 7,
               overflow: TextOverflow.ellipsis,
             ),
           ],
@@ -500,7 +542,7 @@ class _MemoryPhotoPreview extends StatelessWidget {
                     assetPath: memory.image,
                     width: side,
                     height: side,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(12),
                     iconSize: 64,
                   ),
                 ),
@@ -532,7 +574,7 @@ class _MemoryPhotoPreview extends StatelessWidget {
 
 // -- Quote card (story section) --
 /// Serif quote card with a large opening quotation mark, an ornament
-/// divider, and an italic attribution.
+/// divider, and an attribution in the homepage content voice.
 class QuoteCard extends StatelessWidget {
   final String quote, attribution;
   const QuoteCard({super.key, required this.quote, required this.attribution});
@@ -542,7 +584,7 @@ class QuoteCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.goldLight.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: AppColors.gold.withValues(alpha: 0.25),
           width: 0.6,
@@ -571,7 +613,10 @@ class QuoteCard extends StatelessWidget {
           Text(
             quote,
             textAlign: TextAlign.center,
-            style: AppTextStyles.bodyItalic,
+            style: AppTextStyles.homeContent.copyWith(
+              color: AppColors.textDark,
+              height: 1.7,
+            ),
           ),
           const SizedBox(height: 16),
           const OrnamentDivider(
@@ -583,11 +628,8 @@ class QuoteCard extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             attribution,
-            style: const TextStyle(
-              fontSize: 11,
+            style: AppTextStyles.homeContent.copyWith(
               color: AppColors.muted,
-              letterSpacing: 0.5,
-              fontStyle: FontStyle.italic,
             ),
           ),
         ],
@@ -597,8 +639,8 @@ class QuoteCard extends StatelessWidget {
 }
 
 // -- Timeline (story section) --
-/// Vertical timeline of life events: year rail with dot markers (a leaf
-/// medallion on the first event) and the event title + description.
+/// Vertical timeline of life events: year rail with dot markers
+/// and the event title + description.
 class TimelineWidget extends StatelessWidget {
   final List<LifeEvent> events;
   const TimelineWidget({super.key, required this.events});
@@ -623,54 +665,27 @@ class TimelineWidget extends StatelessWidget {
                   children: [
                     Text(
                       e.year,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
+                      style: AppTextStyles.homeContent.copyWith(
                         color: markerColor,
-                        letterSpacing: 0.5,
                       ),
                     ),
                     const SizedBox(height: 6),
-                    // First event gets a larger "medallion" marker with a
-                    // leaf icon, matching the reference design. Every
-                    // other event keeps the original small dot.
-                    if (isFirst)
-                      Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: markerColor,
-                          border: Border.all(color: AppColors.cream, width: 2),
-                          boxShadow: [
-                            BoxShadow(
-                              color: markerColor.withValues(alpha: 0.35),
-                              blurRadius: 8,
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.eco_outlined,
-                          size: 16,
-                          color: AppColors.paper,
-                        ),
-                      )
-                    else
-                      Container(
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: markerColor,
-                          border: Border.all(color: AppColors.cream, width: 2),
-                          boxShadow: [
-                            BoxShadow(
-                              color: markerColor.withValues(alpha: 0.4),
-                              blurRadius: 6,
-                            ),
-                          ],
-                        ),
+                    // Every event uses the same small dot marker.
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: markerColor,
+                        border: Border.all(color: AppColors.cream, width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: markerColor.withValues(alpha: 0.4),
+                            blurRadius: 6,
+                          ),
+                        ],
                       ),
+                    ),
                     if (!isLast)
                       Expanded(
                         child: Container(
@@ -694,13 +709,20 @@ class TimelineWidget extends StatelessWidget {
                     children: [
                       Text(
                         lang.t(e.titleKey),
-                        style: AppTextStyles.displayHeading,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.homeContent.copyWith(
+                          color: AppColors.textDark,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         lang.t(e.descriptionKey),
-                        textAlign: TextAlign.justify,
-                        style: AppTextStyles.caption,
+                        textAlign: TextAlign.left,
+                        style: AppTextStyles.homeContent.copyWith(
+                          color: AppColors.muted,
+                          height: 1.5,
+                        ),
                       ),
                     ],
                   ),

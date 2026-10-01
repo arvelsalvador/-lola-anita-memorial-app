@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nita/core/constants/app_constants.dart';
 import 'package:provider/provider.dart';
 
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/views/family/family_page.dart';
 
-// The selected pill's fill — read from the app palette so this test can't
-// drift when the theme token changes.
-const Color _activeOrange = AppColors.terracotta;
-
+// The "Lahat / Direktang pamilya / Mga Apo" filter chips were removed from
+// the Family page — this file now guards that they stay gone while the
+// rest of the page (header, search, sections) keeps rendering.
 void main() {
   Future<void> pumpFamilyPage(WidgetTester tester) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -26,130 +24,20 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
   }
 
-  // The filter chips live inside a fixed one-line Row keyed
-  // 'family_filter_chips' (the same labels also appear in the section
-  // headers further down the page, so scope by that key).
-  Finder chipText(String label, {bool skipOffstage = true}) => find.descendant(
-    of: find.byKey(
-      const Key('family_filter_chips'),
-      skipOffstage: skipOffstage,
-    ),
-    matching: find.text(label, skipOffstage: skipOffstage),
-    skipOffstage: skipOffstage,
-  );
-
-  double pixels(WidgetTester tester) => tester
-      .state<ScrollableState>(find.byType(Scrollable).first)
-      .position
-      .pixels;
-
-  // Each pill has a distinct icon, and the "Mga Apo" section header repeats
-  // that label inside its own Wrap — so anchor the highlight lookup on the
-  // pill's unique icon instead of its label text, which becomes ambiguous
-  // once the grandchildren section is built.
-  const Map<String, IconData> pillIcons = {
-    'Lahat': Icons.grid_view_rounded,
-    'Direktang pamilya': Icons.people_outline,
-    'Mga Apo': Icons.diversity_3_outlined,
-  };
-
-  // Pills scroll off-screen when a section is in view, so inspect the tree
-  // including off-screen widgets (they stay mounted thanks to cacheExtent).
-  Color? pillFill(WidgetTester tester, String label) {
-    final container = tester.widget<Container>(
-      find
-          .ancestor(
-            of: find.byIcon(pillIcons[label]!, skipOffstage: false),
-            matching: find.byType(Container, skipOffstage: false),
-          )
-          .last,
-    );
-    return (container.decoration as BoxDecoration?)?.color;
-  }
-
-  testWidgets('filter tabs scroll to their sections', (tester) async {
-    await pumpFamilyPage(tester);
-    expect(pixels(tester), 0);
-
-    // "Mga Apo" chip → smooth-scrolls to the grandchildren section. It is
-    // the last section on a tall page, so the scroll clamps at the bottom;
-    // the section header must end up fully visible on screen.
-    await tester.tap(chipText('Mga Apo'));
-    await tester.pumpAndSettle();
-    final apoPixels = pixels(tester);
-    expect(apoPixels, greaterThan(0));
-    final apoHeaderTop = tester.getTopLeft(find.text('Mga Apo').last).dy;
-    expect(apoHeaderTop, greaterThanOrEqualTo(0));
-    expect(
-      apoHeaderTop,
-      lessThan(844),
-      reason: 'the Apo section header should be visible on screen',
-    );
-
-    // "Lahat" chip → back to the very top.
-    await tester.ensureVisible(chipText('Lahat', skipOffstage: false));
-    await tester.pumpAndSettle();
-    await tester.tap(chipText('Lahat'));
-    await tester.pumpAndSettle();
-    expect(pixels(tester), 0);
-
-    // "Direktang pamilya" chip → scrolls to the Mga Anak section (which sits
-    // before the Apo section, so it must stop higher than the Apo scroll).
-    await tester.tap(chipText('Direktang pamilya'));
-    await tester.pumpAndSettle();
-    final directPixels = pixels(tester);
-    expect(directPixels, greaterThan(0));
-    expect(directPixels, lessThan(apoPixels));
-    final anakHeaderTop = tester.getTopLeft(find.text('Mga Anak')).dy;
-    expect(anakHeaderTop, greaterThanOrEqualTo(0));
-    expect(
-      anakHeaderTop,
-      lessThan(100),
-      reason: 'the Mga Anak section header should sit near the viewport top',
-    );
-  });
-
-  testWidgets('tapped tab keeps its active highlight', (tester) async {
+  testWidgets('family page renders without filter chips', (tester) async {
     await pumpFamilyPage(tester);
 
-    // "Lahat" starts selected.
-    expect(pillFill(tester, 'Lahat'), _activeOrange);
-    expect(pillFill(tester, 'Direktang pamilya'), Colors.white);
+    // Header + search still render.
+    expect(find.text('Pamilyang Lumbao'), findsOneWidget);
+    expect(find.text('Maghanap ng kapamilya'), findsOneWidget);
 
-    await tester.tap(chipText('Mga Apo'));
-    await tester.pumpAndSettle();
-    expect(pillFill(tester, 'Mga Apo'), _activeOrange);
-    expect(pillFill(tester, 'Lahat'), Colors.white);
+    // No filter chip row anywhere.
+    expect(find.byKey(const Key('family_filter_chips')), findsNothing);
 
-    await tester.ensureVisible(
-      chipText('Direktang pamilya', skipOffstage: false),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(chipText('Direktang pamilya'));
-    await tester.pumpAndSettle();
-    expect(pillFill(tester, 'Direktang pamilya'), _activeOrange);
-    expect(pillFill(tester, 'Mga Apo'), Colors.white);
-
-    await tester.ensureVisible(chipText('Lahat', skipOffstage: false));
-    await tester.pumpAndSettle();
-    await tester.tap(chipText('Lahat'));
-    await tester.pumpAndSettle();
-    expect(pillFill(tester, 'Lahat'), _activeOrange);
-  });
-
-  testWidgets('active tab follows manual scrolling', (tester) async {
-    await pumpFamilyPage(tester);
-    expect(pillFill(tester, 'Lahat'), _activeOrange);
-
-    // Scroll to the bottom: the Apo section is in view.
+    // The page scrolls to its sections without throwing.
     await tester.drag(find.byType(ListView), const Offset(0, -1600));
     await tester.pumpAndSettle();
-    expect(pillFill(tester, 'Mga Apo'), _activeOrange);
-
-    // Scroll back to the top: "Lahat" becomes active again.
-    await tester.drag(find.byType(ListView), const Offset(0, 2400));
-    await tester.pumpAndSettle();
-    expect(pillFill(tester, 'Lahat'), _activeOrange);
+    expect(find.text('Mga Apo'), findsWidgets);
+    expect(tester.takeException(), isNull);
   });
 }
-

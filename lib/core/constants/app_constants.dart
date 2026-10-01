@@ -99,6 +99,21 @@ class AppColors {
   static const handPaper = Color(0xFFFDF8EE);
   static const handShade = Color(0xFFEDE2CC);
 
+  // ── Pakikiramay medallion florals (candle_video.dart) ───────────────
+  /// Sage leaves behind the candle base (reference: muted green-grey).
+  static const leafSage = Color(0xFF8A9B7C);
+  static const leafDeep = Color(0xFF67755C);
+  static const leafPale = Color(0xFFB3BFA8);
+
+  /// White memorial flowers at the candle base.
+  static const petalWhite = Color(0xFFFFFEFB);
+  static const petalShade = Color(0xFFEDE4D6);
+  static const flowerHeart = Color(0xFFD9B96A);
+
+  /// Wooden saucer under the pillar candle.
+  static const woodLight = Color(0xFFE3C193);
+  static const woodDeep = Color(0xFFB98A52);
+
   // ── Splash screen ────────────────────────────────────────────────────
   static const dawnRose = Color(0xFFC4956A);
   static const duskBrown = Color(0xFF7A4E3A);
@@ -121,14 +136,6 @@ class AppAssets {
 class AppTextStyles {
   AppTextStyles._();
 
-  /// Display voice (Two-Voice Rule): Playfair Display for headings/titles.
-  static const displayHeading = TextStyle(
-    fontFamily: 'PlayfairDisplay',
-    fontSize: 15,
-    fontWeight: FontWeight.w600,
-    color: AppColors.textDark,
-  );
-
   /// Body voice: Lora for all body copy.
   static const bodyText = TextStyle(
     fontFamily: 'Lora',
@@ -137,9 +144,8 @@ class AppTextStyles {
     height: 1.8,
   );
 
-  static const bodyItalic = TextStyle(
+  static const bodyQuote = TextStyle(
     fontFamily: 'Lora',
-    fontStyle: FontStyle.italic,
     fontSize: 16,
     color: AppColors.textDark,
     height: 1.7,
@@ -158,5 +164,14 @@ class AppTextStyles {
     fontSize: 12,
     color: AppColors.muted,
     height: 1.5,
+  );
+
+  /// Homepage content voice: copied from the gallery filter pill
+  /// (Lahat / Mga Pagdiriwang) — Lora 13 semibold. Color is supplied
+  /// per call site via copyWith so contrast is preserved.
+  static const homeContent = TextStyle(
+    fontFamily: 'Lora',
+    fontSize: 13,
+    fontWeight: FontWeight.w600,
   );
 }

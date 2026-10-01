@@ -22,7 +22,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/utils/image_decode.dart';
@@ -71,159 +70,30 @@ const List<Color> _apoAvatarText = [
   AppColors.accentPink, // rose/pink
 ];
 
-/// The filter tabs above the family content. Each tab scrolls the page to
-/// its section, and the selected tab follows the section currently in view.
-enum _FamilyFilter { all, direct, apo }
-
-/// The Family tab: header, search + filters, stats card, root member card,
-/// and each family group as a horizontally-scrolling row of member cards.
-class FamilyPage extends StatefulWidget {
+/// The Family tab: header, search, root member card, and each family
+/// group as a horizontally-scrolling row of member cards.
+class FamilyPage extends StatelessWidget {
   final ScrollController? controller;
   const FamilyPage({super.key, this.controller});
-
-  @override
-  State<FamilyPage> createState() => _FamilyPageState();
-}
-
-class _FamilyPageState extends State<FamilyPage> {
-  // Distance (px) a section header may sit below the viewport top and still
-  // count as "in view", so the highlight switches as the header arrives.
-  static const double _switchThreshold = 60;
-
-  final GlobalKey _anakKey = GlobalKey();
-  final GlobalKey _apoKey = GlobalKey();
-
-  _FamilyFilter _activeFilter = _FamilyFilter.all;
-
-  ScrollController? _internalController;
-
-  ScrollController get _scroll =>
-      widget.controller ?? (_internalController ??= ScrollController());
-
-  @override
-  void initState() {
-    super.initState();
-    _scroll.addListener(_onScroll);
-  }
-
-  @override
-  void dispose() {
-    _scroll.removeListener(_onScroll);
-    if (widget.controller == null) {
-      _internalController?.dispose();
-    }
-    super.dispose();
-  }
-
-  /// The scroll offset at which [key]'s section top would sit flush with the
-  /// viewport top, or null while the section is not mounted.
-  double? _revealOffset(GlobalKey key) {
-    final box = key.currentContext?.findRenderObject();
-    if (box == null || !_scroll.hasClients) return null;
-    return RenderAbstractViewport.of(box).getOffsetToReveal(box, 0).offset;
-  }
-
-  void _onScroll() {
-    if (!_scroll.hasClients) return;
-    final offset = _scroll.offset;
-    final viewport = _scroll.position.viewportDimension;
-    final maxExtent = _scroll.position.maxScrollExtent;
-    final directOffset = _revealOffset(_anakKey);
-    final apoOffset = _revealOffset(_apoKey);
-
-    final _FamilyFilter next;
-    if (apoOffset != null &&
-        (offset >= apoOffset - _switchThreshold ||
-            // A section pinned near the page bottom can never align to the
-            // viewport top; count it as in view only once the user is
-            // scrolled all the way down and the section is actually visible.
-            (offset >= maxExtent - _switchThreshold &&
-                offset + viewport >= apoOffset))) {
-      next = _FamilyFilter.apo;
-    } else if (directOffset != null &&
-        offset >= directOffset - _switchThreshold) {
-      next = _FamilyFilter.direct;
-    } else {
-      next = _FamilyFilter.all;
-    }
-    if (next != _activeFilter) {
-      setState(() => _activeFilter = next);
-    }
-  }
-
-  void _scrollToSection(GlobalKey key) {
-    final context = key.currentContext;
-    if (context != null) {
-      Scrollable.ensureVisible(
-        context,
-        duration: const Duration(milliseconds: 450),
-        curve: Curves.easeOutCubic,
-      );
-      return;
-    }
-    // Very tall content: the section isn't built yet, so jump to the bottom
-    // to force it to mount, then reveal it.
-    if (_scroll.hasClients) {
-      _scroll.jumpTo(_scroll.position.maxScrollExtent);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final ctx = key.currentContext;
-        if (ctx != null && mounted) {
-          Scrollable.ensureVisible(
-            ctx,
-            duration: const Duration(milliseconds: 450),
-            curve: Curves.easeOutCubic,
-          );
-        }
-      });
-    }
-  }
-
-  void _selectFilter(_FamilyFilter filter) {
-    setState(() => _activeFilter = filter);
-    switch (filter) {
-      case _FamilyFilter.all:
-        if (_scroll.hasClients) {
-          _scroll.animateTo(
-            0,
-            duration: const Duration(milliseconds: 450),
-            curve: Curves.easeOutCubic,
-          );
-        }
-      case _FamilyFilter.direct:
-        _scrollToSection(_anakKey);
-      case _FamilyFilter.apo:
-        _scrollToSection(_apoKey);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     const data = FamilyController.data;
     final groups = data.groups;
-    // The 'Direktang pamilya' tab targets the Mga Anak section and the
-    // 'Mga Apo' tab the grandchildren section — both are bound by label,
-    // not by position, so they land correctly no matter where the groups
-    // sit in the data list.
-    final apoIndex = groups.indexWhere(_isApoGroup);
 
     return Scaffold(
       backgroundColor: AppColors.cream,
       body: SafeArea(
         child: ListView(
-          controller: _scroll,
-          // Keep every section mounted so the tab's scroll targets always
-          // exist, even before the page has been scrolled.
+          controller: controller,
+          // Keep every section mounted so content below the fold lays
+          // out correctly even before the page has been scrolled.
           cacheExtent: 2000,
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 18),
           children: [
             const FamilyPageHeader(),
             const SizedBox(height: 16),
             const FamilySearchBar(),
-            const SizedBox(height: 12),
-            _FamilyFilterChips(
-              active: _activeFilter,
-              onSelected: _selectFilter,
-            ),
             const SizedBox(height: 18),
             FamilyRootCard(member: data.rootMember),
             // Carry the descent line from the root card's bottom edge down
@@ -234,20 +104,7 @@ class _FamilyPageState extends State<FamilyPage> {
             if (groups.isNotEmpty)
               const _FamilyGroupConnector(height: 18, bead: true),
             for (var i = 0; i < groups.length; i++) ...[
-              FamilyGroupSection(
-                key: groups[i].labelKey == 'family_group_children'
-                    ? _anakKey
-                    : ((i == apoIndex ||
-                              // The apo group renders through the straight
-                              // descent grid whenever it has no age data (see
-                              // _isStraightDescentGroup) — bind the scroll key
-                              // by label too, or the scroll-follower can never
-                              // mark the grandchildren section active.
-                              _isStraightDescentGroup(groups[i]))
-                          ? _apoKey
-                          : null),
-                group: groups[i],
-              ),
+              FamilyGroupSection(group: groups[i]),
               if (i < groups.length - 1) ...[
                 // The grandchildren section draws its own straight
                 // per-column descent (the pager draws its own multi

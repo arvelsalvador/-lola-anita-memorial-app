@@ -134,7 +134,7 @@ class _HeroSlideshowCardState extends State<HeroSlideshowCard> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontFamily: 'PlayfairDisplay',
+                                fontFamily: 'Lora',
                                 fontSize: 19,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.warmDark,

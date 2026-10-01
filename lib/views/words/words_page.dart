@@ -92,9 +92,7 @@ class _WordsPageState extends State<WordsPage> {
                   child: Text(
                     lang.t('words_empty'),
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontStyle: FontStyle.italic,
+                    style: AppTextStyles.homeContent.copyWith(
                       color: AppColors.muted,
                     ),
                   ),
@@ -123,15 +121,9 @@ class _FilterChips extends StatelessWidget {
     Widget chip({
       required String label,
       required bool selected,
-      IconData icon = Icons.group_outlined,
       VoidCallback? onTap,
     }) {
-      return _FilterChip(
-        label: label,
-        icon: icon,
-        selected: selected,
-        onTap: onTap,
-      );
+      return _FilterChip(label: label, selected: selected, onTap: onTap);
     }
 
     return SingleChildScrollView(
@@ -140,14 +132,12 @@ class _FilterChips extends StatelessWidget {
         children: [
           chip(
             label: lang.t('words_filter_all'),
-            icon: Icons.grid_view_outlined,
             selected: active == null,
             onTap: active == null ? null : () => onSelected(null),
           ),
           const SizedBox(width: 8),
           chip(
             label: lang.t('words_filter_children'),
-            icon: Icons.family_restroom_outlined,
             selected: active == QuoteGroup.children,
             onTap: () => onSelected(
               active == QuoteGroup.children ? null : QuoteGroup.children,
@@ -156,7 +146,6 @@ class _FilterChips extends StatelessWidget {
           const SizedBox(width: 8),
           chip(
             label: lang.t('words_filter_grandchildren'),
-            icon: Icons.escalator_warning_outlined,
             selected: active == QuoteGroup.grandchildren,
             onTap: () => onSelected(
               active == QuoteGroup.grandchildren
@@ -167,7 +156,6 @@ class _FilterChips extends StatelessWidget {
           const SizedBox(width: 8),
           chip(
             label: lang.t('words_filter_siblings'),
-            icon: Icons.diversity_3_outlined,
             selected: active == QuoteGroup.siblings,
             onTap: () => onSelected(
               active == QuoteGroup.siblings ? null : QuoteGroup.siblings,
@@ -181,13 +169,11 @@ class _FilterChips extends StatelessWidget {
 
 class _FilterChip extends StatelessWidget {
   final String label;
-  final IconData icon;
   final bool selected;
   final VoidCallback? onTap;
 
   const _FilterChip({
     required this.label,
-    required this.icon,
     required this.selected,
     this.onTap,
   });
@@ -196,38 +182,25 @@ class _FilterChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: selected ? AppColors.roseDeep : AppColors.paper,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(12),
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: selected
                   ? AppColors.roseDeep
                   : AppColors.gold.withValues(alpha: 0.35),
             ),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 14,
-                color: selected ? AppColors.paper : AppColors.warmMid,
-              ),
-              const SizedBox(width: 5),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
-                  color: selected ? AppColors.paper : AppColors.warmMid,
-                ),
-              ),
-            ],
+          child: Text(
+            label,
+            style: AppTextStyles.homeContent.copyWith(
+              color: selected ? AppColors.paper : AppColors.warmMid,
+            ),
           ),
         ),
       ),
@@ -252,7 +225,7 @@ class _FeaturedQuoteCard extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [AppColors.quotePaper, AppColors.goldLight],
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: AppColors.gold.withValues(alpha: 0.45),
           width: 0.8,
@@ -265,86 +238,72 @@ class _FeaturedQuoteCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Stack(
-        children: [
-          // Decorative rose pin, top-right — the ♥ marker from the mockup.
-          const Positioned(
-            top: 10,
-            right: 12,
-            child: Icon(
-              Icons.favorite_rounded,
-              size: 14,
-              color: AppColors.rose,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ── Label row ────────────────────────────────────────
-                Center(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      '· ${lang.t('words_featured_label')} ·',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 2.4,
-                        color: AppColors.roseDeep,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // ── Big open-quote mark (homepage QuoteCard style) ─────
-                const Text(
-                  '\u201C',
-                  style: TextStyle(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Label row ────────────────────────────────────────
+            Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  '· ${lang.t('words_featured_label')} ·',
+                  style: const TextStyle(
                     fontFamily: 'Lora',
-                    fontSize: 40,
-                    color: AppColors.gold,
-                    height: 0.6,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 2.4,
+                    color: AppColors.roseDeep,
                   ),
                 ),
-                const SizedBox(height: 2),
-                // ── Quote body (homepage serif-italic body type) ─────────
+              ),
+            ),
+            const SizedBox(height: 12),
+            // ── Big open-quote mark (homepage QuoteCard style) ─────
+            const Text(
+              '\u201C',
+              style: TextStyle(
+                fontFamily: 'Lora',
+                fontSize: 40,
+                color: AppColors.gold,
+                height: 0.6,
+              ),
+            ),
+            const SizedBox(height: 2),
+            // ── Quote body (homepage serif-italic body type) ─────────
+            Text(
+              '\u201C${lang.t(quote.quoteKey)}\u201D',
+              style: AppTextStyles.bodyQuote.copyWith(
+                fontSize: 17,
+                height: 1.55,
+                color: AppColors.warmDark,
+              ),
+            ),
+            const SizedBox(height: 10),
+            // ── Footer line ──────────────────────────────────────
+            Row(
+              children: [
+                const SizedBox(width: 24),
                 Text(
-                  '\u201C${lang.t(quote.quoteKey)}\u201D',
-                  style: AppTextStyles.bodyItalic.copyWith(
-                    fontSize: 17,
-                    height: 1.55,
-                    color: AppColors.warmDark,
+                  '\u2014 ${lang.t(quote.nameKey)}',
+                  style: const TextStyle(
+                    fontFamily: 'Lora',
+                    fontSize: 12,
+                    color: AppColors.warmMid,
                   ),
-                ),
-                const SizedBox(height: 10),
-                // ── Footer line ──────────────────────────────────────
-                Row(
-                  children: [
-                    const SizedBox(width: 24),
-                    Text(
-                      '\u2014 ${lang.t(quote.nameKey)}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontStyle: FontStyle.italic,
-                        color: AppColors.warmMid,
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-/// One member quote card: circular photo avatar with a small heart badge,
-/// big gold quotation mark, the quote, "— Name · Relation", and the
-/// "Naiwan noong ..." footer on the right.
+/// One member quote card: circular photo avatar, the quote,
+/// "— Name · Relation", and the "Naiwan noong ..." footer on the right.
 class FamilyQuoteCard extends StatelessWidget {
   final FamilyQuote quote;
   const FamilyQuoteCard({super.key, required this.quote});
@@ -353,7 +312,7 @@ class FamilyQuoteCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
     return OrnamentalCard(
-      radius: 14,
+      radius: 12,
       borderColor: AppColors.gold,
       borderAlpha: 0.3,
       borderWidth: 0.7,
@@ -365,41 +324,11 @@ class FamilyQuoteCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Avatar + heart badge ────────────────────────────────
-              SizedBox(
-                width: 46,
-                height: 46,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    _MemberAvatar(
-                      photoPath: quote.photoPath,
-                      name: lang.t(quote.nameKey),
-                      size: 46,
-                    ),
-                    Positioned(
-                      right: -2,
-                      bottom: -2,
-                      child: Container(
-                        width: 16,
-                        height: 16,
-                        decoration: BoxDecoration(
-                          color: AppColors.warmDark,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: AppColors.paper,
-                            width: 1.5,
-                          ),
-                        ),
-                        child: const Icon(
-                          Icons.favorite,
-                          size: 8,
-                          color: AppColors.goldLight,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+              // ── Avatar ────────────────────────────────────────────
+              _MemberAvatar(
+                photoPath: quote.photoPath,
+                name: lang.t(quote.nameKey),
+                size: 46,
               ),
               const SizedBox(width: 12),
               // ── Quote block ─────────────────────────────────────────
@@ -409,7 +338,7 @@ class FamilyQuoteCard extends StatelessWidget {
                   children: [
                     Text(
                       '\u201C${lang.t(quote.quoteKey)}\u201D',
-                      style: AppTextStyles.bodyItalic.copyWith(
+                      style: AppTextStyles.bodyQuote.copyWith(
                         fontSize: 13.5,
                         height: 1.55,
                         color: AppColors.warmDark,
@@ -422,17 +351,17 @@ class FamilyQuoteCard extends StatelessWidget {
                           TextSpan(
                             text: '\u2014 ${lang.t(quote.nameKey)}',
                             style: const TextStyle(
+                              fontFamily: 'Lora',
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
-                              fontStyle: FontStyle.italic,
                               color: AppColors.warmDark,
                             ),
                           ),
                           TextSpan(
                             text: '   ${lang.t(quote.relationKey)}',
                             style: const TextStyle(
+                              fontFamily: 'Lora',
                               fontSize: 11,
-                              fontStyle: FontStyle.italic,
                               color: AppColors.roseDeep,
                             ),
                           ),
@@ -453,8 +382,8 @@ class FamilyQuoteCard extends StatelessWidget {
                 child: Text(
                   lang.t(quote.dateKey),
                   style: const TextStyle(
+                    fontFamily: 'Lora',
                     fontSize: 10.5,
-                    fontStyle: FontStyle.italic,
                     color: AppColors.muted,
                   ),
                 ),

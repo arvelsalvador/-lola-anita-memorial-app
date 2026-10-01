@@ -20,7 +20,7 @@ class FamilyRootCard extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 400),
         child: OrnamentalCard(
-          radius: 20,
+          radius: 12,
           borderColor: AppColors.gold,
           borderAlpha: 0.2,
           borderWidth: 1,
@@ -50,41 +50,35 @@ class FamilyRootCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          member.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontFamily: 'PlayfairDisplay',
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textDark,
+                        SizedBox(
+                          width: double.infinity,
+                          child: Text(
+                            member.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontFamily: 'Lora',
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textDark,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 2),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Flexible(
-                              child: Text(
-                                lang.t(member.roleKey),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontFamily: 'PlayfairDisplay',
-                                  fontStyle: FontStyle.italic,
-                                  fontSize: 12,
-                                  color: AppColors.rose,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            const Icon(
-                              Icons.favorite_rounded,
-                              size: 9,
+                        SizedBox(
+                          width: double.infinity,
+                          child: Text(
+                            lang.t(member.roleKey),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontFamily: 'Lora',
+                              fontSize: 12,
                               color: AppColors.rose,
                             ),
-                          ],
+                          ),
                         ),
                         if (member.statusLabel != null ||
                             member.tagline != null) ...[
@@ -109,6 +103,7 @@ class FamilyRootCard extends StatelessWidget {
                                     Text(
                                       member.statusLabel!,
                                       style: const TextStyle(
+                                        fontFamily: 'Lora',
                                         fontSize: 10.5,
                                         color: AppColors.warmMid,
                                       ),
@@ -120,6 +115,7 @@ class FamilyRootCard extends StatelessWidget {
                                 const Text(
                                   '·',
                                   style: TextStyle(
+                                    fontFamily: 'Lora',
                                     fontSize: 10.5,
                                     color: AppColors.muted,
                                   ),
@@ -128,6 +124,7 @@ class FamilyRootCard extends StatelessWidget {
                                 Text(
                                   member.tagline!,
                                   style: const TextStyle(
+                                    fontFamily: 'Lora',
                                     fontSize: 10.5,
                                     color: AppColors.muted,
                                   ),
@@ -135,47 +132,21 @@ class FamilyRootCard extends StatelessWidget {
                             ],
                           ),
                         ],
-                        if (member.yearsLabel != null ||
-                            member.photoCount != null) ...[
+                        if (member.yearsLabel != null) ...[
                           const SizedBox(height: 10),
-                          Wrap(
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              if (member.yearsLabel != null)
-                                Text(
-                                  member.yearsLabel!,
-                                  style: const TextStyle(
-                                    fontFamily: 'PlayfairDisplay',
-                                    fontSize: 10,
-                                    letterSpacing: 2,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.gold,
-                                  ),
-                                ),
-                              if (member.yearsLabel != null &&
-                                  member.photoCount != null)
-                                const Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 6),
-                                  child: Text(
-                                    '·',
-                                    style: TextStyle(
-                                      fontFamily: 'PlayfairDisplay',
-                                      fontSize: 10,
-                                      color: AppColors.muted,
-                                    ),
-                                  ),
-                                ),
-                              if (member.photoCount != null)
-                                Text(
-                                  '${member.photoCount} ${_familyText(lang, 'family_photos_with', 'larawan kasama')}',
-                                  style: const TextStyle(
-                                    fontFamily: 'PlayfairDisplay',
-                                    fontStyle: FontStyle.italic,
-                                    fontSize: 10.5,
-                                    color: AppColors.muted,
-                                  ),
-                                ),
-                            ],
+                          SizedBox(
+                            width: double.infinity,
+                            child: Text(
+                              member.yearsLabel!,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontFamily: 'Lora',
+                                fontSize: 10,
+                                letterSpacing: 2,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.gold,
+                              ),
+                            ),
                           ),
                         ],
                       ],
@@ -222,16 +193,14 @@ class _MemberThumbnailCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lang = context.watch<LanguageProvider>();
-
-    // Whole card is the tap target (photo, name, or role) — opens the
+    // Whole card is the tap target (photo or name) — opens the
     // shared detail sheet for this person. GestureDetector keeps the
     // card's visual design untouched.
     return GestureDetector(
       onTap: () => showMemberDetailSheet(context, member),
       child: OrnamentalCard(
         width: double.infinity,
-        radius: 18,
+        radius: 12,
         borderColor: AppColors.muted,
         borderAlpha: 0.16,
         borderWidth: 0.8,
@@ -251,23 +220,10 @@ class _MemberThumbnailCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontFamily: 'PlayfairDisplay',
+                fontFamily: 'Lora',
                 fontWeight: FontWeight.w700,
-                fontSize: 13,
+                fontSize: 11.5,
                 color: AppColors.textDark,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              lang.t(member.roleKey),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontFamily: 'PlayfairDisplay',
-                fontStyle: FontStyle.italic,
-                fontSize: 10.5,
-                color: AppColors.warmMid,
               ),
             ),
           ],
@@ -413,36 +369,17 @@ class _MemberPortrait extends StatelessWidget {
                 child: Image.asset(
                   _familyBorderAsset,
                   fit: BoxFit.cover,
-                  cacheWidth: ImageDecode.width(
-                    size * (1 + _familyBorderOverflowFactor * 2),
-                    context,
-                  ),
+                  // No cacheWidth here: the 1536x1024 artwork is
+                  // cover-fitted into a square box, so bounding the
+                  // decode to the box width under-decodes the height
+                  // and forces a blurry GPU upscale. Full-res decode
+                  // (~6MB) stays sharp on 2x/3x screens.
+                  filterQuality: FilterQuality.high,
                   errorBuilder: (context, error, stackTrace) =>
                       const SizedBox.shrink(),
                 ),
               ),
             ),
-          Positioned(
-            right: badgeOffset.dx,
-            bottom: badgeOffset.dy,
-            child: Container(
-              width: badgeSize,
-              height: badgeSize,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.roseDeep,
-                border: Border.all(
-                  color: Colors.white,
-                  width: badgeBorderWidth,
-                ),
-              ),
-              child: Icon(
-                Icons.favorite_rounded,
-                size: badgeIconSize,
-                color: Colors.white,
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -463,7 +400,7 @@ class _InitialsTile extends StatelessWidget {
       child: Text(
         initials,
         style: TextStyle(
-          fontFamily: 'PlayfairDisplay',
+          fontFamily: 'Lora',
           fontSize: fontSize,
           fontWeight: FontWeight.w700,
           color: AppColors.roseDeep,

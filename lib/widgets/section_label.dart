@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:nita/core/constants/app_constants.dart';
 
 /// Section heading used across the Story page ("HER WORDS", "HER
-/// JOURNEY", etc.) — spaced caps label with a leading leaf icon and a
-/// trailing flourish line, matching the ornamental design direction.
+/// JOURNEY", etc.) — spaced caps label with a trailing flourish line,
+/// matching the ornamental design direction.
 class SectionLabel extends StatelessWidget {
   final String text;
   const SectionLabel(this.text, {super.key});
@@ -12,16 +12,12 @@ class SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(
-          Icons.eco_outlined,
-          size: 14,
-          color: AppColors.gold.withValues(alpha: 0.8),
-        ),
-        const SizedBox(width: 8),
         Flexible(
           child: Text(
             text.toUpperCase(),
-            style: AppTextStyles.sectionLabel,
+            style: AppTextStyles.homeContent.copyWith(
+              color: AppColors.rose,
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

@@ -50,15 +50,16 @@ void main() {
     await tester.tap(find.text('Gernan Lumbao'));
     await tester.pumpAndSettle();
 
-    // Sheet shows the name (card + sheet = 2 instances), relation, full
-    // story, identity section, and close button.
+    // Sheet shows the name (card + sheet = 2 instances), full
+    // story, identity section, and close button. Role subtitles
+    // were removed everywhere, so no relation text is shown.
     expect(find.text('Gernan Lumbao'), findsNWidgets(2));
-    expect(find.text('Anak na lalaki'), findsWidgets);
+    expect(find.text('Anak na lalaki'), findsNothing);
     expect(find.text('BUONG KUWENTO'), findsOneWidget);
     expect(find.text('PAGKAKAKILANLAN'), findsOneWidget);
     expect(find.text('PAMILYA'), findsOneWidget);
-    // Identity section always carries a Role row.
-    expect(find.text('Role'), findsOneWidget);
+    // Identity section no longer carries a Role row.
+    expect(find.text('Role'), findsNothing);
     expect(find.byIcon(Icons.close), findsOneWidget);
   });
 
@@ -126,11 +127,12 @@ void main() {
     await tester.tap(find.text('Hanna Lumbao'));
     await tester.pumpAndSettle();
 
-    // Sheet shows the same name (card + sheet = 2 instances) plus the
-    // "Apo" relation. Grandchildren carry a short bio, which the sheet
+    // Sheet shows the same name (card + sheet = 2 instances).
+    // Role subtitles were removed everywhere, so no "Apo" relation
+    // is shown. Grandchildren carry a short bio, which the sheet
     // renders under the Full Story section.
     expect(find.text('Hanna Lumbao'), findsNWidgets(2));
-    expect(find.text('Apo'), findsWidgets);
+    expect(find.text('Apo'), findsNothing);
     expect(find.text('BUONG KUWENTO'), findsOneWidget);
   });
 }

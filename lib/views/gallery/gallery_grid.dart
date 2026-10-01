@@ -87,8 +87,11 @@ class _GalleryGridViewState extends State<GalleryGridView>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
+          // Taller than the pills themselves so Lora's descenders
+          // (the tails of "g" in "Pagdiriwang") are never clipped by
+          // the horizontal ListView's edge.
           SizedBox(
-            height: 40,
+            height: 48,
             width: double.infinity,
             child: ShaderMask(
               shaderCallback: (bounds) => LinearGradient(
@@ -199,7 +202,7 @@ class _GalleryGridViewState extends State<GalleryGridView>
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
             color: selected ? AppColors.copper : unselectedBg,
             borderRadius: BorderRadius.circular(12),
@@ -228,6 +231,7 @@ class _GalleryGridViewState extends State<GalleryGridView>
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
+                  height: 1.25,
                   color: selected ? AppColors.paper : unselectedTextColor,
                 ),
               ),

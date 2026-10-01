@@ -18,11 +18,24 @@ const Map<String, String> translationsEn = {
       'Those we love don\'t go away,\nThey walk beside us every day.',
   'splash_subtitle': 'IN LOVING MEMORY',
   'splash_tap': 'Touch to enter',
+  'visitor_title': 'Before you enter',
+  'visitor_subtitle': 'Tell us who is visiting Nanay',
+  'visitor_name_hint': 'Your full name…',
+  'visitor_address_hint': 'Your address…',
+  'visitor_enter': 'Enter',
+  'visitor_sending': 'Entering…',
+  'visitor_required': 'Please enter your name and address to continue.',
+  'visitor_address_required': 'Please enter your address to continue.',
+  'visitor_address_invalid':
+      'Please enter a complete address (min 3 characters).',
+  'visitor_privacy':
+      'Names may appear in the candle list. Addresses and messages stay private.',
+  'header_greeting': 'Hello, {name}',
   'hero_tagline': 'Beloved grandmother, keeper of stories',
   'hero_portrait_label': 'Photo of {name}',
   'hero_years_label': 'Lived from {birth} to {passing}',
   'section_her_words': 'Her words',
-  'section_her_journey': 'Her journey',
+  'section_her_journey': 'Journey',
   'section_about_her': 'About her',
   'section_cherished_memories': 'Cherished memories',
   'section_final_tribute': 'A final tribute',
@@ -34,14 +47,13 @@ const Map<String, String> translationsEn = {
   'settings_subtitle': 'Personalize your experience',
   'settings_desc_dev': 'Learn about the developer of this app.',
   'settings_desc_about': 'See our mission and goals.',
-  'settings_desc_contact': 'Send us your questions or suggestions.',
   'settings_empty': 'Nothing here yet',
   'settings_english': 'English',
   'settings_tagalog': 'Tagalog',
   'settings_bicol': 'Bicol',
   'settings_about_app_title': 'About Us',
   'settings_about_app_body':
-      'A permanent digital memorial for Lola Anita Daiz Lumbao — her story, her family, and her photographs, kept with love.',
+      'A permanent digital memorial for Lola Anita Daiz Lumbao her story, her family, and her photographs, kept with love.',
   'settings_about_app_version': 'Version 1.0.0+1',
   'settings_about_app_credits':
       'Family photographs · Kiss the Rain – Yiruma · Shared candle via Firebase, works offline',
@@ -73,25 +85,15 @@ const Map<String, String> translationsEn = {
       'Lola back. Built with love for Nanay.',
   'settings_about_dev_view_family': 'See in Family',
   'settings_about_dev_built_with': 'Built with',
+  'settings_stack_languages': 'Languages',
+  'settings_stack_frameworks': 'Frameworks',
+  'settings_stack_tools': 'Tools',
   'settings_dev_projects_title': 'Projects',
   'settings_dev_projects_body': 'See Arvel\'s apps and projects.',
   'settings_dev_for_nanay_title': 'For Nanay',
   'settings_dev_for_nanay_body': 'A special page for our Nanay.',
   'settings_dev_project_memorial_body':
-      'A trilingual memorial for Lola Anita — her story, family, and photographs, kept with love.',
-  'settings_contact_title': 'Contact Us',
-  'settings_contact_intro':
-      'Want to share something for Nanay? Send a message, photo, or story to the family.',
-  'settings_contact_name_label': 'Your name',
-  'settings_contact_name_hint': 'Enter your name',
-  'settings_contact_email_label': 'Email address',
-  'settings_contact_email_hint': 'Enter your email',
-  'settings_contact_message_label': 'Message',
-  'settings_contact_message_hint': 'Write your message for the family…',
-  'settings_contact_send_message': 'Send message',
-  'settings_contact_opening': 'Opening your mail app…',
-  'settings_contact_privacy': 'Your message will be kept with love.',
-  'settings_contact_copied': 'Email address copied',
+      'A trilingual memorial for Lola Anita her story, family, and photographs, kept with love.',
   'settings_search_hint': 'Search for a setting...',
   'settings_search_empty': 'No setting found.',
   'candle_light': 'Light a candle',
@@ -100,37 +102,40 @@ const Map<String, String> translationsEn = {
       'No images found in gallery.\nTry a full restart after adding images.',
   'story_quote':
       'The kitchen is where love becomes flavor. Cook with both hands and an open heart.',
-  'story_quote_attribution': '— Nanay Nita, as she always said',
+  'story_quote_attribution': 'Nanay Nita, as she always said',
   'story_about':
       'Lola Anita Daiz Lumbao lived 85 years full of grace, laughter, and steadfast faith. '
       'She was a loving wife, a nurturing mother, and the heart of a family spanning three generations. '
-      'Her hands were never idle — cooking, sewing, or folded in prayer — and her home was always open.\n\n'
+      'Her hands were never idle cooking, sewing, or folded in prayer and her home was always open.\n\n'
       'She believed deeply that family was life\'s greatest treasure, and she gave everything to build a home filled with love.',
   'story_favorites':
       'Nanay\'s Favorites and Habits:\n'
       'Nanay loved watching TV, especially Eat Bulaga and nature shows like Nat Geo Wild and animals. '
-      'She was also a devoted cook — her favorite to make was sa natong (laing) and other delicious dishes.\n\n'
+      'She was also a devoted cook her favorite to make was sa natong (laing) and other delicious dishes.\n\n'
       'Her main routines were folding clothes and praying. Coffee was never missing from her day, especially Coffee Mate, Coffee Combo, or Bear Brand milk.\n\n'
-      'Nanay was devout — always praying every night and actively attending church, especially during Simbang Gabi.\n\n'
+      'Nanay was devout always praying every night and actively attending church, especially during Simbang Gabi.\n\n'
       'She was cheerful, always ready to listen and help when there was a problem, and generous especially when it came to food.\n'
       'She was proud of her grandchildren and always proud of them.',
-  'timeline_birth_title':
-      'Born in Purok 3, Barangay 7, Mercedes, Camarines Norte',
+  'timeline_birth_title': 'The Birth',
   'timeline_birth_desc':
-      'Third of seven siblings, born in the province she loved.',
-  'timeline_marriage_title': 'Married Lolo Salvador V. Lumbao',
+      'Third of seven siblings, born in the province she loved. '
+      'Her childhood there shaped the warmth she carried all her life.',
+  'timeline_marriage_title': 'The Wedding',
   'timeline_marriage_desc':
       '54 years together. They raised six children and loved each other endlessly. '
       'Lolo Salvador passed away from a heart attack.',
-  'timeline_first_apo_title': 'Her first grandchild was born',
+  'timeline_first_apo_title': 'First Grandchild',
   'timeline_first_apo_desc':
-      'She became a Lola — a title she treasured above all.',
-  'timeline_anniversary_title': 'The anniversary was celebrated',
+      'She became a Lola, a title she treasured above all. '
+      'Her grandchildren became the joy of her everyday life.',
+  'timeline_anniversary_title': 'The Anniversary',
   'timeline_anniversary_desc':
-      'The whole family gathered to honor 37 years of faithful love.',
-  'timeline_passing_title': 'Peacefully laid to rest',
+      'The whole family gathered to honor 37 years of faithful love. '
+      'It was a day full of laughter, gratitude, and prayer.',
+  'timeline_passing_title': 'Final Rest',
   'timeline_passing_desc':
-      'Surrounded by family, she returned to God after a life full of grace.',
+      'Surrounded by family, she returned to God after a life full of grace. '
+      'Her love remains in the hearts of her family.',
   'memory_1_title': 'Her Home',
   'memory_1_body':
       'Her house was the heart of our family the door always open, every corner a memory. '
@@ -141,7 +146,7 @@ const Map<String, String> translationsEn = {
       'In her smile and eyes we saw a love words could never hold.',
   'memory_3_title': "Nanay's Kiss",
   'memory_3_body':
-      'She kissed every grandchild on the forehead — a blessing. '
+      'She kissed every grandchild on the forehead a blessing. '
       'Those kisses taught us to love without asking anything back.',
   'memory_4_title': 'We Never Left Her Side',
   'memory_4_body':
@@ -153,11 +158,11 @@ const Map<String, String> translationsEn = {
       'She kept smiling and fighting so we would be strong, until the very end.',
   'memory_6_title': 'Her Special Day',
   'memory_6_body':
-      'Every birthday was a feast — songs, food, laughter. '
+      'Every birthday was a feast songs, food, laughter. '
       'Her smile that day is our favorite picture of her joy.',
   'memory_7_title': 'Her Passing',
   'memory_7_body':
-      'She passed away quietly — internal bleeding in her pancreas. '
+      'She passed away quietly internal bleeding in her pancreas. '
       'She is not truly gone: she lives in our laughter, our prayers, and our home.',
   'memories_subtitle': 'Moments we will never forget',
   'memories_count': '{count} memories',
@@ -171,7 +176,7 @@ const Map<String, String> translationsEn = {
   'mem_open_photos': 'Open the photos',
   'mem_view_gallery': 'View in Gallery',
   'mem_photo_count': '{count} photos',
-  'family_name': 'The Lumbao Family',
+  'family_name': 'Lumbao Family',
   'family_subtitle': 'The people who built her world',
   'family_search_hint': 'Search for a family member',
   'family_search_results': '{count} family members found',
@@ -257,7 +262,7 @@ const Map<String, String> translationsEn = {
   'family_member_ester_bio':
       'Her sister, a quiet companion through every season of life.',
   'family_story_obit':
-      'Roberto is the fearless one among Anita\'s brothers — the one who never '
+      'Roberto is the fearless one among Anita\'s brothers the one who never '
       'hesitated to stand up for the family when it mattered most. Beneath '
       'that boldness is a steady, caring husband and father. With his wife '
       'Josebeth he built a family that now glows with five grandchildren, '
@@ -269,50 +274,50 @@ const Map<String, String> translationsEn = {
       'proud grandfather of five.',
   'family_story_rodolfo':
       'Rodolfo is the hardest-working of Anita\'s siblings. A fisherman for '
-      'more than a decade, he has never retired — he still provides for his '
+      'more than a decade, he has never retired he still provides for his '
       'own family and helps his sister Lorie Salvador\'s children. No one in '
       'the family can match his knowledge of the sea. His wisdom was shaped '
       'not by books, but by decades of hard work, patience, and quiet '
       'devotion to the people he loves.',
   'family_member_rodolfo_bio':
-      'Her brother, a lifelong fisherman — husband to Lolita, father of '
+      'Her brother, a lifelong fisherman husband to Lolita, father of '
       'three, and grandfather of five.',
   'family_story_sonia':
       'Sonia is Anita\'s only sister, known throughout the family for her '
-      'bravery and strong sense of duty. She has faced deep loss — her '
-      'youngest child and her husband have passed away — yet she carries '
+      'bravery and strong sense of duty. She has faced deep loss her '
+      'youngest child and her husband have passed away yet she carries '
       'that grief with quiet strength, surrounded by children and '
       'grandchildren who fill her days with love, including her newest '
       'grandchild, Zia. As a barangay tanod she helps keep her community '
       'safe and thriving: brave, hardworking, and devoted to family and '
       'neighbors alike.',
   'family_member_sonia_bio':
-      'Her only sister — brave and devoted, a barangay tanod keeping her '
+      'Her only sister brave and devoted, a barangay tanod keeping her '
       'community safe, and a grandmother of three.',
   'family_story_gernan':
-      'Gernan is Anita\'s eldest son — known in the family as the grumpiest, '
+      'Gernan is Anita\'s eldest son known in the family as the grumpiest, '
       'yet also the bravest, never backing down when something needs '
       'defending. Behind the tough exterior is a faithful husband and a '
       'father who worked wholeheartedly for Milagros and their two children. '
       'As a painter and laborer, his skill reached as far as Baguio. He is '
-      'strict and meticulous in his work and his surroundings — the mark of '
+      'strict and meticulous in his work and his surroundings the mark of '
       'a man who takes pride in everything he does.',
   'family_member_gernan_bio':
-      'Their eldest son — the grumpiest yet bravest of the family, a '
+      'Their eldest son the grumpiest yet bravest of the family, a '
       'devoted painter and laborer, husband to Milagros, and father of two.',
   'family_story_odin':
-      'Rodel is the easiest to get along with among the siblings — the one '
+      'Rodel is the easiest to get along with among the siblings the one '
       'who brings laughter wherever he goes. With his wife Mersilita he '
       'raised two children who both finished college, and he now welcomes a '
       'new grandchild. Like his brother Gernan, he is hardworking: a farmer '
       'who tends the land in Camarines Sur. Every fiesta he makes sure to '
-      'visit Nanay Anita with rice and eggs in hand — a simple but '
+      'visit Nanay Anita with rice and eggs in hand a simple but '
       'heartfelt proof of who he is: generous, dependable, and family first.',
   'family_member_odin_bio':
-      'Their second son, the easiest to get along with — a kind farmer in '
+      'Their second son, the easiest to get along with a kind farmer in '
       'Camarines Sur, husband to Mersilita and father of two.',
   'family_story_lorie':
-      'Lorie is the youngest and Nanay Anita\'s most beloved — she cared '
+      'Lorie is the youngest and Nanay Anita\'s most beloved she cared '
       'for her mother tirelessly, never leaving her side until the very '
       'end. She married Elben Salvador, a hardworking, disciplined man, and '
       'together they raised four bright children, including Arvel, the '
@@ -321,29 +326,29 @@ const Map<String, String> translationsEn = {
       'with everyone she loves. Her love for mother, husband, and children '
       'never runs dry.',
   'family_member_lorie_bio':
-      'Their youngest daughter and Nanay\'s most beloved — brave yet '
+      'Their youngest daughter and Nanay\'s most beloved brave yet '
       'caring, devoted wife to Elben and mother of four.',
   'family_member_hanna_bio':
-      'Gernan Lumbao\'s daughter. Cheerful and full of energy — she lights '
+      'Gernan Lumbao\'s daughter. Cheerful and full of energy she lights '
       'up every room she enters and makes the whole family smile.',
   'family_member_audrey_bio':
       'Gernan Lumbao\'s daughter. Quiet but confident, with a style all her '
       'own and no fear of being her true self.',
   'family_member_jongjong_bio':
       'Rodel Lumbao Sr.\'s son. Playful and easy to get along with, inheriting '
-      'his father\'s warmth — he can make anyone laugh.',
+      'his father\'s warmth he can make anyone laugh.',
   'family_member_roseann_bio':
       'Rodel Lumbao Sr.\'s daughter. Sweet and soft-spoken, bringing a calm, '
       'gentle presence to every family gathering.',
   'family_member_arvel_bio':
-      'Lorie Salvador\'s son. The family\'s techie — always curious and '
+      'Lorie Salvador\'s son. The family\'s techie always curious and '
       'diligent, and the very developer of this app that keeps the '
       'family\'s story alive.',
   'family_member_aivan_bio':
-      'Lorie Salvador\'s son. Calm and hardworking — the dependable child '
+      'Lorie Salvador\'s son. Calm and hardworking the dependable child '
       'the family always leans on.',
   'family_member_honey_bio':
-      'Lorie Salvador\'s daughter. Friendly and full of life — always the '
+      'Lorie Salvador\'s daughter. Friendly and full of life always the '
       'first to bring energy and excitement to every gathering.',
   'family_member_daniel_bio':
       'Lorie Salvador\'s son. Steady and kind-hearted, with a quiet '
@@ -351,17 +356,17 @@ const Map<String, String> translationsEn = {
   'family_story_hanna':
       'Hanna Mae is Gernan Lumbao\'s daughter. Cheerful and full of energy, '
       'she lights up every room she enters. Her smile and playfulness '
-      'bring joy to the whole family — at every gathering she is the '
+      'bring joy to the whole family at every gathering she is the '
       'little light that never runs out of stories and laughter.',
   'family_story_audrey':
       'Audrey is Gernan Lumbao\'s daughter. Quiet but confident, she has a '
       'style and point of view all her own and is never afraid to show it. '
-      'There is strength in her calm — in every step she proves that being '
+      'There is strength in her calm in every step she proves that being '
       'your true self is the most beautiful thing to wear.',
   'family_story_jongjong':
       'Rodel Lumbao Jr. is Rodel Lumbao Sr.\'s son. Playful and easy to get along with, '
       'he inherited his father\'s warmth. He can make anyone laugh, and at '
-      'every family gathering he sparks the laughter — always ready to '
+      'every family gathering he sparks the laughter always ready to '
       'play and joke with his cousins.',
   'family_story_roseann':
       'Rose-ann is Rodel Lumbao Sr.\'s daughter. Sweet and soft-spoken, she '
@@ -369,7 +374,7 @@ const Map<String, String> translationsEn = {
       'her kindness and respect she shows that quiet gentleness is one of '
       'the highest forms of love for family.',
   'family_story_arvel':
-      'Arvel is Lorie Salvador\'s son — the family\'s techie: curious, '
+      'Arvel is Lorie Salvador\'s son the family\'s techie: curious, '
       'diligent, and full of ideas. He is the very developer of this app, '
       'the one keeping the family\'s stories and memories alive. After '
       'finishing college, he continues to serve the family with his gifts.',
@@ -478,7 +483,7 @@ const Map<String, String> translationsEn = {
       'Quietly but surely, you showed us how to finish what we start with love.',
   'words_quote_12_name': 'Aivan Salvador',
   'words_quote_13':
-      'Every fiesta, every birthday — your joy is the recipe we all follow.',
+      'Every fiesta, every birthday your joy is the recipe we all follow.',
   'words_quote_13_name': 'Honey Salvador',
   'words_quote_14':
       'You called each of us by name and made us feel seen. I carry that always.',
@@ -491,10 +496,22 @@ const Map<String, String> translationsEn = {
   'candle_message_hint': 'Write your message for Nanay…',
   'candle_message_send': 'Send',
   'candle_message_thanks': 'Your message has reached Nanay 🕊️',
+  'candle_message_required':
+      'Please write your message for Nanay to light a candle.',
+  'candle_message_too_long':
+      'Please keep your message under 500 characters.',
+  'candle_name_title': 'What is your name?',
+  'candle_name_hint': 'Your name…',
+  'candle_name_required': 'Please enter your name to light a candle.',
+  'candle_name_invalid': 'Letters, spaces, and hyphens only (min 2 letters).',
   'candle_lit_times': '{count} candles lit',
+  'candle_list_title': 'Who remembers Nanay',
+  'candle_list_offline': 'Go online to see who remembers Nanay.',
+  'candle_list_empty': 'Be the first to light a candle.',
+  'candle_list_more': '+{count} more',
+  'candle_list_retry': 'Retry',
   'candle_condolences_button': 'Condolences',
   'condolences_keepsake': 'Her memory keeps glowing on',
-  'condolences_each_flame': 'With every flame, a memory.',
   'group_celebrations': 'Celebrations',
   'group_bahay': 'Bahay',
   'group_family': 'Family',
@@ -514,6 +531,7 @@ const Map<String, String> translationsEn = {
   'gallery_search_hint': 'Search photos',
   'gallery_clear_all': 'Clear all',
   'gallery_tap_to_reveal': 'Tap to reveal',
+  'memory_photo_hint': 'Tap photo to view',
   'gallery_choose_music': 'Choose Music',
   'remembrance_gate_label': 'In Memoriam',
   'remembrance_gate_title': 'In her final days, she was never alone.',

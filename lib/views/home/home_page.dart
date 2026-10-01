@@ -23,10 +23,11 @@ import 'package:nita/views/settings/settings_page.dart';
 import 'package:nita/views/words/words_page.dart';
 import 'package:nita/widgets/app_bottom_nav.dart';
 
-import 'package:nita/widgets/language_toggle.dart';
+import 'package:nita/widgets/app_brand_bar.dart';
 import 'package:nita/widgets/ornament_divider.dart';
 import 'package:nita/widgets/ornamental_card.dart';
 import 'package:nita/widgets/section_label.dart';
+import 'package:nita/data/visitors/visitor_repository.dart';
 
 part 'home_hero_header.dart';
 part 'home_story_memories.dart';
@@ -377,10 +378,14 @@ class _HomeShellState extends State<HomeShell> {
 }
 
 // -- Top bar (shell chrome) --
-/// Slim fixed top bar: leaf logo + "nanay anita" on the left, language
-/// toggle on the right, with a thin gold divider underneath. Stays at the
-/// top while the hero section scrolls away.
-class _TopBar extends StatelessWidget {
+/// Slim fixed top bar: leaf mark + brand + visitor greeting on the left,
+/// language toggle + settings on the right, with a soft fading gold seam
+/// underneath. Stays at the top while the hero section scrolls away.
+///
+/// The greeting ("Hello, {firstName}") confirms the app recognized the
+/// visitor from the splash gate (SharedPreferences via [VisitorRepository]).
+/// Falls back to brand-only when loading, empty, or prefs unreadable.
+class _TopBar extends StatefulWidget {
   /// Jumps straight to the Family tab in the bottom nav. Handed to
   /// Settings so "Tingnan sa Pamilya" lands on the real tab.
   final VoidCallback onOpenFamily;
@@ -392,86 +397,57 @@ class _TopBar extends StatelessWidget {
   const _TopBar({required this.onOpenFamily, required this.onOpenTab});
 
   @override
+  State<_TopBar> createState() => _TopBarState();
+}
+
+class _TopBarState extends State<_TopBar> {
+  final VisitorRepository _visitorRepo = const VisitorRepository();
+
+  /// Null = still loading, '' = no visitor, otherwise first name.
+  String? _firstName;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVisitor();
+  }
+
+  Future<void> _loadVisitor() async {
+    String first = '';
+    try {
+      // No timeout here: SharedPreferences is local and fast, and a
+      // timeout Timer breaks widget tests (fake_async pending-timer
+      // assertion). Prefs unreadable still falls back to brand-only.
+      final full = await _visitorRepo.localName();
+      first = VisitorRepository.firstName(full);
+    } catch (_) {
+      // Prefs unreadable — stay brand-only. Never blocks the bar.
+      first = '';
+    }
+    if (!mounted) return;
+    setState(() => _firstName = first);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.charcoal,
-      child: SafeArea(
-        bottom: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              height: 52,
-              child: Padding(
-                // Tight margins pin the brand to the very left edge
-                // and the toggle + gear to the very right edge.
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Flexible(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.eco, size: 22, color: AppColors.goldLight),
-                          SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              'nanay anita',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.8,
-                                color: AppColors.goldLight,
-                                fontFamily: 'Lora',
-                                fontFamilyFallback: [
-                                  'Times New Roman',
-                                  'serif',
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const LanguageToggle(),
-                        const SizedBox(width: 4),
-                        IconButton(
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          visualDensity: VisualDensity.compact,
-                          icon: const Icon(
-                            Icons.settings_outlined,
-                            size: 20,
-                            color: AppColors.goldLight,
-                          ),
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              fadeRoute(
-                                SettingsPage(
-                                  onViewFamily: onOpenFamily,
-                                  onOpenTab: onOpenTab,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+    final lang = context.watch<LanguageProvider>();
+    final first = _firstName ?? '';
+    final greeting = first.isNotEmpty
+        ? lang.t('header_greeting', {'name': first})
+        : null;
+
+    return AppBrandBar(
+      greeting: greeting,
+      onSettingsTap: () {
+        Navigator.of(context).push(
+          fadeRoute(
+            SettingsPage(
+              onViewFamily: widget.onOpenFamily,
+              onOpenTab: widget.onOpenTab,
             ),
-            // Thin gold divider between the brand bar and the hero.
-            Container(height: 1, color: AppColors.gold.withValues(alpha: 0.55)),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

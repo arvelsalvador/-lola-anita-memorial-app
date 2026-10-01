@@ -44,9 +44,10 @@ void main() {
 
     expect(find.text('Children'), findsOneWidget);
     expect(find.text('Siblings'), findsOneWidget);
-    // Filter chip + section header both read 'Grandchildren'. The section
-    // header sits below the fold, so search cached off-screen widgets too.
-    expect(find.text('Grandchildren', skipOffstage: false), findsNWidgets(2));
+    // Only the section header reads 'Grandchildren' now that the filter
+    // chips are gone. It sits below the fold, so search cached
+    // off-screen widgets too.
+    expect(find.text('Grandchildren', skipOffstage: false), findsOneWidget);
     expect(find.text('3 children'), findsOneWidget);
     expect(find.text('8 members', skipOffstage: false), findsOneWidget);
 

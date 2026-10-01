@@ -101,7 +101,7 @@ class _MemberPhotoViewer extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontFamily: 'PlayfairDisplay',
+                  fontFamily: 'Lora',
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
@@ -210,7 +210,7 @@ class _MemberDetailSheet extends StatelessWidget {
             ),
             const SizedBox(height: 14),
 
-            // ── Name + relation ─────────────────────────────────────
+            // ── Name ─────────────────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Text(
@@ -219,24 +219,11 @@ class _MemberDetailSheet extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontFamily: 'PlayfairDisplay',
+                  fontFamily: 'Lora',
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textDark,
                 ),
-              ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              lang.t(member.roleKey),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontFamily: 'PlayfairDisplay',
-                fontStyle: FontStyle.italic,
-                fontSize: 13,
-                color: AppColors.warmMid,
               ),
             ),
 
@@ -260,7 +247,7 @@ class _MemberDetailSheet extends StatelessWidget {
                   child: Text(
                     ageText,
                     style: const TextStyle(
-                      fontFamily: 'PlayfairDisplay',
+                      fontFamily: 'Lora',
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
                       color: AppColors.warmDeep,
@@ -291,7 +278,7 @@ class _MemberDetailSheet extends StatelessWidget {
                     Text(
                       member.statusLabel!,
                       style: const TextStyle(
-                        fontFamily: 'PlayfairDisplay',
+                        fontFamily: 'Lora',
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
                         color: AppColors.warmDeep,
@@ -308,8 +295,7 @@ class _MemberDetailSheet extends StatelessWidget {
                     member.tagline!,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      fontFamily: 'PlayfairDisplay',
-                      fontStyle: FontStyle.italic,
+                      fontFamily: 'Lora',
                       fontSize: 11.5,
                       color: AppColors.warmMid,
                     ),
@@ -333,9 +319,8 @@ class _MemberDetailSheet extends StatelessWidget {
                   Text(
                     '${member.photoCount} ${lang.t('family_photos_with')}',
                     style: const TextStyle(
-                      fontFamily: 'PlayfairDisplay',
+                      fontFamily: 'Lora',
                       fontSize: 11.5,
-                      fontStyle: FontStyle.italic,
                       color: AppColors.warmMid,
                     ),
                   ),
@@ -354,7 +339,7 @@ class _MemberDetailSheet extends StatelessWidget {
                     Text(
                       lang.t('family_sheet_full_story').toUpperCase(),
                       style: const TextStyle(
-                        fontFamily: 'PlayfairDisplay',
+                        fontFamily: 'Lora',
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1.2,
@@ -369,7 +354,7 @@ class _MemberDetailSheet extends StatelessWidget {
                         Text(
                           '\u201C',
                           style: TextStyle(
-                            fontFamily: 'PlayfairDisplay',
+                            fontFamily: 'Lora',
                             fontSize: 44,
                             height: 1,
                             fontWeight: FontWeight.w700,
@@ -384,7 +369,7 @@ class _MemberDetailSheet extends StatelessWidget {
                                 : lang.t(member.bioKey!),
                             textAlign: TextAlign.justify,
                             style: const TextStyle(
-                              fontFamily: 'PlayfairDisplay',
+                              fontFamily: 'Lora',
                               fontSize: 12.5,
                               height: 1.7,
                               color: AppColors.warmDark,
@@ -399,10 +384,10 @@ class _MemberDetailSheet extends StatelessWidget {
             ],
 
             // ── Identity ──────────────────────────────────────────
-            if (member.roleKey.isNotEmpty ||
-                member.birthplace != null ||
+            if (member.birthplace != null ||
                 member.occupation != null ||
-                member.activeSince != null) ...[
+                member.activeSince != null ||
+                member.nickname != null) ...[
               const SizedBox(height: 18),
               const OrnamentDivider(),
               const SizedBox(height: 12),
@@ -414,7 +399,7 @@ class _MemberDetailSheet extends StatelessWidget {
                     Text(
                       lang.t('family_sheet_identity').toUpperCase(),
                       style: const TextStyle(
-                        fontFamily: 'PlayfairDisplay',
+                        fontFamily: 'Lora',
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1.2,
@@ -422,11 +407,6 @@ class _MemberDetailSheet extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    _SheetRow(
-                      icon: Icons.person_outline_rounded,
-                      label: lang.t('family_sheet_role'),
-                      value: lang.t(member.roleKey),
-                    ),
                     if (member.birthplace != null)
                       _SheetRow(
                         icon: Icons.place_outlined,
@@ -469,7 +449,7 @@ class _MemberDetailSheet extends StatelessWidget {
                     Text(
                       lang.t('family_sheet_family').toUpperCase(),
                       style: const TextStyle(
-                        fontFamily: 'PlayfairDisplay',
+                        fontFamily: 'Lora',
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1.2,
@@ -478,7 +458,7 @@ class _MemberDetailSheet extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     _SheetRow(
-                      icon: Icons.favorite_outline_rounded,
+                      icon: Icons.people_outline_rounded,
                       label: lang.t('family_sheet_spouse'),
                       value:
                           member.spouseName ??
@@ -525,8 +505,7 @@ class _MemberDetailSheet extends StatelessWidget {
                 child: Text(
                   '"${lang.t(member.quoteKey!)}"',
                   style: const TextStyle(
-                    fontFamily: 'PlayfairDisplay',
-                    fontStyle: FontStyle.italic,
+                    fontFamily: 'Lora',
                     fontSize: 12.5,
                     height: 1.5,
                     color: AppColors.warmDeep,
@@ -599,7 +578,7 @@ class _SheetRow extends StatelessWidget {
             child: Text(
               label,
               style: const TextStyle(
-                fontFamily: 'PlayfairDisplay',
+                fontFamily: 'Lora',
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textDark,
@@ -612,7 +591,7 @@ class _SheetRow extends StatelessWidget {
               value,
               textAlign: TextAlign.right,
               style: const TextStyle(
-                fontFamily: 'PlayfairDisplay',
+                fontFamily: 'Lora',
                 fontSize: 11.5,
                 color: AppColors.muted,
               ),

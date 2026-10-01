@@ -30,12 +30,13 @@ class DisplayUtils {
     };
   }
 
-  /// Flag glyph for the toggle: emoji for English/Tagalog, plain "BC"
-  /// text for Bicol (which has no emoji flag).
+  /// Region badge for the toggle: plain "PH" / "UK" / "BC" text.
+  /// Flag emoji (🇵🇭/🇬🇧) is deliberately avoided — it renders as
+  /// invisible tofu on Windows builds with no emoji fallback font.
   static String languageFlag(AppLanguage language) {
     return switch (language) {
-      AppLanguage.english => '🇬🇧',
-      AppLanguage.tagalog => '🇵🇭',
+      AppLanguage.english => 'UK',
+      AppLanguage.tagalog => 'PH',
       AppLanguage.bicol => 'BC',
     };
   }

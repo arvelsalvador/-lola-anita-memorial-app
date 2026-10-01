@@ -57,6 +57,12 @@ add_subdirectory("runner")
 # them to the application.
 include(flutter/generated_plugins.cmake)
 
+# Workaround LNK4075 from fvp 0.38.1: it forces /OPT:ICF even in Debug
+# (windows/CMakeLists.txt:61), which conflicts with MSVC default /INCREMENTAL.
+if(MSVC AND TARGET fvp_plugin)
+  target_link_options(fvp_plugin PRIVATE "$<$<CONFIG:Debug>:/INCREMENTAL:NO>")
+endif()
+
 
 # === Installation ===
 # Support files are copied into place next to the executable, so that it can

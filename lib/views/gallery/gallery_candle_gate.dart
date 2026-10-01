@@ -166,8 +166,7 @@ class _CandleGateState extends State<CandleGate> with TickerProviderStateMixin {
                           lang.t('remembrance_gate_title'),
                           textAlign: TextAlign.center,
                           style: const TextStyle(
-                            fontFamily: 'PlayfairDisplay',
-                            fontStyle: FontStyle.italic,
+                            fontFamily: 'Lora',
                             fontSize: 20,
                             height: 1.4,
                             color: Colors.white,
@@ -309,10 +308,7 @@ class _CandleGateState extends State<CandleGate> with TickerProviderStateMixin {
                                                       textAlign:
                                                           TextAlign.center,
                                                       style: const TextStyle(
-                                                        fontFamily:
-                                                            'PlayfairDisplay',
-                                                        fontStyle:
-                                                            FontStyle.italic,
+                                                        fontFamily: 'Lora',
                                                         fontSize: 12,
                                                         color:
                                                             AppColors.goldLight,

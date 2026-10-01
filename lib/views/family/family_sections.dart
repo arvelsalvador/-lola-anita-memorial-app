@@ -34,24 +34,21 @@ class FamilyGroupSection extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontFamily: 'PlayfairDisplay',
+                      fontFamily: 'Lora',
                       fontSize: 14.5,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textDark,
                     ),
                   ),
                 ),
-                const SizedBox(width: 5),
-                const Icon(Icons.spa_outlined, size: 13, color: AppColors.gold),
               ],
             ),
           ),
           Text(
             '${group.count} ${lang.t(group.subtitleKey)}',
             style: const TextStyle(
-              fontFamily: 'PlayfairDisplay',
+              fontFamily: 'Lora',
               fontSize: 11.5,
-              fontStyle: FontStyle.italic,
               color: AppColors.muted,
             ),
           ),
@@ -445,7 +442,7 @@ class _FamilyApoSectionState extends State<FamilyApoSection> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
-                                    fontFamily: 'PlayfairDisplay',
+                                    fontFamily: 'Lora',
                                     fontSize: 14.5,
                                     fontWeight: FontWeight.w700,
                                     color: AppColors.textDark,
@@ -455,7 +452,7 @@ class _FamilyApoSectionState extends State<FamilyApoSection> {
                                 const Text(
                                   '🔥',
                                   style: TextStyle(
-                                    fontFamily: 'PlayfairDisplay',
+                                    fontFamily: 'Lora',
                                     fontSize: 14,
                                   ),
                                 ),
@@ -476,7 +473,7 @@ class _FamilyApoSectionState extends State<FamilyApoSection> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                  fontFamily: 'PlayfairDisplay',
+                                  fontFamily: 'Lora',
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                   color: AppColors.rose,
@@ -499,7 +496,7 @@ class _FamilyApoSectionState extends State<FamilyApoSection> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                  fontFamily: 'PlayfairDisplay',
+                                  fontFamily: 'Lora',
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                   color: AppColors.roseDeep,
@@ -802,7 +799,7 @@ class _ApoCard extends StatelessWidget {
                     child: Text(
                       initials,
                       style: TextStyle(
-                        fontFamily: 'PlayfairDisplay',
+                        fontFamily: 'Lora',
                         fontSize: initialsFontSize,
                         fontWeight: FontWeight.w700,
                         color: fg,
@@ -819,7 +816,7 @@ class _ApoCard extends StatelessWidget {
                         child: Text(
                           initials,
                           style: TextStyle(
-                            fontFamily: 'PlayfairDisplay',
+                            fontFamily: 'Lora',
                             fontSize: initialsFontSize,
                             fontWeight: FontWeight.w700,
                             color: fg,
@@ -837,8 +834,8 @@ class _ApoCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              fontFamily: 'PlayfairDisplay',
-              fontSize: 12,
+              fontFamily: 'Lora',
+              fontSize: 11,
               fontWeight: FontWeight.w700,
               color: AppColors.textDark,
             ),
@@ -852,7 +849,7 @@ class _ApoCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontFamily: 'PlayfairDisplay',
+                fontFamily: 'Lora',
                 fontSize: 10,
                 color: AppColors.muted,
               ),
@@ -864,7 +861,7 @@ class _ApoCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontFamily: 'PlayfairDisplay',
+                fontFamily: 'Lora',
                 fontSize: 10,
                 color: AppColors.muted,
               ),

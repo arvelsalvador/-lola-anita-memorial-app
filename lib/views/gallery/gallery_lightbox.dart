@@ -299,8 +299,7 @@ class _GalleryLightboxState extends State<GalleryLightbox> {
                         Text(
                           lang.t(item.group.key),
                           style: const TextStyle(
-                            fontFamily: 'PlayfairDisplay',
-                            fontStyle: FontStyle.italic,
+                            fontFamily: 'Lora',
                             fontWeight: FontWeight.w700,
                             fontSize: 20,
                             color: AppColors.paper,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import 'package:nita/app.dart';
@@ -17,6 +18,12 @@ void main() {
     // "A Timer is still pending even after the widget tree was disposed."
     // (See the package README's "Widget tests" section.)
     VisibilityDetectorController.instance.updateInterval = Duration.zero;
+  });
+
+  // Each test starts as a first-time visitor: clear the remembered
+  // name/address so the splash gate always appears.
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
   });
 
   // Nav taps must be scoped to the nav bar so the Family page's own title
@@ -54,6 +61,22 @@ void main() {
     expect(find.text(text), findsOneWidget);
   }
 
+  // Splash visitor gate: new devices must enter name + address once.
+  // Fills the form and taps Pumasok, ending on the home page.
+  Future<void> passGate(WidgetTester tester) async {
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.enterText(find.byType(TextField).at(0), 'Test Visitor');
+    await tester.enterText(
+      find.byType(TextField).at(1),
+      'Purok 3, Mercedes, Camarines Norte',
+    );
+    await tester.pump();
+    await tester.tap(find.text('Pumasok'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+  }
+
   // The quotes sit in the Words tab's sliver list, so scroll the Words
   // page until the expected quote is on screen first.
   Future<void> expectWordsQuote(WidgetTester tester, String text) async {
@@ -82,6 +105,38 @@ void main() {
     await tester.pump(const Duration(seconds: 8));
   });
 
+  testWidgets('Visitor gate shows for new visitors, skipped on return', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    // Fresh device: gate form + debug reset link are visible.
+    await tester.pumpWidget(const LolaApp());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(TextField), findsNWidgets(2));
+    expect(find.text('Reset visitor (debug)'), findsOneWidget);
+
+    // Debug reset on a fresh device keeps the gate visible, no crash.
+    await tester.tap(find.text('Reset visitor (debug)'));
+    await tester.pump();
+    expect(find.byType(TextField), findsNWidgets(2));
+
+    // Complete the gate once -> home.
+    await passGate(tester);
+    expect(find.byType(HomePage), findsOneWidget);
+
+    // Relaunch on the same device: remembered visitor skips the gate
+    // and auto-advances, with no form shown.
+    await tester.pumpWidget(const LolaApp());
+    await tester.pump(const Duration(seconds: 8));
+    expect(find.byType(HomePage), findsOneWidget);
+    expect(find.text('Pumasok'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Home shell tabs render without layout/scroll errors', (
     WidgetTester tester,
   ) async {
@@ -91,11 +146,9 @@ void main() {
 
     await tester.pumpWidget(const LolaApp());
 
-    // Splash -> Home (splash has an infinite petal animation, so use
-    // fixed-duration pumps instead of pumpAndSettle).
-    await tester.tap(find.text('Pindutin upang pumasok'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 600));
+    // Splash -> visitor gate -> Home (splash has an infinite petal
+    // animation, so use fixed-duration pumps instead of pumpAndSettle).
+    await passGate(tester);
     expect(find.byType(HomePage), findsOneWidget);
 
     // Pump through frames for every tab to surface any layout exception.
@@ -119,9 +172,7 @@ void main() {
     await tester.pumpWidget(const LolaApp());
 
     // Splash -> Home (Tagalog by default).
-    await tester.tap(find.text('Pindutin upang pumasok'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 600));
+    await passGate(tester);
     expect(find.byType(HomePage), findsOneWidget);
 
     // The Story tab shows the Tagalog quote by default.
@@ -151,7 +202,7 @@ void main() {
     // binding fails with "A Timer is still pending" at teardown.
     await tester.tap(navLabel('Family'));
     await tester.pump(const Duration(milliseconds: 400));
-    expect(familyTitle('The Lumbao Family'), findsOneWidget);
+    expect(familyTitle('Lumbao Family'), findsOneWidget);
     expect(find.text('Search for a family member'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -164,9 +215,7 @@ void main() {
     addTearDown(tester.view.reset);
 
     await tester.pumpWidget(const LolaApp());
-    await tester.tap(find.text('Pindutin upang pumasok'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 600));
+    await passGate(tester);
 
     // Home/Story tab
     expect(storyQuote('Ang kusina ay kung saan'), findsOneWidget);
@@ -179,7 +228,7 @@ void main() {
     // binding fails with "A Timer is still pending" at teardown.
     await tester.tap(navLabel('Pamilya'));
     await tester.pump(const Duration(milliseconds: 400));
-    expect(familyTitle('Ang Pamilyang Lumbao'), findsOneWidget);
+    expect(familyTitle('Pamilyang Lumbao'), findsOneWidget);
     expect(find.text('Maghanap ng kapamilya'), findsOneWidget);
 
     // Words tab
@@ -213,9 +262,7 @@ void main() {
     addTearDown(tester.view.reset);
 
     await tester.pumpWidget(const LolaApp());
-    await tester.tap(find.text('Pindutin upang pumasok'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 600));
+    await passGate(tester);
 
     // Switch to English.
     await tester.tap(find.text('TL'));
@@ -237,7 +284,7 @@ void main() {
     // Family tab: family name + search bar in English
     await tester.tap(navLabel('Family'));
     await tester.pump(const Duration(milliseconds: 400));
-    expect(familyTitle('The Lumbao Family'), findsOneWidget);
+    expect(familyTitle('Lumbao Family'), findsOneWidget);
     expect(find.text('Search for a family member'), findsOneWidget);
 
     // Words tab
@@ -261,9 +308,7 @@ void main() {
     addTearDown(tester.view.reset);
 
     await tester.pumpWidget(const LolaApp());
-    await tester.tap(find.text('Pindutin upang pumasok'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 600));
+    await passGate(tester);
 
     // Switch to Bicol via the language toggle.
     await tester.tap(find.text('TL'));
@@ -282,7 +327,7 @@ void main() {
     // Family tab: family name + search bar in Bicol.
     await tester.tap(navLabel('Pamilya'));
     await tester.pump(const Duration(milliseconds: 400));
-    expect(familyTitle('An Pamilyang Lumbao'), findsOneWidget);
+    expect(familyTitle('Pamilyang Lumbao'), findsOneWidget);
     expect(find.text('Maghanap nin kapamilya'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -295,9 +340,7 @@ void main() {
     addTearDown(tester.view.reset);
 
     await tester.pumpWidget(const LolaApp());
-    await tester.tap(find.text('Pindutin upang pumasok'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 600));
+    await passGate(tester);
     expect(find.byType(HomePage), findsOneWidget);
 
     // Gear sits in the top bar next to the language toggle.
@@ -311,45 +354,29 @@ void main() {
 
     expect(find.byType(SettingsPage), findsOneWidget);
     expect(find.text('Mga Setting'), findsOneWidget);
-    // Searchable menu: three rows, functional search pill.
+    // Searchable menu: two rows, functional search pill.
     expect(find.text('Maghanap ng setting...'), findsOneWidget);
     expect(find.text('Tungkol sa Developer'), findsOneWidget);
     expect(find.text('Tungkol sa Amin'), findsOneWidget);
-    expect(find.text('Makipag-ugnayan'), findsOneWidget);
+    expect(find.text('Makipag-ugnayan'), findsNothing);
 
-    // Search filters live: 'ugnay' matches only the contact row.
-    await tester.enterText(find.byType(TextField), 'ugnay');
+    // Search filters live: full phrase matches only the about row
+    // ('amin' alone also hits the dev description's 'Alamin').
+    await tester.enterText(find.byType(TextField), 'tungkol sa amin');
     await tester.pump();
-    expect(find.text('Tungkol sa Amin'), findsNothing);
-    expect(find.text('Makipag-ugnayan'), findsOneWidget);
+    expect(find.text('Tungkol sa Developer'), findsNothing);
+    expect(find.text('Tungkol sa Amin'), findsOneWidget);
 
     // Tapping a row pushes its detail page.
-    await tester.tap(find.text('Makipag-ugnayan'));
+    await tester.tap(find.text('Tungkol sa Amin'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
-    // Contact form: intro, three fields, disabled send, privacy note.
-    expect(find.text('Iyong pangalan'), findsOneWidget);
-    expect(find.text('Ilagay ang iyong pangalan'), findsOneWidget);
-    expect(find.text('Mensahe'), findsOneWidget);
-    expect(find.text('Mag-send ng mensahe'), findsOneWidget);
-    expect(
-      find.text('Ang iyong mensahe ay iingatan nang may pagmamahal.'),
-      findsOneWidget,
-    );
-
-    // Typing a message enables sending without throwing.
-    await tester.enterText(
-      find.widgetWithText(
-        TextField,
-        'Isulat ang iyong mensahe para sa pamilya…',
-      ),
-      'Salamat, Nay',
-    );
-    await tester.pump();
+    // About-Us detail: why section renders without throwing.
+    expect(find.text('Bakit namin ito ginawa?'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     // Back returns to the menu, then home.
-    Navigator.of(tester.element(find.text('Mag-send ng mensahe'))).pop();
+    Navigator.of(tester.element(find.text('Bakit namin ito ginawa?'))).pop();
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.byType(SettingsPage), findsOneWidget);

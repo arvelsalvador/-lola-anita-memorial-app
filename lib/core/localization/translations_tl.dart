@@ -18,11 +18,23 @@ const Map<String, String> translationsTl = {
       'Ang mga mahal natin sa buhay ay hindi nawawala,\nSila ay laging kasama natin araw-araw.',
   'splash_subtitle': 'SA MAHAL NA ALAALA',
   'splash_tap': 'Pindutin upang pumasok',
+  'visitor_title': 'Bago ka pumasok',
+  'visitor_subtitle': 'Sabihin mo kung sino ang dumadalaw kay Nanay',
+  'visitor_name_hint': 'Ang iyong buong pangalan…',
+  'visitor_address_hint': 'Ang iyong address…',
+  'visitor_enter': 'Pumasok',
+  'visitor_sending': 'Pumapasok…',
+  'visitor_required': 'Pakilagay ang iyong pangalan at address upang magpatuloy.',
+  'visitor_address_required': 'Pakilagay ang iyong address upang magpatuloy.',
+  'visitor_address_invalid': 'Pakilagay ang kumpletong address (min 3 letra).',
+  'visitor_privacy':
+      'Ang mga pangalan ay maaaring lumabas sa listahan ng kandila. Pribado ang address at mensahe.',
+  'header_greeting': 'Kumusta, {name}',
   'hero_tagline': 'Minamahal na lola, tagapagkuwento ng mga alaala',
   'hero_portrait_label': 'Larawan ni {name}',
   'hero_years_label': 'Nabuhay mula {birth} hanggang {passing}',
   'section_her_words': 'Kanyang mga salita',
-  'section_her_journey': 'Kanyang paglalakbay',
+  'section_her_journey': 'Paglalakbay',
   'section_about_her': 'Tungkol sa kanya',
   'section_cherished_memories': 'Mga Ala-Ala',
   'section_final_tribute': 'Huling pagkilala',
@@ -36,15 +48,13 @@ const Map<String, String> translationsTl = {
   'settings_subtitle': 'I-personalize ang iyong karanasan',
   'settings_desc_dev': 'Alamin ang tungkol sa developer ng app na ito.',
   'settings_desc_about': 'Tingnan ang aming misyon at mga layunin.',
-  'settings_desc_contact':
-      'Ipadala sa amin ang iyong mga katanungan o suhestiyon.',
   'settings_empty': 'Wala pang laman dito',
   'settings_english': 'Ingles',
   'settings_tagalog': 'Tagalog',
   'settings_bicol': 'Bikol',
   'settings_about_app_title': 'Tungkol sa Amin',
   'settings_about_app_body':
-      'Isang permanenteng digital na alaala para kay Lola Anita Daiz Lumbao — ang kanyang kwento, pamilya, at mga larawan, na ingatan nang may pagmamahal.',
+      'Isang permanenteng digital na alaala para kay Lola Anita Daiz Lumbao ang kanyang kwento, pamilya, at mga larawan, na ingatan nang may pagmamahal.',
   'settings_about_app_version': 'Bersyon 1.0.0+1',
   'settings_about_app_credits':
       'Mga larawan ng pamilya · Kiss the Rain – Yiruma · Pinagsasaluhang kandila sa Firebase, gumagana kahit offline',
@@ -78,26 +88,15 @@ const Map<String, String> translationsTl = {
       'pabalik kay Lola. Ginawa nang may pagmamahal para kay Nanay.',
   'settings_about_dev_view_family': 'Tingnan sa Pamilya',
   'settings_about_dev_built_with': 'Ginawa gamit',
+  'settings_stack_languages': 'Mga Wika',
+  'settings_stack_frameworks': 'Mga Framework',
+  'settings_stack_tools': 'Mga Kasangkapan',
   'settings_dev_projects_title': 'Mga Proyekto',
   'settings_dev_projects_body': 'Tingnan ang mga app at proyekto ni Arvel.',
   'settings_dev_for_nanay_title': 'Para kay Nanay',
   'settings_dev_for_nanay_body': 'Isang espesyal na page para sa aming Nanay.',
   'settings_dev_project_memorial_body':
-      'Isang trilingual na memorial para kay Lola Anita — ang kanyang kwento, pamilya, at mga larawan, na ingatan nang may pagmamahal.',
-  'settings_contact_title': 'Makipag-ugnayan',
-  'settings_contact_intro':
-      'May nais ka bang ibahagi para kay Nanay? Magpadala ng mensahe, larawan, o kwento sa pamilya.',
-  'settings_contact_name_label': 'Iyong pangalan',
-  'settings_contact_name_hint': 'Ilagay ang iyong pangalan',
-  'settings_contact_email_label': 'Email address',
-  'settings_contact_email_hint': 'Ilagay ang iyong email',
-  'settings_contact_message_label': 'Mensahe',
-  'settings_contact_message_hint': 'Isulat ang iyong mensahe para sa pamilya…',
-  'settings_contact_send_message': 'Mag-send ng mensahe',
-  'settings_contact_opening': 'Binubuksan ang mail app…',
-  'settings_contact_privacy':
-      'Ang iyong mensahe ay iingatan nang may pagmamahal.',
-  'settings_contact_copied': 'Na-copy ang email address',
+      'Isang trilingual na memorial para kay Lola Anita ang kanyang kwento, pamilya, at mga larawan, na ingatan nang may pagmamahal.',
   'settings_search_hint': 'Maghanap ng setting...',
   'settings_search_empty': 'Walang nahanap na setting.',
   'candle_light': 'Sindihan ang kandila',
@@ -106,7 +105,7 @@ const Map<String, String> translationsTl = {
       'Walang mga larawan sa galeri.\nSubukan ang buong pag-restart pagkatapos magdagdag ng mga larawan.',
   'story_quote':
       'Ang kusina ay kung saan ang pagmamahal ay nagiging lasa. Magluto gamit ang dalawang kamay at bukas na puso.',
-  'story_quote_attribution': '— Nanay Nita, palaging sinasabi',
+  'story_quote_attribution': 'Nanay Nita, palaging sinasabi',
   'story_about':
       'Si Lola Anita Daiz Lumbao ay namuhay ng 85 taon na may biyaya, halakhak, at matibay na pananampalataya. '
       'Isa siyang mapagmahal na asawa, mapag-arugang ina, at puso ng pamilyang umaabot sa tatlong henerasyon. '
@@ -117,26 +116,29 @@ const Map<String, String> translationsTl = {
       'Mahilig si Nanay manood ng TV, lalo na ang Eat Bulaga at mga palabas tungkol sa kalikasan gaya ng Nat Geo Wild at mga hayop. '
       'Isa rin siyang masigasig na kusinera, paborito niyang lutuin ang sa natong (laing) at iba pang masasarap na putahe.\n\n'
       'Pangunahing gawain niya ang pagtutupi ng damit at pagdarasal. Hindi rin mawawala ang kape sa kanyang araw, lalo na ang Coffee Mate, Coffee Combo, o gatas na Bear Brand.\n\n'
-      'Makadyos si Nanay—palaging nagdarasal gabi-gabi at aktibong dumadalo sa simbahan, lalo na tuwing Simbang Gabi.\n\n'
+      'Makadyos si Nanay palaging nagdarasal gabi-gabi at aktibong dumadalo sa simbahan, lalo na tuwing Simbang Gabi.\n\n'
       'Masayahin siya, laging handang makinig at tumulong kapag may problema, at mapagbigay lalo na pagdating sa pagkain.\n'
       'Ipinagmamalaki niya ang kanyang mga apo at laging proud sa kanila.',
-  'timeline_birth_title':
-      'Ipinanganak sa Purok 3, Barangay 7, Mercedes, Camarines Norte',
+  'timeline_birth_title': 'Ang Pagsilang',
   'timeline_birth_desc':
-      'Ikatlo sa pitong magkakapatid, ipinanganak sa probinsyang mahal niya.',
-  'timeline_marriage_title': 'Nagpakasal kay Lolo Salvador V. Lumbao',
+      'Ikatlo sa pitong magkakapatid, ipinanganak sa probinsyang mahal niya. '
+      'Ang kabataan niya roon ang humubog sa init na dala niya habang buhay.',
+  'timeline_marriage_title': 'Ang Kasal',
   'timeline_marriage_desc':
       '54 na taon ng pagsasama. Magkasama nilang pinalaki ang anim na anak at nagmahalan ng walang hanggan. '
       'Pumanaw si Lolo Salvador dahil sa atake sa puso.',
-  'timeline_first_apo_title': 'Unang apo ay isinilang',
+  'timeline_first_apo_title': 'Unang Apo',
   'timeline_first_apo_desc':
-      'Naging Lola siya — isang titulong pinahahalagahan niya nang higit sa lahat.',
-  'timeline_anniversary_title': 'Ipinagdiwang ang anibersaryo',
+      'Naging Lola siya, isang titulong pinahahalagahan niya nang higit sa lahat. '
+      'Ang mga apo niya ang naging ligaya ng araw-araw niyang buhay.',
+  'timeline_anniversary_title': 'Ang Pagdiriwang',
   'timeline_anniversary_desc':
-      'Nagtipon ang buong pamilya upang parangalan ang 37 taon ng tapat na pagmamahalan.',
-  'timeline_passing_title': 'Mapayapang namahinga',
+      'Nagtipon ang buong pamilya upang parangalan ang 37 taon ng tapat na pagmamahalan. '
+      'Punong-puno ang araw na iyon ng tawanan, pasasalamat, at panalangin.',
+  'timeline_passing_title': 'Huling Pahinga',
   'timeline_passing_desc':
-      'Pinalibutan ng pamilya, siya ay nagbalik sa Diyos matapos ang isang buhay na puno ng biyaya.',
+      'Pinalibutan ng pamilya, siya ay nagbalik sa Diyos matapos ang isang buhay na puno ng biyaya. '
+      'Ang pagmamahal niya ay mananatili sa puso ng kanyang pamilya.',
   'memory_1_title': 'Ang Kanyang Tahanan',
   'memory_1_body':
       'Ang kanyang bahay ang puso ng pamilya, laging bukas, bawat sulok puno ng alaala. '
@@ -177,7 +179,7 @@ const Map<String, String> translationsTl = {
   'mem_open_photos': 'Buksan ang mga larawan',
   'mem_view_gallery': 'Tingnan sa Galeri',
   'mem_photo_count': '{count} na larawan',
-  'family_name': 'Ang Pamilyang Lumbao',
+  'family_name': 'Pamilyang Lumbao',
   'family_subtitle': 'Mga taong bumuo ng kanyang mundo',
   'family_search_hint': 'Maghanap ng kapamilya',
   'family_search_results': '{count} natagpuang kapamilya',
@@ -304,7 +306,7 @@ const Map<String, String> translationsTl = {
   'family_story_sonia':
       'Si Sonia ang nag-iisang kapatid na babae nina Anita, kilala sa '
       'tapang at matibay na pananagutan. Naranasan niya ang malalim na '
-      'pagkawala — pumanaw ang bunso niyang anak at asawa — ngunit dala '
+      'pagkawala pumanaw ang bunso niyang anak at asawa ngunit dala '
       'niya ito nang may tahimik na lakas, napapaligiran ng nagmamahal '
       'niyang mga anak at apo, kabilang ang pinakabagong apo niyang si '
       'Zia. Bilang barangay tanod, siya ang bantay ng kanyang komunidad: '
@@ -319,7 +321,7 @@ const Map<String, String> translationsTl = {
       'tapat na asawa at amang buong pusong nagtrabaho kina Milagros at '
       'sa kanilang dalawang anak. Bilang pintor at manggagawa, hanggang '
       'Baguio umabot ang galing niya. Mahigpit at masinop siya sa trabaho '
-      'at kapaligiran — tanda ng pagmamalaki sa bawat ginagawa niya.',
+      'at kapaligiran tanda ng pagmamalaki sa bawat ginagawa niya.',
   'family_story_odin':
       'Si Rodel ang pinakamadaling pakisamahan sa magkakapatid, ang laging '
       'nagdadala ng tawanan kahit saan magpunta. Kasama ang asawang si '
@@ -327,7 +329,7 @@ const Map<String, String> translationsTl = {
       'kolehiyo, at may bagong apo na rin siya. Magsasaka siya sa '
       'Camarines Sur na masipag mag-alaga ng lupa. Tuwing pista, '
       'sinisiguro niyang napupuntahan si Nanay Anita na may dalang bigas '
-      'at itlog — simpleng patunay ng pagkatao niya: mapagbigay, '
+      'at itlog simpleng patunay ng pagkatao niya: mapagbigay, '
       'maaasahan, at pamilya muna.',
   'family_story_lorie':
       'Si Lorie ang bunso at pinakamamahal ni Nanay Anita, siyang '
@@ -385,7 +387,7 @@ const Map<String, String> translationsTl = {
       'Si Rodel Lumbao Jr. ay anak ni Rodel Lumbao Sr.. Makulit at madaling '
       'pakisamahan, minana ang init ng loob ng kanyang tatay. Alam '
       'niyang magpatawa kahit sino, at sa bawat pagtitipon siya ang '
-      'nagpapasiklab ng tawanan — laging handang makipagkulitan sa mga '
+      'nagpapasiklab ng tawanan laging handang makipagkulitan sa mga '
       'pinsan.',
   'family_story_roseann':
       'Si Rose-ann ay anak ni Rodel Lumbao Sr.. Maamo at mahinahon magsalita, '
@@ -506,7 +508,7 @@ const Map<String, String> translationsTl = {
       'Tahimik ngunit tiyak, ipinakita mo kung paano tapusin ang mga bagay nang may pagmamahal.',
   'words_quote_12_name': 'Aivan Salvador',
   'words_quote_13':
-      'Bawat pista, bawat kaarawan — ang kasiyahan mo ang recipe naming sinusundan.',
+      'Bawat pista, bawat kaarawan ang kasiyahan mo ang recipe naming sinusundan.',
   'words_quote_13_name': 'Honey Salvador',
   'words_quote_14':
       'Tinawag mo kami sa aming mga pangalan at ginawa mo kaming nararamdaman na tayo ay kapansin-pansin.',
@@ -519,10 +521,23 @@ const Map<String, String> translationsTl = {
   'candle_message_hint': 'Isulat ang iyong mensahe para kay Nanay…',
   'candle_message_send': 'Ipadala',
   'candle_message_thanks': 'Nakarating kay Nanay ang iyong mensahe 🕊️',
+  'candle_message_required':
+      'Pakimensahe para kay Nanay bago sindihan ang kandila.',
+  'candle_message_too_long':
+      'Pakiklihan ang mensahe sa 500 letra lang.',
+  'candle_name_title': 'Ano ang pangalan mo?',
+  'candle_name_hint': 'Ang iyong pangalan…',
+  'candle_name_required': 'Pakilagay ang iyong pangalan upang makapagsindi.',
+  'candle_name_invalid': 'Mga letra, espasyo, at gitling lang (min 2 letra).',
   'candle_lit_times': '{count} kandila na ang sinindihan',
+  'candle_list_title': 'Sino ang dumadalaw kay Nanay',
+  'candle_list_offline':
+      'Mag-online para makita kung sino ang dumadalaw kay Nanay.',
+  'candle_list_empty': 'Ikaw ang unang magsindi ng kandila.',
+  'candle_list_more': '+{count} pa',
+  'candle_list_retry': 'Subukan ulit',
   'candle_condolences_button': 'Pakikiramay',
   'condolences_keepsake': 'Ang alaala ay patuloy na nagliliwanag',
-  'condolences_each_flame': 'Sa bawat sindi, may alaala.',
   'group_celebrations': 'Mga Pagdiriwang',
   'group_bahay': 'Bahay',
   'group_family': 'Pamilya',
@@ -542,6 +557,7 @@ const Map<String, String> translationsTl = {
   'gallery_search_hint': 'Maghanap ng litrato',
   'gallery_clear_all': 'I-clear lahat',
   'gallery_tap_to_reveal': 'Pindutin upang makita',
+  'memory_photo_hint': 'Pindutin ang larawan upang tingnan',
   'gallery_choose_music': 'Pumili ng Musika',
   'remembrance_gate_label': 'Sa Pag-alaala',
   'remembrance_gate_title': 'Sa kanyang huling mga araw, hindi siya nag-iisa.',

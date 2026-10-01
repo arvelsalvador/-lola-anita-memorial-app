@@ -303,7 +303,7 @@ class _FamilyTreeCanvasPageState extends State<FamilyTreeCanvasPage> {
         title: Text(
           lang.t('family_name'),
           style: const TextStyle(
-            fontFamily: 'PlayfairDisplay',
+            fontFamily: 'Lora',
             fontWeight: FontWeight.w700,
             color: AppColors.warmDark,
           ),
@@ -450,7 +450,6 @@ class _TreeNodeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lang = context.watch<LanguageProvider>();
     final initials = DisplayUtils.initialsOf(member.name);
     final avatarSize = isRoot ? 56.0 : 44.0;
 
@@ -463,7 +462,7 @@ class _TreeNodeCard extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(isRoot ? 20 : 16),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: AppColors.gold.withValues(alpha: isRoot ? 0.5 : 0.25),
             width: isRoot ? 1.4 : 1,
@@ -492,7 +491,7 @@ class _TreeNodeCard extends StatelessWidget {
                       child: Text(
                         initials,
                         style: TextStyle(
-                          fontFamily: 'PlayfairDisplay',
+                          fontFamily: 'Lora',
                           fontSize: isRoot ? 18 : 14,
                           fontWeight: FontWeight.w700,
                           color: AppColors.roseDeep,
@@ -509,7 +508,7 @@ class _TreeNodeCard extends StatelessWidget {
                           child: Text(
                             initials,
                             style: TextStyle(
-                              fontFamily: 'PlayfairDisplay',
+                              fontFamily: 'Lora',
                               fontSize: isRoot ? 18 : 14,
                               fontWeight: FontWeight.w700,
                               color: AppColors.roseDeep,
@@ -526,7 +525,7 @@ class _TreeNodeCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontFamily: 'PlayfairDisplay',
+                fontFamily: 'Lora',
                 fontSize: isRoot ? 15 : 12,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textDark,
@@ -541,33 +540,9 @@ class _TreeNodeCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    fontFamily: 'PlayfairDisplay',
+                    fontFamily: 'Lora',
                     fontSize: 9,
-                    fontStyle: FontStyle.italic,
                     color: AppColors.warmMid,
-                  ),
-                ),
-              ),
-            if (isRoot)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.warmPaper,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    lang.t(member.roleKey),
-                    style: const TextStyle(
-                      fontFamily: 'PlayfairDisplay',
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.roseDeep,
-                    ),
                   ),
                 ),
               ),
@@ -601,7 +576,7 @@ class _HintBanner extends StatelessWidget {
               text,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontFamily: 'PlayfairDisplay',
+                fontFamily: 'Lora',
                 fontSize: 11.5,
                 color: AppColors.roseDeep,
               ),
@@ -624,7 +599,7 @@ class _ZoomControls extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.08),

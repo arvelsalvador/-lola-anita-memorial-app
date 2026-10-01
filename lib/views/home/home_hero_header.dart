@@ -156,7 +156,7 @@ class LolaHeroHeader extends StatelessWidget {
                               '${model.birthYear} • ${model.passingYear}',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontFamily: 'PlayfairDisplay',
+                                fontFamily: 'Lora',
                                 fontFamilyFallback: _serifFallback,
                                 fontSize: 18,
                                 letterSpacing: 2,
@@ -178,10 +178,9 @@ class LolaHeroHeader extends StatelessWidget {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontFamily: 'PlayfairDisplay',
+                                fontFamily: 'Lora',
                                 fontFamilyFallback: _serifFallback,
                                 fontSize: taglineFont,
-                                fontStyle: FontStyle.italic,
                                 color: AppColors.paleGold,
                               ),
                             ),
@@ -280,7 +279,7 @@ class LolaHeroHeader extends StatelessWidget {
             model.name,
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontFamily: 'PlayfairDisplay',
+              fontFamily: 'Lora',
               fontFamilyFallback: _serifFallback,
               fontSize: fontSize,
               fontWeight: FontWeight.w400,
@@ -338,7 +337,7 @@ class _CurvedMemorialHeaderState extends State<_CurvedMemorialHeader>
   Widget build(BuildContext context) {
     final textScaler = MediaQuery.textScalerOf(context);
     const style = TextStyle(
-      fontFamily: 'PlayfairDisplay',
+      fontFamily: 'Lora',
       fontFamilyFallback: LolaHeroHeader._serifFallback,
       fontSize: 13,
       letterSpacing: 4,
