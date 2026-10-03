@@ -1,0 +1,57 @@
+# Name shown in the "Actions" tab on GitHub
+name: Deploy Flutter Web to GitHub Pages
+
+# WHEN does this run?
+on:
+  push:
+    branches: [main]      # every time you push to main
+  workflow_dispatch:      # also lets you run it manually with a button
+
+# Permissions GitHub needs to publish your site
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# If you push twice quickly, cancel the older deploy
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  # JOB 1: build the Flutter web app
+  build:
+    runs-on: ubuntu-latest   # a free temporary Linux computer from GitHub
+    steps:
+      # Download your code onto that computer
+      - uses: actions/checkout@v4
+
+      # Install Flutter (stable channel) on that computer
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true        # remembers Flutter so the next build is faster
+
+      # Download your packages (same as running it on your PC)
+      - run: flutter pub get
+
+      # Build the web version.
+      # --base-href must match your repo name, so GitHub finds your files.
+      # The repo name is filled in automatically below.
+      - run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+
+      # Package the build/web folder so it can be published
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  # JOB 2: publish the packaged files
+  deploy:
+    needs: build             # only runs if the build succeeded
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}   # your live link appears here
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4S
