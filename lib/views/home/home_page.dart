@@ -15,6 +15,7 @@ import 'package:nita/controllers/home_controller.dart';
 
 import 'package:nita/controllers/words_controller.dart';
 import 'package:nita/controllers/condolences_controller.dart';
+import 'package:nita/controllers/forum_controller.dart';
 import 'package:nita/models/home_model.dart';
 import 'package:nita/views/family/family_page.dart';
 import 'package:nita/views/condolences/condolences_page.dart';
@@ -52,6 +53,7 @@ class _HomePageState extends State<HomePage> {
   final GalleryController _galleryController = GalleryController();
   final WordsController _wordsController = WordsController();
   final CondolencesController _condolencesController = CondolencesController();
+  final ForumController _forumController = ForumController();
 
   @override
   void initState() {
@@ -70,6 +72,7 @@ class _HomePageState extends State<HomePage> {
     _galleryController.dispose();
     _wordsController.dispose();
     _condolencesController.dispose();
+    _forumController.dispose();
     super.dispose();
   }
 
@@ -82,6 +85,7 @@ class _HomePageState extends State<HomePage> {
       galleryController: _galleryController,
       wordsController: _wordsController,
       condolencesController: _condolencesController,
+      forumController: _forumController,
     );
   }
 }
@@ -93,6 +97,7 @@ class HomeShell extends StatefulWidget {
   final GalleryController galleryController;
   final WordsController wordsController;
   final CondolencesController condolencesController;
+  final ForumController? forumController;
 
   const HomeShell({
     super.key,
@@ -102,6 +107,7 @@ class HomeShell extends StatefulWidget {
     required this.galleryController,
     required this.wordsController,
     required this.condolencesController,
+    this.forumController,
   });
 
   @override
@@ -176,6 +182,7 @@ class _HomeShellState extends State<HomeShell> {
       CondolencesPage(
         controller: _controllers[4],
         condolencesController: widget.condolencesController,
+        forumController: widget.forumController,
       ),
     ];
   }

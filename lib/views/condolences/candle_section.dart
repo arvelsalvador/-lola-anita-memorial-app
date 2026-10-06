@@ -291,18 +291,20 @@ class _CandleSectionState extends State<CandleSection> {
               child: Text(lang.t('candle_light')),
             ),
           ),
-          // Prompt explaining the gate: visible until a valid message
-          // is entered, so visitors know why the button is disabled.
-          if (messageErrorKey != null) ...[
+          // Only show the error when there's actual input (e.g. too long).
+          // Hiding the "required" hint on pristine empty field removes the
+          // third duplicate line under the disabled button.
+          if (messageErrorKey != null &&
+              _messageController.text.trim().isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
               lang.t(messageErrorKey),
               style: const TextStyle(
                 fontFamily: 'Lora',
-                fontSize: 12.5,
+                fontSize: 12,
                 fontStyle: FontStyle.italic,
                 color: AppColors.warmMid,
-                height: 1.5,
+                height: 1.4,
               ),
               textAlign: TextAlign.center,
             ),
@@ -709,6 +711,42 @@ class _PreLightMessageField extends StatelessWidget {
             fontSize: 15,
             fontWeight: FontWeight.w600,
             color: AppColors.textDark,
+          ),
+        ),
+        const SizedBox(height: 6),
+        // Compact private pill: single line, no wrapping sentence.
+        Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.cream,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: AppColors.gold.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.lock_outline_rounded,
+                  size: 11,
+                  color: AppColors.warmMid,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  lang.t('candle_message_private_note'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: 'Lora',
+                    fontSize: 11,
+                    fontStyle: FontStyle.italic,
+                    color: AppColors.warmMid,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 10),

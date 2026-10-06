@@ -493,7 +493,8 @@ const Map<String, String> translationsEn = {
       'To everyone sharing their condolences and love for Nanay Nita.',
   'candle_thank_you': '🕊️ Thank You',
   'candle_message_title': 'What would you like to say to Nanay?',
-  'candle_message_hint': 'Write your message for Nanay…',
+  'candle_message_hint': 'Your message for Nanay…',
+  'candle_message_private_note': '🔒 Private — family only',
   'candle_message_send': 'Send',
   'candle_message_thanks': 'Your message has reached Nanay 🕊️',
   'candle_message_required':
@@ -553,4 +554,28 @@ const Map<String, String> translationsEn = {
       'May 14, 2019', // TODO: label which gallery photo/event this date belongs to
   'date_4':
       'Dec 25, 2020', // TODO: label which gallery photo/event this date belongs to
+  // ── Community Forum & Messages ───────────────────────────────────────
+  'forum_title': 'Community Messages & Stories',
+  'forum_subtitle': 'Memories shared by all',
+  'forum_public_note': '🌏 Public — everyone can read',
+  'forum_share_button': 'Leave a Message or Story',
+  'forum_dialog_title': 'Write a Message',
+  'forum_name_hint': 'Your name…',
+  'forum_content_hint':
+      'Share your message, memory, or words of comfort here…',
+  'forum_post_submit': 'Post Message',
+  'forum_post_submitting': 'Posting…',
+  'forum_filter_all': 'All',
+  'forum_reply_action': 'Reply',
+  'forum_replies_count': '{count} replies',
+  'forum_no_replies': 'Be the first to reply with words of comfort.',
+  'forum_write_reply_hint': 'Write a reply…',
+  'forum_send_reply': 'Send Reply',
+  'forum_empty_state': 'No stories yet. Be the first.',
+  'forum_just_now': 'Just now',
+  'forum_hours_ago': '{count}h ago',
+  'forum_days_ago': '{count}d ago',
+  'forum_reply_sheet_title': 'Replies',
+  'forum_require_content': 'Please write a message before posting.',
+  'forum_require_name': 'Please enter your name.',
 };

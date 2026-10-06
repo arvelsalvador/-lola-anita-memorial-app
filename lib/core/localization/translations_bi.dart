@@ -515,7 +515,8 @@ const Map<String, String> translationsBi = {
       'Sa gabos na nakikidumamay asin nagmamahal ki Nanay Nita.',
   'candle_thank_you': '🕊️ Salamat',
   'candle_message_title': 'Ano an gusto mong sabihon ki Nanay?',
-  'candle_message_hint': 'Isurat an saimong mensahe para ki Nanay…',
+  'candle_message_hint': 'Mensahe mo ki Nanay…',
+  'candle_message_private_note': '🔒 Pribado — pamilya sana',
   'candle_message_send': 'Ipadara',
   'candle_message_thanks': 'Nakaabot ki Nanay an saimong mensahe 🕊️',
   'candle_message_required':
@@ -578,4 +579,28 @@ const Map<String, String> translationsBi = {
       'Mayo 14, 2019', // TODO: label which gallery photo/event this date belongs to
   'date_4':
       'Disyembre 25, 2020', // TODO: label which gallery photo/event this date belongs to
+  // ── Community Forum & Messages ───────────────────────────────────────
+  'forum_title': 'Mga Mensahe asin Istorya nin Pagromdom',
+  'forum_subtitle': 'Mga pagromdom hale sa gabos',
+  'forum_public_note': '🌏 Pampubliko — gabos makakahiling',
+  'forum_share_button': 'Magwalat nin Mensahe o Istorya',
+  'forum_dialog_title': 'Magsurat nin Mensahe',
+  'forum_name_hint': 'An saimong pangaran…',
+  'forum_content_hint':
+      'Iheras an saimong mensahe, alaala, o tataramon nin pag-alo digdi…',
+  'forum_post_submit': 'I-post an Mensahe',
+  'forum_post_submitting': 'Ipinopost…',
+  'forum_filter_all': 'Gabos',
+  'forum_reply_action': 'Magsimbag',
+  'forum_replies_count': '{count} na simbag',
+  'forum_no_replies': 'Maging enot sa pagsimbag nin may pag-alo.',
+  'forum_write_reply_hint': 'Isurat an saimong simbag…',
+  'forum_send_reply': 'Ipadara an Simbag',
+  'forum_empty_state': 'Mayo pang istorya. Maging enot.',
+  'forum_just_now': 'Kaso bago sana',
+  'forum_hours_ago': '{count} oras an nakaagi',
+  'forum_days_ago': '{count} aldaw an nakaagi',
+  'forum_reply_sheet_title': 'Mga Simbag',
+  'forum_require_content': 'Pakisurat an mensahe bago mag-post.',
+  'forum_require_name': 'Pakilaag an saimong pangaran.',
 };

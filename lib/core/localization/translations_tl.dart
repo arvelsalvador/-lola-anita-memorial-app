@@ -518,7 +518,8 @@ const Map<String, String> translationsTl = {
       'Sa lahat ng nakikiramay at nagmamahal kay Nanay Nita.',
   'candle_thank_you': '🕊️ Salamat',
   'candle_message_title': 'Anong gusto mong sabihin kay Nanay?',
-  'candle_message_hint': 'Isulat ang iyong mensahe para kay Nanay…',
+  'candle_message_hint': 'Mensahe mo kay Nanay…',
+  'candle_message_private_note': '🔒 Pribado — pamilya lang',
   'candle_message_send': 'Ipadala',
   'candle_message_thanks': 'Nakarating kay Nanay ang iyong mensahe 🕊️',
   'candle_message_required':
@@ -580,4 +581,28 @@ const Map<String, String> translationsTl = {
       'Mayo 14, 2019', // TODO: label which gallery photo/event this date belongs to
   'date_4':
       'Disyembre 25, 2020', // TODO: label which gallery photo/event this date belongs to
+  // ── Community Forum & Messages ───────────────────────────────────────
+  'forum_title': 'Mga Mensahe at Kwento ng Alaala',
+  'forum_subtitle': 'Mga alaala mula sa lahat',
+  'forum_public_note': '🌏 Pampubliko — lahat makakabasa',
+  'forum_share_button': 'Mag-iwan ng Mensahe o Kwento',
+  'forum_dialog_title': 'Sumulat ng Mensahe',
+  'forum_name_hint': 'Ang iyong pangalan…',
+  'forum_content_hint':
+      'Ibahagi ang iyong mensahe, alaala, o salita ng pag-alo dito…',
+  'forum_post_submit': 'I-post ang Mensahe',
+  'forum_post_submitting': 'Ipinopost…',
+  'forum_filter_all': 'Lahat',
+  'forum_reply_action': 'Tumugon',
+  'forum_replies_count': '{count} na tugon',
+  'forum_no_replies': 'Maging una sa pagtugon nang may pag-alo.',
+  'forum_write_reply_hint': 'Isulat ang iyong tugon…',
+  'forum_send_reply': 'Ipadala ang Tugon',
+  'forum_empty_state': 'Wala pang kwento. Maging una.',
+  'forum_just_now': 'Kanina lamang',
+  'forum_hours_ago': '{count} oras ang nakalipas',
+  'forum_days_ago': '{count} araw ang nakalipas',
+  'forum_reply_sheet_title': 'Mga Tugon',
+  'forum_require_content': 'Pakisulat ang mensahe bago mag-post.',
+  'forum_require_name': 'Pakilagay ang iyong pangalan.',
 };

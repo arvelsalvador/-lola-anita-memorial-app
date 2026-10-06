@@ -3,20 +3,23 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:nita/core/constants/supabase_config.dart';
 
-/// Mensahe saver for the Pakikiramay tab: name (from splash gate) +
-/// message, stored in `pakikiramay_messages`.
+/// Private mensahe saver for the candle (Field 1): name (from splash
+/// gate) + message, stored in `candle_messages`.
+///
+/// Private by design: anon INSERT only, no public SELECT — family reads
+/// via dashboard. The public board (`pakikiramay_messages` via
+/// ForumRepository) never sees these rows.
 ///
 /// Local-first like [VisitorRepository]: the candle always lights, the
 /// insert runs in the background with a short timeout and never throws
 /// to the UI — a mourning visitor is never blocked by network.
-/// Table is `id uuid, name text, message text, approved bool,
-/// created_at timestamptz`. Only `name` + `message` are sent; `approved`
-/// and `created_at` are DB defaults. No `lang` column exists on this
-/// table (splash `lang` lives on `visitors`).
+/// Table is `id uuid, name text, message text,
+/// created_at timestamptz`. Only `name` + `message` are sent; `id`
+/// and `created_at` are DB defaults with 1–500 char message check.
 class CondolenceRepository {
   const CondolenceRepository();
 
-  static const String table = 'pakikiramay_messages';
+  static const String table = 'candle_messages';
   static const int maxMessageLength = 500;
 
   /// Message rule: required, 1–500 chars after trim.

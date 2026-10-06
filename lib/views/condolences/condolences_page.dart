@@ -1,32 +1,66 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:nita/controllers/condolences_controller.dart';
+import 'package:nita/controllers/forum_controller.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/views/condolences/candle_section.dart';
+import 'package:nita/views/condolences/forum/community_forum_section.dart';
 
 /// The Pakikiramay (condolences) tab: the visitor lights a virtual candle
-/// in Nanay's memory. The [CandleSection] lives here and the tab owns it
-/// going forward.
-class CondolencesPage extends StatelessWidget {
+/// in Nanay's memory, and can share and read memories, condolences, and
+/// reflections on loss in the community forum.
+class CondolencesPage extends StatefulWidget {
   final ScrollController? controller;
 
   /// Candle controller, owned by the home shell (composition root)
-  /// and injected here — the view never constructs or owns the controller.
+  /// and injected here.
   final CondolencesController condolencesController;
+
+  /// Optional forum controller. If null, a local instance is created.
+  final ForumController? forumController;
 
   const CondolencesPage({
     super.key,
     this.controller,
     required this.condolencesController,
+    this.forumController,
   });
+
+  @override
+  State<CondolencesPage> createState() => _CondolencesPageState();
+}
+
+class _CondolencesPageState extends State<CondolencesPage> {
+  late final ForumController _forumController;
+  late final bool _ownsController;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.forumController != null) {
+      _forumController = widget.forumController!;
+      _ownsController = false;
+    } else {
+      _forumController = ForumController();
+      _ownsController = true;
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_ownsController) {
+      _forumController.dispose();
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
 
     return CustomScrollView(
-      controller: controller,
+      controller: widget.controller,
       primary: false,
       slivers: [
         SliverToBoxAdapter(
@@ -42,10 +76,50 @@ class CondolencesPage extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
-              CandleSection(condolencesController: condolencesController),
+              CandleSection(
+                condolencesController: widget.condolencesController,
+              ),
+              const SizedBox(height: 32),
+              // Beautiful ornamental divider separating candle lighting and the open forum
+              const _ForumDivider(),
+              const SizedBox(height: 28),
+              CommunityForumSection(forumController: _forumController),
               const SizedBox(height: 32),
             ]),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ForumDivider extends StatelessWidget {
+  const _ForumDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          width: 50,
+          height: 1,
+          color: AppColors.gold.withValues(alpha: 0.35),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Text(
+            '🕊️  📖  🕯️',
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.gold.withValues(alpha: 0.7),
+            ),
+          ),
+        ),
+        Container(
+          width: 50,
+          height: 1,
+          color: AppColors.gold.withValues(alpha: 0.35),
         ),
       ],
     );

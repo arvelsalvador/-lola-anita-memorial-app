@@ -81,16 +81,16 @@ void main() {
       find.text('What would you like to say to Nanay?'),
       findsOneWidget,
     );
-    expect(find.text('Write your message for Nanay…'), findsOneWidget);
+    expect(find.text('Your message for Nanay…'), findsOneWidget);
     expect(find.text('Your name…'), findsNothing);
     expect(find.widgetWithText(ElevatedButton, 'Send'), findsNothing);
     expect(find.text('With every flame, a memory.'), findsNothing);
-    // Mandatory message: empty means the light button is disabled with
-    // the "write your message first" prompt visible under the button.
+    // Mandatory message: empty means the light button is disabled. The
+    // required prompt stays hidden on pristine field to keep UI clean.
     expect(tester.widget<ElevatedButton>(lightButton()).onPressed, isNull);
     expect(
       find.text('Please write your message for Nanay to light a candle.'),
-      findsOneWidget,
+      findsNothing,
     );
   });
 
@@ -142,7 +142,7 @@ void main() {
     // Thanks-only: message field and Send are gone after lighting, and
     // the removed slogan/attribution lines never reappear.
     expect(find.byType(TextField), findsNothing);
-    expect(find.text('Write your message for Nanay…'), findsNothing);
+    expect(find.text('Your message for Nanay…'), findsNothing);
     expect(find.widgetWithText(ElevatedButton, 'Send'), findsNothing);
     expect(find.text('With every flame, a memory.'), findsNothing);
   });
@@ -177,7 +177,7 @@ void main() {
 
     // Default: message field visible, removed slogan line absent.
     expect(find.byType(TextField), findsOneWidget);
-    expect(find.text('Write your message for Nanay…'), findsOneWidget);
+    expect(find.text('Your message for Nanay…'), findsOneWidget);
     expect(find.text('With every flame, a memory.'), findsNothing);
 
     await tester.enterText(find.byType(TextField), 'Marc');
