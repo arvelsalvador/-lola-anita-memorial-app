@@ -605,4 +605,15 @@ const Map<String, String> translationsBi = {
   'forum_reply_sheet_title': 'Mga Simbag',
   'forum_require_content': 'Pakisurat an mensahe bago mag-post.',
   'forum_require_name': 'Pakilaag an saimong pangaran.',
+  // ── Abuloy / Donasyon (Pakikiramay) ──────────────────────────────────
+  'donate_title': 'Abuloy para sa Pamilya',
+  'donate_subtitle': 'An saindong tabang, dolot may pagkamoot ki Nanay Nita',
+  'donate_qr_label': 'I-scan gamit an GCash tanganing magpadara nin abuloy',
+  'donate_number_label': 'GCash number',
+  'donate_copy': 'Kopyahon',
+  'donate_copied': 'Nakopya na an GCash number',
+  'donate_open_gcash': 'Buksan an GCash',
+  'donate_note': 'Boluntaryo sana — diretso sa pamilya an kada tao.',
+  'donate_missing_qr': 'Mabot pa an QR — puwede muna sa numero sa ibaba.',
+  'donate_close': 'Isara',
 };

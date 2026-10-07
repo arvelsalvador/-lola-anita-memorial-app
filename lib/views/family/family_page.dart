@@ -104,7 +104,18 @@ class FamilyPage extends StatelessWidget {
             if (groups.isNotEmpty)
               const _FamilyGroupConnector(height: 18, bead: true),
             for (var i = 0; i < groups.length; i++) ...[
-              FamilyGroupSection(group: groups[i]),
+              FamilyGroupSection(
+                group: groups[i],
+                // Gather branches back to the center trunk when the next
+                // section uses a center-line connector (not straight
+                // descent), so the connector reads as continuous.
+                // Skip the gather for sections followed by straight-descent
+                // groups — those continue the per-column lines directly.
+                showGather: i < groups.length - 1
+                    ? (!_isApoGroup(groups[i + 1]) &&
+                        !_isStraightDescentGroup(groups[i + 1]))
+                    : false,
+              ),
               if (i < groups.length - 1) ...[
                 // The grandchildren section draws its own straight
                 // per-column descent (the pager draws its own multi

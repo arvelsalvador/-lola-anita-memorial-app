@@ -44,6 +44,7 @@ flutter:
     - assets/images/gallery/Hospital/
     - assets/images/gallery/Jollibee/
     - assets/images/gallery/Solo/
+    - assets/images/donation/
     - assets/Video/
     - assets/audio/
 

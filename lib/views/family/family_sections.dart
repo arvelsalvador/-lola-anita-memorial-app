@@ -10,7 +10,16 @@ part of 'family_page.dart';
 class FamilyGroupSection extends StatelessWidget {
   final FamilyGroup group;
 
-  const FamilyGroupSection({super.key, required this.group});
+  /// When true, a reverse-bus gather connector is drawn after the card
+  /// row, converging the branches back to the center trunk so the next
+  /// section's connector reads as continuous.
+  final bool showGather;
+
+  const FamilyGroupSection({
+    super.key,
+    required this.group,
+    this.showGather = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +54,7 @@ class FamilyGroupSection extends StatelessWidget {
             ),
           ),
           Text(
-            '${group.count} ${lang.t(group.subtitleKey)}',
+            '${group.count}',
             style: const TextStyle(
               fontFamily: 'Lora',
               fontSize: 11.5,
@@ -240,26 +249,33 @@ class FamilyGroupSection extends StatelessWidget {
                             ),
                           ),
                         ],
+                        // After the last card row, gather the branches back
+                        // to the center trunk so the connector below reads
+                        // as continuous with the cards above.
+                        if (showGather && rows.isNotEmpty)
+                          _TreeBranchGatherConnector(
+                            cardCount: rows.last.length,
+                          ),
                       ],
                     );
 
               if (!useColumns) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _SpineBehind(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [header, const SizedBox(height: 12)],
-                      ),
+                return Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: gridMaxWidth),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _SpineBehind(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [header, const SizedBox(height: 12)],
+                          ),
+                        ),
+                        grid,
+                      ],
                     ),
-                    Center(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: gridMaxWidth),
-                        child: grid,
-                      ),
-                    ),
-                  ],
+                  ),
                 );
               }
 
@@ -273,13 +289,13 @@ class FamilyGroupSection extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Continuation segment from the cards above down to
-                      // the header.
+                      // the header — plain lines with no bead so they
+                      // connect flush to the card edges above.
                       SizedBox(
                         height: 18,
                         child: _SpineLines(
                           columns: plotCols,
                           count: headerLines,
-                          beadTop: true,
                         ),
                       ),
                       _SpineBehind(
@@ -408,13 +424,12 @@ class _FamilyApoSectionState extends State<FamilyApoSection> {
                 // ── Per-column descent lines: straight lines under the
                 // cards above, running through this segment and the
                 // header's multi-spine straight onto the pager's first
-                // card row below.
+                // card row below — no bead so the lines connect flush.
                 SizedBox(
                   height: 22,
                   child: _SpineLines(
                     columns: columns,
                     count: spineCount,
-                    beadTop: true,
                   ),
                 ),
                 // ── Section header ──────────────────────────────────────────
@@ -469,7 +484,7 @@ class _FamilyApoSectionState extends State<FamilyApoSection> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
-                                '${group.count} ${lang.t(group.subtitleKey)}',
+                                '${group.count}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(

@@ -5,6 +5,7 @@ import 'package:nita/controllers/forum_controller.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/views/condolences/candle_section.dart';
+import 'package:nita/views/condolences/donation_section.dart';
 import 'package:nita/views/condolences/forum/community_forum_section.dart';
 
 /// The Pakikiramay (condolences) tab: the visitor lights a virtual candle
@@ -81,6 +82,8 @@ class _CondolencesPageState extends State<CondolencesPage> {
               ),
               const SizedBox(height: 28),
               CommunityForumSection(forumController: _forumController),
+              const SizedBox(height: 28),
+              const DonationSection(),
               const SizedBox(height: 32),
             ]),
           ),

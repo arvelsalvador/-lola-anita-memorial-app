@@ -607,4 +607,17 @@ const Map<String, String> translationsTl = {
   'forum_reply_sheet_title': 'Mga Tugon',
   'forum_require_content': 'Pakisulat ang mensahe bago mag-post.',
   'forum_require_name': 'Pakilagay ang iyong pangalan.',
+  // ── Abuloy / Donasyon (Pakikiramay) ──────────────────────────────────
+  'donate_title': 'Abuloy para sa Pamilya',
+  'donate_subtitle':
+      'Ang inyong tulong, alay nang may pagmamahal kay Nanay Nita',
+  'donate_qr_label': 'I-scan gamit ang GCash para magpadala ng abuloy',
+  'donate_number_label': 'GCash number',
+  'donate_copy': 'Kopyahin',
+  'donate_copied': 'Nakopya ang GCash number',
+  'donate_open_gcash': 'Buksan ang GCash',
+  'donate_note':
+      'Kusang-loob lamang — diretso sa pamilya ang bawat bigay.',
+  'donate_missing_qr': 'Parating na ang QR — puwede muna sa number sa ibaba.',
+  'donate_close': 'Isara',
 };

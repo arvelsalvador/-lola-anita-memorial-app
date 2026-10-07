@@ -23,6 +23,7 @@ import 'package:nita/views/gallery/gallery_page.dart';
 import 'package:nita/views/settings/settings_page.dart';
 import 'package:nita/views/words/words_page.dart';
 import 'package:nita/widgets/app_bottom_nav.dart';
+import 'package:nita/widgets/abuloy_touch.dart';
 
 import 'package:nita/widgets/app_brand_bar.dart';
 import 'package:nita/widgets/ornament_divider.dart';
@@ -375,6 +376,9 @@ class _HomeShellState extends State<HomeShell> {
                     ),
                   ),
                 ),
+                // Floating Abuloy assistive touch: one quiet entry point,
+                // visible on every tab. It positions and drags itself.
+                const AbuloyTouch(),
               ],
             ),
           ),
@@ -458,4 +462,3 @@ class _TopBarState extends State<_TopBar> {
     );
   }
 }
-

@@ -580,4 +580,16 @@ const Map<String, String> translationsEn = {
   'forum_reply_sheet_title': 'Replies',
   'forum_require_content': 'Please write a message before posting.',
   'forum_require_name': 'Please enter your name.',
+  // ── Abuloy / Donation (Pakikiramay) ──────────────────────────────────
+  'donate_title': 'Abuloy for the Family',
+  'donate_subtitle': 'Your sympathy gift, sent with love for Nanay Nita',
+  'donate_qr_label': 'Scan with GCash to send abuloy',
+  'donate_number_label': 'GCash number',
+  'donate_copy': 'Copy',
+  'donate_copied': 'GCash number copied',
+  'donate_open_gcash': 'Open GCash',
+  'donate_note':
+      'Voluntary and optional — every gift goes directly to the family.',
+  'donate_missing_qr': 'QR coming soon — you can send to the number below.',
+  'donate_close': 'Close',
 };

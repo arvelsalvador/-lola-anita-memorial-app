@@ -285,7 +285,7 @@ class _TreeBranchPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = AppColors.gold
+      ..color = AppColors.gold.withValues(alpha: 0.85)
       // drawPath defaults to fill — these are strokes.
       ..style = PaintingStyle.stroke
       ..strokeWidth = _strokeWidth
@@ -361,7 +361,7 @@ class _TreeBranchPainter extends CustomPainter {
       center,
       _junctionRadius,
       Paint()
-        ..color = AppColors.gold
+        ..color = AppColors.gold.withValues(alpha: 0.85)
         ..style = PaintingStyle.stroke
         ..strokeWidth = _strokeWidth,
     );
@@ -372,3 +372,118 @@ class _TreeBranchPainter extends CustomPainter {
       oldDelegate.cardCount != cardCount;
 }
 
+/// Reverse branch connector that sits directly below a group's card row:
+/// lines rise from each card center up to a horizontal bus that converges
+/// to a single center trunk exiting at the bottom — the visual inverse of
+/// [_TreeBranchConnector]. Used after card rows so the tree branches
+/// gather back to the center trunk before the next section.
+class _TreeBranchGatherConnector extends StatelessWidget {
+  final int cardCount;
+
+  const _TreeBranchGatherConnector({required this.cardCount});
+
+  @override
+  Widget build(BuildContext context) {
+    if (cardCount <= 0) return const SizedBox.shrink();
+    // Single card — same as a plain spine line; no gathering needed.
+    if (cardCount == 1) {
+      return SizedBox(
+        height: 28,
+        width: double.infinity,
+        child: Center(
+          child: Container(
+            width: 1.5,
+            color: AppColors.gold.withValues(alpha: 0.85),
+          ),
+        ),
+      );
+    }
+    return SizedBox(
+      height: 28,
+      width: double.infinity,
+      child: CustomPaint(
+        painter: _TreeBranchGatherPainter(cardCount: cardCount),
+      ),
+    );
+  }
+}
+
+/// Paints the gather path: rises → bus → trunk. Mirror of
+/// [_TreeBranchPainter] with the bus near the bottom and the trunk
+/// exiting downward at center.
+class _TreeBranchGatherPainter extends CustomPainter {
+  final int cardCount;
+
+  _TreeBranchGatherPainter({required this.cardCount});
+
+  static const _strokeWidth = 1.5;
+  static const _junctionRadius = 4.5;
+  static const _jointOverlap = 2.5;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Bus sits near the bottom; trunk exits from the bus down to the
+    // widget's bottom edge, mirroring _TreeBranchPainter's top-to-bus
+    // layout.
+    final busY = size.height - 12.0;
+
+    final paint = Paint()
+      ..color = AppColors.gold.withValues(alpha: 0.85)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = _strokeWidth
+      ..strokeCap = StrokeCap.square
+      ..strokeJoin = StrokeJoin.miter;
+
+    final cx = size.width / 2;
+    final cellWidth = size.width / cardCount;
+    final centers = [
+      for (var i = 0; i < cardCount; i++) (i + 0.5) * cellWidth,
+    ];
+
+    final path = Path();
+
+    // Each rise: from the card center at the top, down to (slightly past)
+    // the bus line.
+    for (var i = 0; i < centers.length; i++) {
+      path.moveTo(centers[i], 0);
+      path.lineTo(centers[i], busY + _jointOverlap);
+
+      // Bus segments between consecutive rises.
+      if (i < centers.length - 1) {
+        path.moveTo(centers[i], busY);
+        path.lineTo(centers[i + 1], busY);
+      }
+    }
+
+    // Trunk: from the bus down to the bottom edge.
+    path.moveTo(cx, busY);
+    path.lineTo(cx, size.height);
+
+    canvas.drawPath(path, paint);
+
+    // Hollow beads at every bus junction.
+    for (final c in centers) {
+      _paintBead(canvas, Offset(c, busY));
+    }
+  }
+
+  void _paintBead(Canvas canvas, Offset center) {
+    canvas.drawCircle(
+      center,
+      _junctionRadius,
+      Paint()..color = AppColors.cream,
+    );
+    canvas.drawCircle(
+      center,
+      _junctionRadius,
+      Paint()
+        ..color = AppColors.gold.withValues(alpha: 0.85)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = _strokeWidth,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _TreeBranchGatherPainter oldDelegate) =>
+      oldDelegate.cardCount != cardCount;
+}

@@ -48,7 +48,7 @@ void main() {
 
     // Scroll the grandchildren section into view (it is the last section).
     await tester.scrollUntilVisible(
-      find.text('8 miyembro'),
+      find.text('8'),
       200,
       scrollable: find.byType(Scrollable).first,
     );
@@ -178,7 +178,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     await tester.scrollUntilVisible(
-      find.text('8 miyembro'),
+      find.text('8'),
       200,
       scrollable: find.byType(Scrollable).first,
     );

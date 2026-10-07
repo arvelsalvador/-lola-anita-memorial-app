@@ -36,7 +36,7 @@ void main() {
     // Tagalog defaults (provider starts in Tagalog).
     expect(find.text('Mga Anak'), findsOneWidget);
     expect(find.text('Mga Kapatid'), findsOneWidget);
-    expect(find.text('3 anak'), findsOneWidget);
+    expect(find.text('3'), findsNWidgets(2));
 
     // Toggle to English — every family string must translate immediately.
     lang.setLanguage(AppLanguage.english);
@@ -48,8 +48,8 @@ void main() {
     // chips are gone. It sits below the fold, so search cached
     // off-screen widgets too.
     expect(find.text('Grandchildren', skipOffstage: false), findsOneWidget);
-    expect(find.text('3 children'), findsOneWidget);
-    expect(find.text('8 members', skipOffstage: false), findsOneWidget);
+    expect(find.text('3'), findsNWidgets(2));
+    expect(find.text('8', skipOffstage: false), findsOneWidget);
 
     // No Tagalog leftovers may remain anywhere in the tree.
     expect(find.text('Mga Anak'), findsNothing);

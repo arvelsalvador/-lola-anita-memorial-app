@@ -60,7 +60,21 @@ void main() {
     await pumpFamilyPage(tester);
 
     final titleBox = tester.renderObject<RenderBox>(find.text('Mga Anak'));
-    final countBox = tester.renderObject<RenderBox>(find.text('3 anak'));
+    // Bare count numbers are shared across sections — pick the one
+    // nearest the "Mga Anak" title (same header row).
+    final titleDy =
+        titleBox.localToGlobal(Offset.zero).dy + titleBox.size.height / 2;
+    RenderBox? countBox;
+    var nearest = double.infinity;
+    for (final e in find.text('3').evaluate()) {
+      final box = e.renderObject! as RenderBox;
+      final dy = box.localToGlobal(Offset.zero).dy + box.size.height / 2;
+      if ((dy - titleDy).abs() < nearest) {
+        nearest = (dy - titleDy).abs();
+        countBox = box;
+      }
+    }
+    expect(countBox, isNotNull, reason: 'no count text near "Mga Anak"');
 
     // The section's own connector — the first one at or below the header.
     // The lookup is anchored to the header rather than a blind `.first`
@@ -71,7 +85,7 @@ void main() {
     // Bus sits 10px below the connector box's top edge.
     final busY = topOf(connector!) + 10;
     final titleBottom = bottomOf(titleBox);
-    final countBottom = bottomOf(countBox);
+    final countBottom = bottomOf(countBox!);
 
     // ignore: avoid_print
     print(
@@ -132,12 +146,12 @@ void main() {
     // above it. 'Mga Apo' also appears on a filter chip — anchor on the
     // section header's unique count text instead.
     await tester.scrollUntilVisible(
-      find.text('8 miyembro'),
+      find.text('8'),
       100,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
-    final countFinder = find.text('8 miyembro');
+    final countFinder = find.text('8');
     expect(countFinder, findsOneWidget);
     final headerBottom = bottomOf(tester.renderObject<RenderBox>(countFinder));
 
@@ -194,7 +208,7 @@ void main() {
     final sections = <String, Finder>{
       'Mga Anak': find.text('Mga Anak'),
       'Mga Kapatid': find.text('Mga Kapatid'),
-      'Mga Apo': find.text('8 miyembro'),
+      'Mga Apo': find.text('8'),
     };
 
     sections.forEach((label, headerFinder) {

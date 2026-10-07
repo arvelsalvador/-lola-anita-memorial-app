@@ -107,14 +107,8 @@ class _FamilySearchBarState extends State<FamilySearchBar> {
                   ),
                 ),
               ),
-              const SizedBox(width: 9),
-              if (_query.isEmpty)
-                Icon(
-                  Icons.tune,
-                  size: 19,
-                  color: AppColors.warmMid.withValues(alpha: 0.8),
-                )
-              else
+              if (_query.isNotEmpty) ...[
+                const SizedBox(width: 9),
                 InkWell(
                   onTap: () {
                     _controller.clear();
@@ -128,6 +122,7 @@ class _FamilySearchBarState extends State<FamilySearchBar> {
                     color: AppColors.warmMid,
                   ),
                 ),
+              ],
             ],
           ),
         ),
