@@ -206,8 +206,8 @@ class _CandleSectionState extends State<CandleSection> {
                 lit ? lang.t('candle_lit') : lang.t('candle_light'),
                 style: const TextStyle(
                   fontFamily: 'Lora',
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w700,
                   color: AppColors.textDark,
                 ),
                 textAlign: TextAlign.center,
@@ -230,46 +230,41 @@ class _CandleSectionState extends State<CandleSection> {
             ],
           ),
         ),
-        const SizedBox(height: 8),
-        // Local session count (Firebase paused).
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.local_fire_department_rounded,
-              size: 14,
-              color: AppColors.gold,
-            ),
-            const SizedBox(width: 6),
-            // How many times visitors have lit the candle (shared
-            // Supabase count when online, 124 seed offline).
-            Text(
-              lang.t(
-                'candle_lit_times',
-                {'count': '${controller.displayCount}'},
-              ),
-              style: const TextStyle(
-                fontFamily: 'Lora',
-                fontSize: 12.5,
-                color: AppColors.warmMid,
-                letterSpacing: 0.3,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+        const SizedBox(height: 6),
+        // Shared count: "{count} na ang nagsindi ng kandila
+        // para kay Nanay Nita". Text-only, no leading icon.
+        Text(
+          lang.t(
+            'candle_lit_times',
+            {'count': '${controller.displayCount}'},
+          ),
+          style: const TextStyle(
+            fontFamily: 'Lora',
+            fontSize: 14,
+            color: AppColors.muted,
+            height: 1.5,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 10),
+        // Short gold rule under the count, like the reference design.
+        Container(
+          width: 60,
+          height: 1.5,
+          color: AppColors.gold.withValues(alpha: 0.6),
         ),
         // Mensahe first (mandatory), then the single light action.
         // Hidden once lit — the video then rests on its final frame.
         // No second message box after lighting: thanks only.
         if (!lit) ...[
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
           _PreLightMessageField(
             controller: _messageController,
           ),
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
-            height: 52,
+            height: 56,
             child: ElevatedButton(
               onPressed: (controller.loading || !isMessageValid)
                   ? null
@@ -277,18 +272,45 @@ class _CandleSectionState extends State<CandleSection> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.warmDark,
                 foregroundColor: AppColors.linen,
+                disabledBackgroundColor:
+                    AppColors.stoneBorder.withValues(alpha: 0.6),
+                disabledForegroundColor:
+                    AppColors.muted.withValues(alpha: 0.7),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 elevation: 4,
                 shadowColor: AppColors.warmDark.withValues(alpha: 0.35),
                 textStyle: const TextStyle(
                   fontFamily: 'Lora',
-                  fontSize: 15,
+                  fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
               ),
-              child: Text(lang.t('candle_light')),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.local_fire_department_outlined,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(lang.t('candle_light')),
+                    ],
+                  ),
+                  const Positioned(
+                    right: 0,
+                    child: Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 18,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           // Only show the error when there's actual input (e.g. too long).
@@ -691,6 +713,9 @@ class _CandleRow extends StatelessWidget {
 /// Mensahe-para-kay-Nanay field shown before lighting. Mandatory —
 /// the Sindihan button stays disabled until the draft is non-empty.
 /// Name is not asked here; it comes from the splash gate.
+///
+/// Matches the reference design: a borderless beige quote pill with a
+/// gold quote mark, then a white rounded input with a message icon.
 class _PreLightMessageField extends StatelessWidget {
   final TextEditingController controller;
 
@@ -703,89 +728,98 @@ class _PreLightMessageField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          lang.t('candle_message_title'),
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontFamily: 'Lora',
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textDark,
+        // Quote pill: text-only, borderless beige with gold quote mark.
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.quotePaper,
+            borderRadius: BorderRadius.circular(16),
           ),
-        ),
-        const SizedBox(height: 6),
-        // Compact private pill: single line, no wrapping sentence.
-        Center(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColors.cream,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: AppColors.gold.withValues(alpha: 0.3),
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.lock_outline_rounded,
-                  size: 11,
-                  color: AppColors.warmMid,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '\u201c\u201d',
+                style: TextStyle(
+                  fontFamily: 'Lora',
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  height: 1.0,
+                  color: AppColors.gold,
                 ),
-                const SizedBox(width: 4),
-                Text(
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
                   lang.t('candle_message_private_note'),
-                  maxLines: 1,
+                  maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontFamily: 'Lora',
-                    fontSize: 11,
+                    fontSize: 13.5,
                     fontStyle: FontStyle.italic,
+                    height: 1.5,
                     color: AppColors.warmMid,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         Container(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           decoration: BoxDecoration(
-            color: AppColors.cream,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.gold.withValues(alpha: 0.3)),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.sandBorder),
           ),
-          child: TextField(
-            controller: controller,
-            maxLines: 3,
-            minLines: 1,
-            maxLength: CondolenceRepository.maxMessageLength,
-            buildCounter:
-                (
-                  _, {
-                  required int currentLength,
-                  required bool isFocused,
-                  required int? maxLength,
-                }) => const SizedBox.shrink(),
-            textCapitalization: TextCapitalization.sentences,
-            style: const TextStyle(
-              fontFamily: 'Lora',
-              fontSize: 14,
-              color: AppColors.textDark,
-            ),
-            decoration: InputDecoration(
-              hintText: lang.t('candle_message_hint'),
-              hintStyle: const TextStyle(
-                fontFamily: 'Lora',
-                fontSize: 12,
-                color: AppColors.muted,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: Icon(
+                  Icons.message_outlined,
+                  size: 22,
+                  color: AppColors.warmMid,
+                ),
               ),
-              border: InputBorder.none,
-              isDense: true,
-              contentPadding: EdgeInsets.zero,
-            ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  maxLines: 3,
+                  minLines: 1,
+                  maxLength: CondolenceRepository.maxMessageLength,
+                  buildCounter:
+                      (
+                        _, {
+                        required int currentLength,
+                        required bool isFocused,
+                        required int? maxLength,
+                      }) => const SizedBox.shrink(),
+                  textCapitalization: TextCapitalization.sentences,
+                  style: const TextStyle(
+                    fontFamily: 'Lora',
+                    fontSize: 14,
+                    color: AppColors.textDark,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: lang.t('candle_message_hint'),
+                    hintStyle: const TextStyle(
+                      fontFamily: 'Lora',
+                      fontSize: 14,
+                      color: AppColors.muted,
+                    ),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding:
+                        const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ],

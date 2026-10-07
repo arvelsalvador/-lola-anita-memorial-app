@@ -516,7 +516,8 @@ const Map<String, String> translationsBi = {
   'candle_thank_you': '🕊️ Salamat',
   'candle_message_title': 'Ano an gusto mong sabihon ki Nanay?',
   'candle_message_hint': 'Mensahe mo ki Nanay…',
-  'candle_message_private_note': '🔒 Pribado — pamilya sana',
+  'candle_message_private_note':
+      'An saimong mensahe pribado asin dai mahihiling nin ibang tao',
   'candle_message_send': 'Ipadara',
   'candle_message_thanks': 'Nakaabot ki Nanay an saimong mensahe 🕊️',
   'candle_message_required':
@@ -527,7 +528,7 @@ const Map<String, String> translationsBi = {
   'candle_name_hint': 'An saimong pangaran…',
   'candle_name_required': 'Pakilaag an saimong pangaran tanganing makapagsindi.',
   'candle_name_invalid': 'Mga letra, espasyo, asin gitling sana (min 2 letra).',
-  'candle_lit_times': '{count} na kandila an sinindihan',
+  'candle_lit_times': '{count} na an nagsindi nin kandila para ki Nanay Nita',
   'candle_list_title': 'Siisay an nagbibisita ki Nanay',
   'candle_list_offline':
       'Mag-online tanganing mahiling kun siisay an bumibisita ki Nanay.',
@@ -582,7 +583,7 @@ const Map<String, String> translationsBi = {
   // ── Community Forum & Messages ───────────────────────────────────────
   'forum_title': 'Mga Mensahe asin Istorya nin Pagromdom',
   'forum_subtitle': 'Mga pagromdom hale sa gabos',
-  'forum_public_note': '🌏 Pampubliko — gabos makakahiling',
+  'forum_public_note': 'Pampubliko — gabos makakahiling',
   'forum_share_button': 'Magwalat nin Mensahe o Istorya',
   'forum_dialog_title': 'Magsurat nin Mensahe',
   'forum_name_hint': 'An saimong pangaran…',
@@ -595,6 +596,7 @@ const Map<String, String> translationsBi = {
   'forum_replies_count': '{count} na simbag',
   'forum_no_replies': 'Maging enot sa pagsimbag nin may pag-alo.',
   'forum_write_reply_hint': 'Isurat an saimong simbag…',
+  'forum_replying_to': 'Nagsisimbag ki {name}',
   'forum_send_reply': 'Ipadara an Simbag',
   'forum_empty_state': 'Mayo pang istorya. Maging enot.',
   'forum_just_now': 'Kaso bago sana',

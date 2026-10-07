@@ -7,7 +7,6 @@ import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/views/condolences/forum/create_post_dialog.dart';
 import 'package:nita/views/condolences/forum/forum_post_card.dart';
-import 'package:nita/views/condolences/forum/forum_reply_sheet.dart';
 
 /// The community messages & stories board connected directly to the database.
 class CommunityForumSection extends StatelessWidget {
@@ -73,11 +72,19 @@ class CommunityForumSection extends StatelessWidget {
                   onReactionTap: (reactionType) {
                     forumController.toggleReaction(post.id, reactionType);
                   },
-                  onReplyTap: () {
-                    ForumReplySheet.show(
-                      context,
-                      post: post,
-                      controller: forumController,
+                  onReplyReactionTap: (replyId, reactionType) {
+                    forumController.toggleReplyReaction(
+                      post.id,
+                      replyId,
+                      reactionType,
+                    );
+                  },
+                  onSendReply: (authorName, message, replyToName) {
+                    return forumController.addReply(
+                      postId: post.id,
+                      authorName: authorName,
+                      message: message,
+                      replyToName: replyToName,
                     );
                   },
                 ),
@@ -105,17 +112,17 @@ class _ForumHeader extends StatelessWidget {
     final lang = context.watch<LanguageProvider>();
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
       decoration: BoxDecoration(
         color: AppColors.paper,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppColors.gold.withValues(alpha: 0.35),
+          color: AppColors.sandBorder.withValues(alpha: 0.9),
           width: 0.8,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.warmDark.withValues(alpha: 0.04),
+            color: AppColors.warmDark.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -125,22 +132,20 @@ class _ForumHeader extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
+                width: 44,
+                height: 44,
+                decoration: const BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.roseLight,
-                  border: Border.all(
-                    color: AppColors.gold.withValues(alpha: 0.4),
-                  ),
+                  color: AppColors.iconBgCream,
                 ),
                 child: const Center(
                   child: Icon(
-                    Icons.chat_bubble_outline_rounded,
-                    size: 18,
-                    color: AppColors.roseDeep,
+                    Icons.layers_outlined,
+                    size: 20,
+                    color: AppColors.warmDeep,
                   ),
                 ),
               ),
@@ -153,44 +158,46 @@ class _ForumHeader extends StatelessWidget {
                       title,
                       style: const TextStyle(
                         fontFamily: 'Lora',
-                        fontSize: 16.5,
+                        fontSize: 20,
+                        height: 1.2,
                         fontWeight: FontWeight.w700,
                         color: AppColors.textDark,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Text(
                       subtitle,
                       style: const TextStyle(
                         fontFamily: 'Lora',
-                        fontSize: 12,
-                        color: AppColors.warmMid,
+                        fontSize: 12.5,
+                        color: AppColors.muted,
                         height: 1.35,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    // Compact public pill: single line, matches candle side.
+                    const SizedBox(height: 8),
+                    // Outlined public pill with people icon.
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
-                        vertical: 4,
+                        vertical: 5,
                       ),
                       decoration: BoxDecoration(
                         color: AppColors.cream,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: AppColors.gold.withValues(alpha: 0.3),
+                          color: AppColors.sandBorder,
+                          width: 0.8,
                         ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           const Icon(
-                            Icons.public_rounded,
-                            size: 11,
+                            Icons.people_outline_rounded,
+                            size: 12,
                             color: AppColors.warmMid,
                           ),
-                          const SizedBox(width: 4),
+                          const SizedBox(width: 5),
                           Flexible(
                             child: Text(
                               lang.t('forum_public_note'),
@@ -198,8 +205,7 @@ class _ForumHeader extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 fontFamily: 'Lora',
-                                fontSize: 11,
-                                fontStyle: FontStyle.italic,
+                                fontSize: 11.5,
                                 color: AppColors.warmMid,
                               ),
                             ),
@@ -214,28 +220,51 @@ class _ForumHeader extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           SizedBox(
-            height: 44,
-            child: ElevatedButton.icon(
+            height: 52,
+            child: ElevatedButton(
               onPressed: () {
                 HapticFeedback.lightImpact().catchError((_) {});
                 onShareTap();
               },
-              icon: const Icon(Icons.edit_note_rounded, size: 18),
-              label: Text(
-                lang.t('forum_share_button'),
-                style: const TextStyle(
-                  fontFamily: 'Lora',
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.warmDark,
                 foregroundColor: AppColors.linen,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                elevation: 2,
+                elevation: 3,
+                shadowColor: AppColors.warmDark.withValues(alpha: 0.35),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.edit_outlined,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        lang.t('forum_share_button'),
+                        style: const TextStyle(
+                          fontFamily: 'Lora',
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Positioned(
+                    right: 0,
+                    child: Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 18,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

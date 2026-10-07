@@ -79,47 +79,11 @@ class _CondolencesPageState extends State<CondolencesPage> {
               CandleSection(
                 condolencesController: widget.condolencesController,
               ),
-              const SizedBox(height: 32),
-              // Beautiful ornamental divider separating candle lighting and the open forum
-              const _ForumDivider(),
               const SizedBox(height: 28),
               CommunityForumSection(forumController: _forumController),
               const SizedBox(height: 32),
             ]),
           ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ForumDivider extends StatelessWidget {
-  const _ForumDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          width: 50,
-          height: 1,
-          color: AppColors.gold.withValues(alpha: 0.35),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Text(
-            '🕊️  📖  🕯️',
-            style: TextStyle(
-              fontSize: 12,
-              color: AppColors.gold.withValues(alpha: 0.7),
-            ),
-          ),
-        ),
-        Container(
-          width: 50,
-          height: 1,
-          color: AppColors.gold.withValues(alpha: 0.35),
         ),
       ],
     );

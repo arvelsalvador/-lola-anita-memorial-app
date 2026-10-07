@@ -494,7 +494,8 @@ const Map<String, String> translationsEn = {
   'candle_thank_you': '🕊️ Thank You',
   'candle_message_title': 'What would you like to say to Nanay?',
   'candle_message_hint': 'Your message for Nanay…',
-  'candle_message_private_note': '🔒 Private — family only',
+  'candle_message_private_note':
+      'Your message is private and hidden from others',
   'candle_message_send': 'Send',
   'candle_message_thanks': 'Your message has reached Nanay 🕊️',
   'candle_message_required':
@@ -505,7 +506,7 @@ const Map<String, String> translationsEn = {
   'candle_name_hint': 'Your name…',
   'candle_name_required': 'Please enter your name to light a candle.',
   'candle_name_invalid': 'Letters, spaces, and hyphens only (min 2 letters).',
-  'candle_lit_times': '{count} candles lit',
+  'candle_lit_times': '{count} have lit a candle for Nanay Nita',
   'candle_list_title': 'Who remembers Nanay',
   'candle_list_offline': 'Go online to see who remembers Nanay.',
   'candle_list_empty': 'Be the first to light a candle.',
@@ -557,7 +558,7 @@ const Map<String, String> translationsEn = {
   // ── Community Forum & Messages ───────────────────────────────────────
   'forum_title': 'Community Messages & Stories',
   'forum_subtitle': 'Memories shared by all',
-  'forum_public_note': '🌏 Public — everyone can read',
+  'forum_public_note': 'Public — everyone can read',
   'forum_share_button': 'Leave a Message or Story',
   'forum_dialog_title': 'Write a Message',
   'forum_name_hint': 'Your name…',
@@ -570,6 +571,7 @@ const Map<String, String> translationsEn = {
   'forum_replies_count': '{count} replies',
   'forum_no_replies': 'Be the first to reply with words of comfort.',
   'forum_write_reply_hint': 'Write a reply…',
+  'forum_replying_to': 'Replying to {name}',
   'forum_send_reply': 'Send Reply',
   'forum_empty_state': 'No stories yet. Be the first.',
   'forum_just_now': 'Just now',

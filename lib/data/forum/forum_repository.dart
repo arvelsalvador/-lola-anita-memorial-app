@@ -53,8 +53,9 @@ class ForumRepository {
               .timeout(const Duration(seconds: 5));
 
           for (final r in (replyRows as List)) {
-            final reply = ForumReply(
-              id: r['id']?.toString() ?? '',
+            final replyId = r['id']?.toString() ?? '';
+            var reply = ForumReply(
+              id: replyId,
               postId: r['post_id']?.toString() ?? '',
               authorName: r['author_name'] as String? ?? 'Anonymous',
               message: r['message'] as String? ?? '',
@@ -62,6 +63,15 @@ class ForumRepository {
                   ? DateTime.tryParse(r['created_at'] as String) ?? DateTime.now()
                   : DateTime.now(),
             );
+            // Overlay local reply-reaction state (same id-keyed stores
+            // as post reactions).
+            if (reactionCounts.containsKey(replyId) ||
+                userReactions.containsKey(replyId)) {
+              reply = reply.copyWith(
+                reactions: reactionCounts[replyId] ?? reply.reactions,
+                userReactions: userReactions[replyId] ?? <String>{},
+              );
+            }
             dbReplies.putIfAbsent(reply.postId, () => []).add(reply);
           }
         } catch (_) {
@@ -174,11 +184,14 @@ class ForumRepository {
     return newPost;
   }
 
-  /// Inserts a reply to a message.
+  /// Inserts a reply to a message. [replyToName] records who the reply
+  /// answers (shown as "Tumutugon kay X"); it is stored locally only —
+  /// the remote insert keeps the known columns so no migration is needed.
   Future<ForumReply?> addReply({
     required String postId,
     required String authorName,
     required String message,
+    String replyToName = '',
   }) async {
     final cleanName = authorName.trim().isEmpty ? 'Anonymous' : authorName.trim();
     final cleanMessage = message.trim();
@@ -191,6 +204,7 @@ class ForumRepository {
       authorName: cleanName,
       message: cleanMessage,
       createdAt: DateTime.now(),
+      replyToName: replyToName.trim(),
     );
 
     // Remote insert uses DB defaults for id/created_at (uuid mismatch fix).
@@ -220,6 +234,7 @@ class ForumRepository {
           authorName: cleanName,
           message: cleanMessage,
           createdAt: realAt ?? newReply.createdAt,
+          replyToName: newReply.replyToName,
         );
       } catch (e) {
         debugPrint('ForumRepository Supabase reply error: $e');
@@ -237,7 +252,8 @@ class ForumRepository {
     return newReply;
   }
 
-  /// Toggles a reaction (candle, dove, heart, pray).
+  /// Toggles a reaction (candle, dove, heart, pray) for a post OR a
+  /// reply — both are keyed by their unique id in the same local stores.
   Future<void> toggleReaction({
     required String postId,
     required String reactionType,
@@ -302,7 +318,17 @@ class ForumRepository {
         final postReplies = [
           ...post.replies,
           ...?localReplies[post.id]?.where((lr) => !post.replies.any((r) => r.id == lr.id)),
-        ];
+        ].map((reply) {
+          // Restore local reply-reaction state on top of cached counts.
+          if (reactionCounts.containsKey(reply.id) ||
+              userReactions.containsKey(reply.id)) {
+            return reply.copyWith(
+              reactions: reactionCounts[reply.id] ?? reply.reactions,
+              userReactions: userReactions[reply.id] ?? reply.userReactions,
+            );
+          }
+          return reply;
+        }).toList();
 
         return post.copyWith(
           reactions: postReactions,

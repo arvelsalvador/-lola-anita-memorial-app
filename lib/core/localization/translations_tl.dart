@@ -519,7 +519,8 @@ const Map<String, String> translationsTl = {
   'candle_thank_you': '🕊️ Salamat',
   'candle_message_title': 'Anong gusto mong sabihin kay Nanay?',
   'candle_message_hint': 'Mensahe mo kay Nanay…',
-  'candle_message_private_note': '🔒 Pribado — pamilya lang',
+  'candle_message_private_note':
+      'Ang iyong mensahe ay pribado at hindi makikita ng ibang tao',
   'candle_message_send': 'Ipadala',
   'candle_message_thanks': 'Nakarating kay Nanay ang iyong mensahe 🕊️',
   'candle_message_required':
@@ -530,7 +531,7 @@ const Map<String, String> translationsTl = {
   'candle_name_hint': 'Ang iyong pangalan…',
   'candle_name_required': 'Pakilagay ang iyong pangalan upang makapagsindi.',
   'candle_name_invalid': 'Mga letra, espasyo, at gitling lang (min 2 letra).',
-  'candle_lit_times': '{count} kandila na ang sinindihan',
+  'candle_lit_times': '{count} na ang nagsindi ng kandila para kay Nanay Nita',
   'candle_list_title': 'Sino ang dumadalaw kay Nanay',
   'candle_list_offline':
       'Mag-online para makita kung sino ang dumadalaw kay Nanay.',
@@ -584,7 +585,7 @@ const Map<String, String> translationsTl = {
   // ── Community Forum & Messages ───────────────────────────────────────
   'forum_title': 'Mga Mensahe at Kwento ng Alaala',
   'forum_subtitle': 'Mga alaala mula sa lahat',
-  'forum_public_note': '🌏 Pampubliko — lahat makakabasa',
+  'forum_public_note': 'Pampubliko — lahat makakabasa',
   'forum_share_button': 'Mag-iwan ng Mensahe o Kwento',
   'forum_dialog_title': 'Sumulat ng Mensahe',
   'forum_name_hint': 'Ang iyong pangalan…',
@@ -597,6 +598,7 @@ const Map<String, String> translationsTl = {
   'forum_replies_count': '{count} na tugon',
   'forum_no_replies': 'Maging una sa pagtugon nang may pag-alo.',
   'forum_write_reply_hint': 'Isulat ang iyong tugon…',
+  'forum_replying_to': 'Tumutugon kay {name}',
   'forum_send_reply': 'Ipadala ang Tugon',
   'forum_empty_state': 'Wala pang kwento. Maging una.',
   'forum_just_now': 'Kanina lamang',

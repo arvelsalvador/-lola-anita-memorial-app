@@ -60,11 +60,13 @@ class ForumController extends ChangeNotifier {
     }
   }
 
-  /// Adds a reply to a message.
+  /// Adds a reply to a message. [replyToName] optionally records who
+  /// the reply answers so the thread shows its context.
   Future<ForumReply?> addReply({
     required String postId,
     required String authorName,
     required String message,
+    String replyToName = '',
   }) async {
     if (_disposed) return null;
     try {
@@ -72,6 +74,7 @@ class ForumController extends ChangeNotifier {
         postId: postId,
         authorName: authorName,
         message: message,
+        replyToName: replyToName,
       );
 
       if (reply != null && !_disposed) {
@@ -121,6 +124,52 @@ class ForumController extends ChangeNotifier {
       reactionType: reactionType,
     ).catchError((err) {
       debugPrint('Reaction error: $err');
+    });
+  }
+
+  /// Toggles a reaction on a reply, with the same optimistic update
+  /// pattern as posts. Persisted in the same id-keyed local stores.
+  Future<void> toggleReplyReaction(
+    String postId,
+    String replyId,
+    String reactionType,
+  ) async {
+    if (_disposed) return;
+    final postIdx = _posts.indexWhere((p) => p.id == postId);
+    if (postIdx == -1) return;
+
+    final post = _posts[postIdx];
+    final replyIdx = post.replies.indexWhere((r) => r.id == replyId);
+    if (replyIdx == -1) return;
+
+    final reply = post.replies[replyIdx];
+    final userReactions = Set<String>.from(reply.userReactions);
+    final hasReacted = userReactions.contains(reactionType);
+
+    final newReactions = Map<String, int>.from(reply.reactions);
+    final currentCount = newReactions[reactionType] ?? 0;
+
+    if (hasReacted) {
+      userReactions.remove(reactionType);
+      newReactions[reactionType] = (currentCount - 1).clamp(0, 99999);
+    } else {
+      userReactions.add(reactionType);
+      newReactions[reactionType] = currentCount + 1;
+    }
+
+    final updatedReplies = List<ForumReply>.from(post.replies);
+    updatedReplies[replyIdx] = reply.copyWith(
+      reactions: newReactions,
+      userReactions: userReactions,
+    );
+    _posts[postIdx] = post.copyWith(replies: updatedReplies);
+    notifyListeners();
+
+    _repository.toggleReaction(
+      postId: replyId,
+      reactionType: reactionType,
+    ).catchError((err) {
+      debugPrint('Reply reaction error: $err');
     });
   }
 

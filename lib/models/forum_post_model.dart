@@ -1,12 +1,18 @@
 import 'package:flutter/foundation.dart';
 
-/// A reply to a community message.
+/// A reply to a community message. Replies support the same four
+/// reactions as posts, keyed by reply id in the local reaction stores.
 class ForumReply {
   final String id;
   final String postId;
   final String authorName;
   final String message;
   final DateTime createdAt;
+  final Map<String, int> reactions; // {'candle': 0, 'dove': 0, 'heart': 0, 'pray': 0}
+  final Set<String> userReactions; // reaction types tapped on this device
+  /// Name of the person this reply answers. Empty = replies to the post.
+  /// Shown as "Tumutugon kay X" so others see the context.
+  final String replyToName;
 
   const ForumReply({
     required this.id,
@@ -14,7 +20,41 @@ class ForumReply {
     required this.authorName,
     required this.message,
     required this.createdAt,
+    this.reactions = const {'candle': 0, 'dove': 0, 'heart': 0, 'pray': 0},
+    this.userReactions = const {},
+    this.replyToName = '',
   });
+
+  ForumReply copyWith({
+    String? id,
+    String? postId,
+    String? authorName,
+    String? message,
+    DateTime? createdAt,
+    Map<String, int>? reactions,
+    Set<String>? userReactions,
+    String? replyToName,
+  }) {
+    return ForumReply(
+      id: id ?? this.id,
+      postId: postId ?? this.postId,
+      authorName: authorName ?? this.authorName,
+      message: message ?? this.message,
+      createdAt: createdAt ?? this.createdAt,
+      reactions: reactions ?? this.reactions,
+      userReactions: userReactions ?? this.userReactions,
+      replyToName: replyToName ?? this.replyToName,
+    );
+  }
+
+  static Map<String, int> _parseReactions(Map<String, dynamic>? raw) {
+    return {
+      'candle': (raw?['candle'] as num?)?.toInt() ?? 0,
+      'dove': (raw?['dove'] as num?)?.toInt() ?? 0,
+      'heart': (raw?['heart'] as num?)?.toInt() ?? 0,
+      'pray': (raw?['pray'] as num?)?.toInt() ?? 0,
+    };
+  }
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -22,6 +62,8 @@ class ForumReply {
     'author_name': authorName,
     'message': message,
     'created_at': createdAt.toIso8601String(),
+    'reactions': reactions,
+    'reply_to_name': replyToName,
   };
 
   factory ForumReply.fromJson(Map<String, dynamic> json) {
@@ -33,6 +75,9 @@ class ForumReply {
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'] as String) ?? DateTime.now()
           : DateTime.now(),
+      reactions:
+          _parseReactions(json['reactions'] as Map<String, dynamic>?),
+      replyToName: json['reply_to_name'] as String? ?? '',
     );
   }
 }

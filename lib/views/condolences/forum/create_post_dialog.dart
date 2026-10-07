@@ -237,7 +237,7 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
                     backgroundColor: AppColors.warmDark,
                     foregroundColor: AppColors.linen,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                     elevation: 2,
                   ),
