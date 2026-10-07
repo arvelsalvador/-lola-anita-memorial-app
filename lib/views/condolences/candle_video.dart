@@ -1,10 +1,16 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:nita/core/constants/app_constants.dart';
 
-/// Pure-Flutter candle illustration with a short lighting animation.
-/// No native video decoder or texture is used.
+/// Pure-Flutter candle illustration replicating the memorial badge design:
+/// - Soft warm circular ground with 3 concentric halos centered behind the flame
+/// - Floating spark speckles
+/// - Deep chocolate wood saucer base with bevel highlight rim
+/// - White pillar candle with rounded top shoulders, left wax drip, and peach wax pool
+/// - Solid dark wick
+/// - Golden amber teardrop flame with pure white inner core
+/// - Filipino Sampaguita (Arabian jasmine) flowers with 6 white petals and brown centers
+/// - Fresh green foliage flanking the base
 class CandleVideo extends StatefulWidget {
   final bool lit;
   final VoidCallback onLight;
@@ -29,10 +35,10 @@ class _CandleVideoState extends State<CandleVideo>
     );
     _flicker = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 720),
+      duration: const Duration(milliseconds: 1200),
     );
     if (widget.lit) {
-      _spark.value = 1;
+      _spark.value = 1.0;
       _flicker.repeat(reverse: true);
     }
   }
@@ -43,6 +49,9 @@ class _CandleVideoState extends State<CandleVideo>
     if (!oldWidget.lit && widget.lit) {
       _spark.forward(from: 0);
       _flicker.repeat(reverse: true);
+    } else if (oldWidget.lit && !widget.lit) {
+      _spark.value = 0;
+      _flicker.stop();
     }
   }
 
@@ -54,82 +63,30 @@ class _CandleVideoState extends State<CandleVideo>
   }
 
   void _handleTap() {
-    if (!widget.lit) _spark.forward(from: 0);
+    if (!widget.lit) {
+      _spark.forward(from: 0);
+    }
     widget.onLight();
   }
 
   @override
   Widget build(BuildContext context) {
     final lit = widget.lit;
-    return SizedBox(
-      width: 240,
-      height: 224,
-      child: Stack(
-        alignment: Alignment.topCenter,
-        children: [
-          _Halo(size: 224, alpha: lit ? 0.5 : 0.18),
-          Positioned(top: 8, child: _Halo(size: 208, alpha: lit ? 0.5 : 0.3)),
-          Positioned(
-            top: 12,
-            child: GestureDetector(
-              onTap: _handleTap,
-              child: Container(
-                width: 200,
-                height: 200,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.paper.withValues(alpha: 0.72),
-                  border: Border.all(
-                    color: AppColors.gold.withValues(alpha: 0.35),
-                    width: 0.7,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.gold.withValues(
-                        alpha: lit ? 0.42 : 0.15,
-                      ),
-                      blurRadius: lit ? 34 : 14,
-                      spreadRadius: lit ? 2 : 0,
-                    ),
-                  ],
-                ),
-                child: ClipOval(
-                  child: AnimatedBuilder(
-                    animation: Listenable.merge([_spark, _flicker]),
-                    builder: (context, _) => CustomPaint(
-                      painter: _CandlePainter(
-                        progress: _spark.value,
-                        flicker: _flicker.value,
-                        lit: lit,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+    return GestureDetector(
+      onTap: _handleTap,
+      child: SizedBox(
+        width: 250,
+        height: 250,
+        child: AnimatedBuilder(
+          animation: Listenable.merge([_spark, _flicker]),
+          builder: (context, _) => CustomPaint(
+            size: const Size(250, 250),
+            painter: _CandlePainter(
+              progress: _spark.value,
+              flicker: _flicker.value,
+              lit: lit,
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Halo extends StatelessWidget {
-  final double size;
-  final double alpha;
-
-  const _Halo({required this.size, required this.alpha});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: AppColors.gold.withValues(alpha: alpha),
-          width: 1.1,
         ),
       ),
     );
@@ -147,294 +104,423 @@ class _CandlePainter extends CustomPainter {
     required this.lit,
   });
 
+  // Reference art palette
+  static const _bgDisc = Color(0xFFFAF7F2);
+  static const _haloOuter = Color(0xFFF2EFE9);
+  static const _haloMid = Color(0xFFE5DED1);
+  static const _haloInner = Color(0xFFD2C5AF);
+
+  static const _sparkDark = Color(0xFF8F7350);
+  static const _sparkLight = Color(0xFFD4C7B4);
+
+  static const _leafGreen = Color(0xFF589858);
+
+  static const _saucerBase = Color(0xFF734500);
+  static const _saucerBevel = Color(0xFFB9A280);
+  static const _saucerRim = Color(0xFF8A5C1F);
+
+  static const _candleBody = Colors.white;
+  static const _candleStroke = Color(0xFFCDC6B9);
+
+  static const _waxTop = Color(0xFFF9DCA4);
+  static const _waxStroke = Color(0xFFD9BD88);
+
+  static const _wick = Color(0xFF0B0B0B);
+
+  static const _flameOuter = Color(0xFF734500);
+  static const _flameInner = Colors.white;
+
+  static const _petalStroke = Color(0xFFC0B9B0);
+  static const _flowerPistil = Color(0xFF734500);
+
   @override
   void paint(Canvas canvas, Size size) {
-    final centerX = size.width / 2;
-    final flameVisible = lit || progress > 0;
-    final flickerOffset = (flicker - 0.5) * 4;
-    final flameScale = lit ? 0.92 + flicker * 0.12 : 0.72 + progress * 0.28;
+    // Reference artwork coordinate system: 547 x 537
+    const refW = 547.0;
+    const refH = 537.0;
+    final scale = math.min(size.width / refW, size.height / refH);
+    final dx = (size.width - refW * scale) / 2.0;
+    final dy = (size.height - refH * scale) / 2.0;
 
-    // Warm ivory wash + soft halo behind the candle, like the reference
-    // medallion: cream ground with light pooling around the pillar.
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, size.width, size.height),
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [AppColors.petalWhite, AppColors.cream],
-        ).createShader(Rect.fromLTWH(0, 0, size.width, size.height)),
+    canvas.save();
+    canvas.translate(dx, dy);
+    canvas.scale(scale, scale);
+
+    final flameVisible = lit || progress > 0;
+    final flickerOffset = (flicker - 0.5) * 3.0;
+    final flameScale = lit
+        ? (0.95 + flicker * 0.08)
+        : (0.15 + progress * 0.85);
+
+    // 1. Large background circle disc
+    canvas.drawCircle(
+      const Offset(291.5, 280.5),
+      251.5,
+      Paint()..color = _bgDisc,
+    );
+
+    // 2. Three concentric halo circles centered behind the flame
+    final haloBreath = lit ? (flicker - 0.5) * 1.5 : 0.0;
+    const haloCenter = Offset(291.5, 194.0);
+
+    canvas.drawCircle(
+      haloCenter,
+      165.0 + haloBreath,
+      Paint()..color = _haloOuter,
     );
     canvas.drawCircle(
-      Offset(centerX + flickerOffset * 0.4, 98),
-      lit ? 72 : 60,
-      Paint()
-        ..color = AppColors.flameGlow.withValues(alpha: lit ? 0.42 : 0.22)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 26),
+      haloCenter,
+      117.0 + haloBreath * 0.8,
+      Paint()..color = _haloMid,
+    );
+    canvas.drawCircle(
+      haloCenter,
+      72.0 + haloBreath * 0.6,
+      Paint()..color = _haloInner,
     );
 
-    if (flameVisible) {
-      final glowAlpha = lit ? 0.24 : (1 - progress).clamp(0.0, 1.0) * 0.2;
-      canvas.drawCircle(
-        Offset(centerX + flickerOffset, 76),
-        lit ? 54 + flicker * 8 : 48,
-        Paint()
-          ..color = AppColors.flameGlow.withValues(alpha: glowAlpha)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20),
-      );
-    }
-
-    // Sage leaf clusters sit behind the candle base (always visible,
-    // lit or unlit) so the florals read as a wreath, not a reward.
-    _paintLeaves(canvas, centerX);
-
-    // Wooden saucer under the pillar, matching the reference base.
-    final pedestalPaint = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [AppColors.woodLight, AppColors.woodDeep],
-      ).createShader(Rect.fromLTWH(centerX - 44, 156, 88, 15));
-    // Soft contact shadow first so the saucer lifts off the paper.
-    canvas.drawOval(
-      Rect.fromLTWH(centerX - 46, 164, 92, 10),
-      Paint()
-        ..color = AppColors.warmDark.withValues(alpha: 0.14)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+    // 3. Floating spark speckles
+    final sparkTwinkle = lit ? flickerOffset * 0.3 : 0.0;
+    canvas.drawCircle(
+      Offset(294.0 + sparkTwinkle, 84.0),
+      3.5,
+      Paint()..color = _sparkDark,
     );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(centerX - 44, 156, 88, 14),
-        const Radius.circular(7),
-      ),
-      pedestalPaint,
+    canvas.drawCircle(
+      Offset(315.0 + sparkTwinkle * 0.8, 83.0),
+      2.5,
+      Paint()..color = _sparkLight,
     );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(centerX - 44, 156, 88, 5),
-        const Radius.circular(2.5),
-      ),
-      Paint()..color = Colors.white.withValues(alpha: 0.35),
+    canvas.drawCircle(
+      Offset(270.0 - sparkTwinkle, 138.0),
+      3.5,
+      Paint()..color = _sparkDark,
     );
 
-    final waxRect = Rect.fromLTWH(centerX - 30, 91, 60, 70);
-    final waxPaint = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.centerLeft,
-        end: Alignment.centerRight,
-        colors: [AppColors.waxDeep, AppColors.waxLight, AppColors.waxShade],
-        stops: [0, 0.42, 1],
-      ).createShader(waxRect);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(waxRect, const Radius.circular(9)),
-      waxPaint,
-    );
+    // 4. Foliage: green leaves behind flowers and saucer
+    _paintFoliage(canvas);
 
-    final waxTop = Path()
-      ..moveTo(centerX - 30, 98)
-      ..cubicTo(centerX - 20, 88, centerX - 9, 96, centerX, 91)
-      ..cubicTo(centerX + 10, 86, centerX + 19, 96, centerX + 30, 91)
-      ..lineTo(centerX + 30, 105)
-      ..lineTo(centerX - 30, 105)
-      ..close();
-    canvas.drawPath(waxTop, Paint()..color = AppColors.waxLight);
+    // 5. Saucer: rich brown wood plate with bevel highlight rim
+    _paintSaucer(canvas);
 
-    final dripPaint = Paint()..color = AppColors.waxDrip;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(centerX - 21, 98, 8, 24),
-        const Radius.circular(4),
-      ),
-      dripPaint,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(centerX + 13, 96, 7, 17),
-        const Radius.circular(3.5),
-      ),
-      dripPaint,
-    );
+    // 6. Candle pillar body: white cylinder with rounded top shoulders & outline
+    _paintCandleBody(canvas);
 
-    final stripePaint = Paint()
-      ..color = AppColors.medallionGoldDeep.withValues(alpha: 0.28)
-      ..strokeWidth = 1.4;
-    for (var stripeIndex = -1; stripeIndex < 2; stripeIndex++) {
-      final stripeX = centerX + stripeIndex * 20.0;
-      canvas.drawLine(Offset(stripeX, 117), Offset(stripeX, 151), stripePaint);
-    }
+    // 7. Wax drip on the left side
+    _paintWaxDrip(canvas);
 
-    // White memorial flowers in front of the base (always visible).
-    _paintFlowers(canvas, centerX);
+    // 8. Melted wax top puddle
+    _paintWaxTop(canvas);
 
+    // 9. Black wick
     canvas.drawLine(
-      Offset(centerX, 94),
-      Offset(centerX + flickerOffset * 0.3, 80),
+      const Offset(291.5, 264.0),
+      Offset(291.5 + (flameVisible ? flickerOffset * 0.15 : 0.0), 230.0),
       Paint()
-        ..color = AppColors.wickBrown
-        ..strokeWidth = 2.2,
+        ..color = _wick
+        ..strokeWidth = 3.5
+        ..strokeCap = StrokeCap.round,
     );
 
+    // 10. Flame (when lit)
     if (flameVisible) {
-      final flameCenter = Offset(centerX + flickerOffset, 68);
-      final flamePath = Path()
-        ..moveTo(flameCenter.dx, flameCenter.dy - 30 * flameScale)
-        ..cubicTo(
-          flameCenter.dx - 23 * flameScale,
-          flameCenter.dy - 12,
-          flameCenter.dx - 17 * flameScale,
-          flameCenter.dy + 13,
-          flameCenter.dx,
-          flameCenter.dy + 19,
-        )
-        ..cubicTo(
-          flameCenter.dx + 17 * flameScale,
-          flameCenter.dy + 13,
-          flameCenter.dx + 23 * flameScale,
-          flameCenter.dy - 12,
-          flameCenter.dx,
-          flameCenter.dy - 30 * flameScale,
-        )
-        ..close();
-      canvas.drawPath(flamePath, Paint()..color = AppColors.flameAmber);
-      canvas.drawOval(
-        Rect.fromCenter(
-          center: Offset(flameCenter.dx, flameCenter.dy + 4),
-          width: 15 * flameScale,
-          height: 27 * flameScale,
-        ),
-        Paint()..color = AppColors.flameInner,
-      );
-      canvas.drawOval(
-        Rect.fromCenter(
-          center: Offset(flameCenter.dx, flameCenter.dy + 8),
-          width: 7 * flameScale,
-          height: 16 * flameScale,
-        ),
-        Paint()..color = AppColors.flameCore,
-      );
+      _paintFlame(canvas, flickerOffset, flameScale);
     }
 
-    if (!lit && progress < 1) {
-      for (var sparkIndex = 0; sparkIndex < 8; sparkIndex++) {
-        final seed = (sparkIndex * 0.41) % 1.0;
-        final rise = ((progress * 1.2 + seed) % 1.0) * 50;
-        final sparkAlpha = (1 - progress) * (0.3 + seed * 0.5);
-        canvas.drawCircle(
-          Offset(centerX + (seed - 0.5) * 40, 61 - rise),
-          1.2 + sparkIndex % 2,
-          Paint()..color = AppColors.flameGold.withValues(alpha: sparkAlpha),
-        );
-      }
-    }
-  }
+    // 11. Sampaguita flowers in front of the base
+    _paintFlowers(canvas);
 
-  /// Sage leaves fanning out from behind the candle base, mirrored
-  /// left/right like the reference wreath.
-  void _paintLeaves(Canvas canvas, double cx) {
-    // (dx from candle center, dy, length, width, color)
-    const List<(double, double, double, double, double, double, int)>
-        leaves = [
-      (-30.0, 148.0, -56.0, 150.0, 26.0, 11.0, 0), // left outer
-      (-30.0, 144.0, -54.0, 136.0, 26.0, 11.0, 1), // left mid
-      (-28.0, 140.0, -44.0, 122.0, 24.0, 10.0, 0), // left upper
-      (-26.0, 138.0, -32.0, 120.0, 20.0, 9.0, 1), // left bud stem
-      (30.0, 148.0, 56.0, 150.0, 26.0, 11.0, 0), // right outer
-      (30.0, 144.0, 54.0, 136.0, 26.0, 11.0, 1), // right mid
-      (28.0, 140.0, 44.0, 122.0, 24.0, 10.0, 0), // right upper
-      (26.0, 138.0, 32.0, 120.0, 20.0, 9.0, 1), // right bud stem
-    ];
-    for (final leaf in leaves) {
-      final base = Offset(cx + leaf.$1, leaf.$2);
-      final tip = Offset(cx + leaf.$3, leaf.$4);
-      final color = leaf.$7 == 0 ? AppColors.leafSage : AppColors.leafDeep;
-      _leaf(canvas, base, tip, leaf.$5, leaf.$6, color);
-    }
-  }
-
-  void _leaf(
-    Canvas canvas,
-    Offset base,
-    Offset tip,
-    double length,
-    double width,
-    Color color,
-  ) {
-    final angle = math.atan2(tip.dy - base.dy, tip.dx - base.dx);
-    final center = Offset(
-      (base.dx + tip.dx) / 2,
-      (base.dy + tip.dy) / 2,
-    );
-    canvas.save();
-    canvas.translate(center.dx, center.dy);
-    canvas.rotate(angle);
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset.zero,
-        width: length,
-        height: width,
-      ),
-      Paint()..color = color,
-    );
-    // Pale center vein.
-    canvas.drawLine(
-      Offset(-length / 2 + 3, 0),
-      Offset(length / 2 - 3, 0),
-      Paint()
-        ..color = AppColors.leafPale.withValues(alpha: 0.7)
-        ..strokeWidth = 1,
-    );
     canvas.restore();
   }
 
-  /// Two white 5-petal flowers + two small buds at the candle foot.
-  void _paintFlowers(Canvas canvas, double cx) {
-    // Small buds peeking from behind the pillar.
-    _flower(canvas, Offset(cx - 27, 132), 7);
-    _flower(canvas, Offset(cx + 27, 132), 7);
-    // Main blooms in front of the saucer.
-    _flower(canvas, Offset(cx - 40, 144), 12.5);
-    _flower(canvas, Offset(cx + 40, 144), 12.5);
-  }
+  void _paintFoliage(Canvas canvas) {
+    final leafPaint = Paint()..color = _leafGreen;
+    const cx = 291.5;
 
-  void _flower(Canvas canvas, Offset center, double radius) {
-    final petalOffset = radius * 0.78;
-    for (var i = 0; i < 5; i++) {
-      final a = -math.pi / 2 + i * 2 * math.pi / 5;
-      final petalCenter = Offset(
-        center.dx + math.cos(a) * petalOffset,
-        center.dy + math.sin(a) * petalOffset,
+    // Left leaves: (tipX, tipY, baseX, baseY, width)
+    const leavesLeft = [
+      (174.0, 420.0, 195.0, 455.0, 24.0),
+      (136.0, 449.0, 175.0, 465.0, 22.0),
+      (145.0, 475.0, 175.0, 478.0, 18.0),
+    ];
+
+    for (final leaf in leavesLeft) {
+      _drawLeaf(
+        canvas,
+        Offset(leaf.$3, leaf.$4),
+        Offset(leaf.$1, leaf.$2),
+        leaf.$5,
+        leafPaint,
       );
-      // Soft drop shadow so petals lift off the paper.
-      canvas.drawCircle(
-        Offset(petalCenter.dx + 0.8, petalCenter.dy + 1.2),
-        radius * 0.62,
-        Paint()..color = AppColors.warmDark.withValues(alpha: 0.10),
-      );
-      canvas.drawCircle(
-        petalCenter,
-        radius * 0.62,
-        Paint()..color = AppColors.petalWhite,
-      );
-      canvas.drawCircle(
-        petalCenter,
-        radius * 0.62,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1
-          ..color = AppColors.petalShade,
+      // Mirrored on the right
+      _drawLeaf(
+        canvas,
+        Offset(2 * cx - leaf.$3, leaf.$4),
+        Offset(2 * cx - leaf.$1, leaf.$2),
+        leaf.$5,
+        leafPaint,
       );
     }
-    // Golden heart.
-    canvas.drawCircle(
-      center,
-      radius * 0.30,
-      Paint()..color = AppColors.flowerHeart,
+  }
+
+  void _drawLeaf(
+    Canvas canvas,
+    Offset base,
+    Offset tip,
+    double width,
+    Paint paint,
+  ) {
+    final dx = tip.dx - base.dx;
+    final dy = tip.dy - base.dy;
+    final len = math.sqrt(dx * dx + dy * dy);
+    if (len == 0) return;
+    final nx = -dy / len * (width / 2.0);
+    final ny = dx / len * (width / 2.0);
+    final mid = Offset((base.dx + tip.dx) / 2.0, (base.dy + tip.dy) / 2.0);
+
+    final path = Path()
+      ..moveTo(base.dx, base.dy)
+      ..cubicTo(
+        base.dx + (mid.dx - base.dx) * 0.5 + nx,
+        base.dy + (mid.dy - base.dy) * 0.5 + ny,
+        tip.dx - (tip.dx - mid.dx) * 0.5 + nx * 0.7,
+        tip.dy - (tip.dy - mid.dy) * 0.5 + ny * 0.7,
+        tip.dx,
+        tip.dy,
+      )
+      ..cubicTo(
+        tip.dx - (tip.dx - mid.dx) * 0.5 - nx * 0.7,
+        tip.dy - (tip.dy - mid.dy) * 0.5 - ny * 0.7,
+        base.dx + (mid.dx - base.dx) * 0.5 - nx,
+        base.dy + (mid.dy - base.dy) * 0.5 - ny,
+        base.dx,
+        base.dy,
+      )
+      ..close();
+
+    canvas.drawPath(path, paint);
+  }
+
+  void _paintSaucer(Canvas canvas) {
+    const saucerCenter = Offset(291.5, 462.0);
+    final saucerRect = Rect.fromCenter(
+      center: saucerCenter,
+      width: 208.0,
+      height: 54.0,
     );
-    canvas.drawCircle(
-      center,
-      radius * 0.14,
-      Paint()..color = AppColors.amber.withValues(alpha: 0.85),
+
+    // Deep chocolate wood base
+    canvas.drawOval(saucerRect, Paint()..color = _saucerBase);
+
+    // Top bevel highlight arc
+    canvas.drawArc(
+      Rect.fromCenter(
+        center: const Offset(291.5, 458.0),
+        width: 196.0,
+        height: 42.0,
+      ),
+      math.pi,
+      math.pi,
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.2
+        ..color = _saucerBevel,
     );
+
+    // Outer rim outline
+    canvas.drawOval(
+      saucerRect,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..color = _saucerRim,
+    );
+  }
+
+  void _paintCandleBody(Canvas canvas) {
+    // White pillar with rounded top shoulders
+    final bodyPath = Path()
+      ..moveTo(232.0, 435.0)
+      ..lineTo(232.0, 274.0)
+      ..arcToPoint(
+        const Offset(246.0, 260.0),
+        radius: const Radius.circular(14.0),
+      )
+      ..lineTo(337.0, 260.0)
+      ..arcToPoint(
+        const Offset(351.0, 274.0),
+        radius: const Radius.circular(14.0),
+      )
+      ..lineTo(351.0, 435.0)
+      ..close();
+
+    canvas.drawPath(bodyPath, Paint()..color = _candleBody);
+    canvas.drawPath(
+      bodyPath,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5
+        ..color = _candleStroke,
+    );
+  }
+
+  void _paintWaxDrip(Canvas canvas) {
+    final dripPath = Path()
+      ..moveTo(253.0, 260.0)
+      ..lineTo(253.0, 306.0)
+      ..arcToPoint(
+        const Offset(273.0, 306.0),
+        radius: const Radius.circular(10.0),
+        clockwise: false,
+      )
+      ..lineTo(273.0, 260.0)
+      ..close();
+
+    canvas.drawPath(dripPath, Paint()..color = _candleBody);
+    canvas.drawPath(
+      dripPath,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5
+        ..color = _candleStroke,
+    );
+  }
+
+  void _paintWaxTop(Canvas canvas) {
+    final waxRect = Rect.fromCenter(
+      center: const Offset(291.5, 260.0),
+      width: 119.0,
+      height: 28.0,
+    );
+
+    canvas.drawOval(waxRect, Paint()..color = _waxTop);
+    canvas.drawOval(
+      waxRect,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..color = _waxStroke,
+    );
+  }
+
+  void _paintFlame(Canvas canvas, double flickerOffset, double flameScale) {
+    final fx = 291.5 + flickerOffset * 0.4;
+    final topY = 132.0 + (1.0 - flameScale) * 35.0;
+    const baseY = 232.0;
+    final hw = 25.5 * flameScale;
+
+    // Outer amber teardrop flame
+    final outerFlame = Path()
+      ..moveTo(fx, topY)
+      ..cubicTo(
+        fx - hw * 1.05,
+        topY + (baseY - topY) * 0.35,
+        fx - hw * 1.05,
+        baseY - 15.0,
+        291.5,
+        baseY,
+      )
+      ..cubicTo(
+        fx + hw * 1.05,
+        baseY - 15.0,
+        fx + hw * 1.05,
+        topY + (baseY - topY) * 0.35,
+        fx,
+        topY,
+      )
+      ..close();
+
+    canvas.drawPath(outerFlame, Paint()..color = _flameOuter);
+
+    // Inner pure white teardrop flame core
+    final coreTopY = 176.0 + (1.0 - flameScale) * 20.0;
+    const coreBaseY = 224.0;
+    final chw = 11.5 * flameScale;
+
+    final innerFlame = Path()
+      ..moveTo(fx, coreTopY)
+      ..cubicTo(
+        fx - chw * 1.05,
+        coreTopY + (coreBaseY - coreTopY) * 0.35,
+        fx - chw * 1.05,
+        coreBaseY - 8.0,
+        291.5,
+        coreBaseY,
+      )
+      ..cubicTo(
+        fx + chw * 1.05,
+        coreBaseY - 8.0,
+        fx + chw * 1.05,
+        coreTopY + (coreBaseY - coreTopY) * 0.35,
+        fx,
+        coreTopY,
+      )
+      ..close();
+
+    canvas.drawPath(innerFlame, Paint()..color = _flameInner);
+  }
+
+  void _paintFlowers(Canvas canvas) {
+    // 4 Sampaguita flowers:
+    // Inner Left, Outer Left, Inner Right, Outer Right
+    _drawFlower(canvas, const Offset(195.0, 463.0));
+    _drawFlower(canvas, const Offset(163.0, 478.0));
+    _drawFlower(canvas, const Offset(388.0, 463.0));
+    _drawFlower(canvas, const Offset(420.0, 478.0));
+  }
+
+  void _drawFlower(Canvas canvas, Offset center) {
+    final petalFill = Paint()..color = Colors.white;
+    final petalStroke = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.1
+      ..color = _petalStroke;
+    final pistilPaint = Paint()..color = _flowerPistil;
+
+    // 6 pointed/oval sampaguita petals
+    for (var i = 0; i < 6; i++) {
+      final a = i * (math.pi / 3.0) - (math.pi / 2.0);
+      final cosA = math.cos(a);
+      final sinA = math.sin(a);
+      final nx = -sinA;
+      final ny = cosA;
+
+      const rStart = 6.0;
+      const rTip = 32.0;
+
+      final p0 = Offset(center.dx + cosA * rStart, center.dy + sinA * rStart);
+      final tip = Offset(center.dx + cosA * rTip, center.dy + sinA * rTip);
+
+      final c1 = Offset(
+        center.dx + cosA * 14.0 + nx * 6.5,
+        center.dy + sinA * 14.0 + ny * 6.5,
+      );
+      final c2 = Offset(
+        center.dx + cosA * 26.0 + nx * 4.5,
+        center.dy + sinA * 26.0 + ny * 4.5,
+      );
+      final c3 = Offset(
+        center.dx + cosA * 26.0 - nx * 4.5,
+        center.dy + sinA * 26.0 - ny * 4.5,
+      );
+      final c4 = Offset(
+        center.dx + cosA * 14.0 - nx * 6.5,
+        center.dy + sinA * 14.0 - ny * 6.5,
+      );
+
+      final petalPath = Path()
+        ..moveTo(p0.dx, p0.dy)
+        ..cubicTo(c1.dx, c1.dy, c2.dx, c2.dy, tip.dx, tip.dy)
+        ..cubicTo(c3.dx, c3.dy, c4.dx, c4.dy, p0.dx, p0.dy)
+        ..close();
+
+      canvas.drawPath(petalPath, petalFill);
+      canvas.drawPath(petalPath, petalStroke);
+    }
+
+    // Brown center pistil dot
+    canvas.drawCircle(center, 6.5, pistilPaint);
   }
 
   @override

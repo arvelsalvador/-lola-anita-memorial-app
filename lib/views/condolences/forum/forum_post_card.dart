@@ -7,11 +7,9 @@ import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/data/visitors/visitor_repository.dart';
 import 'package:nita/models/forum_post_model.dart';
 
-/// A single message / story card in the community board.
-/// No popup / bottom sheet — everything happens inline on the card:
-/// each reply has its own reply-arrow button so people can talk
-/// person-to-person, tapping it targets the bottom box at that person
-/// ("Tumutugon kay X" + @mention) and pops the phone keyboard instantly.
+/// Minimal flat message card (Image 1 port, warm-adapted):
+/// paper card, flat avatars, text-only actions, divider, flat replies,
+/// pill composer. Lora + memorial tokens kept — no blue, no sans.
 class ForumPostCard extends StatefulWidget {
   final ForumPost post;
   final void Function(String reactionType) onReactionTap;
@@ -76,14 +74,11 @@ class _ForumPostCardState extends State<ForumPostCard> {
     setState(() {
       _replyTarget = name;
       _repliesExpanded = true;
-      // Mention lives as a bold prefix widget, not editable text.
       _composerController.text = stripped;
       _composerController.selection = TextSelection.fromPosition(
         TextPosition(offset: _composerController.text.length),
       );
     });
-    // Instant keyboard on phone: focus after frame so the box is laid out,
-    // then ensure it is visible above the keyboard.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _composerFocus.requestFocus();
@@ -147,7 +142,6 @@ class _ForumPostCardState extends State<ForumPostCard> {
     try {
       final author = _visitorName.isEmpty ? 'Anonymous' : _visitorName;
       final target = (_replyTarget ?? '').trim();
-      // Combine bold prefix + typed body; avoid doubling @ if typed manually.
       final startsWithMention =
           target.isNotEmpty && body.startsWith('@$target');
       final text =
@@ -166,9 +160,7 @@ class _ForumPostCardState extends State<ForumPostCard> {
     }
   }
 
-  /// Date only: "Okt 6, 2026". Month abbreviations follow the active
-  /// language (Ene/Peb/... for TL/BI, Jan/Feb for EN). No time —
-  /// every post shows its exact date on the right side of the bar.
+  /// Full date for the main post: "Okt 6, 2026".
   String _formatExact(BuildContext context, DateTime dateTime) {
     final lang = context.read<LanguageProvider>();
     const monthsEn = [
@@ -185,11 +177,29 @@ class _ForumPostCardState extends State<ForumPostCard> {
     return '$month ${local.day}, ${local.year}';
   }
 
+  /// Short date for replies: "Okt 7".
+  String _formatShort(BuildContext context, DateTime dateTime) {
+    final lang = context.read<LanguageProvider>();
+    const monthsEn = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    const monthsFil = [
+      'Ene', 'Peb', 'Mar', 'Abr', 'May', 'Hun',
+      'Hul', 'Ago', 'Set', 'Okt', 'Nob', 'Dis',
+    ];
+    final local = dateTime.toLocal();
+    final month =
+        (lang.isEnglish ? monthsEn : monthsFil)[local.month - 1];
+    return '$month ${local.day}';
+  }
+
   String _getInitials(String name) {
     final parts = name.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty) return 'A';
+    if (parts.isEmpty || parts.first.isEmpty) return 'A';
     if (parts.length == 1) return parts[0].substring(0, 1).toUpperCase();
-    return '${parts[0].substring(0, 1)}${parts[1].substring(0, 1)}'.toUpperCase();
+    return '${parts[0].substring(0, 1)}${parts[1].substring(0, 1)}'
+        .toUpperCase();
   }
 
   @override
@@ -197,239 +207,138 @@ class _ForumPostCardState extends State<ForumPostCard> {
     final post = widget.post;
     final postedAt = _formatExact(context, post.createdAt);
     final lang = context.watch<LanguageProvider>();
+    final liked = post.userReactions.contains('heart');
+    final hasReplies = post.replies.isNotEmpty;
+    final showThread = _repliesExpanded && hasReplies;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
         color: AppColors.paper,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.rose.withValues(alpha: 0.22),
-          width: 0.8,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.warmDark.withValues(alpha: 0.07),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        border: Border.all(color: AppColors.stoneBorder, width: 1),
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top author row: avatar + name on the left,
-            // date at the right end of the bar.
+            // Header: avatar + name over date (no calendar icon).
             Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 _InitialAvatar(initials: _getInitials(post.authorName)),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(
-                    post.authorName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontFamily: 'Lora',
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textDark,
-                    ),
-                  ),
-                ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.calendar_today_outlined,
-                      size: 11,
-                      color: AppColors.terracotta,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      postedAt,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontFamily: 'Lora',
-                        fontSize: 11.5,
-                        color: AppColors.muted,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        post.authorName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: 'Lora',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textDark,
+                          height: 1.2,
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 2),
+                      Text(
+                        postedAt,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: 'Lora',
+                          fontSize: 12.5,
+                          color: AppColors.muted,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
 
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
 
-            // Message text
             Text(
               post.message,
               style: const TextStyle(
                 fontFamily: 'Lora',
                 fontSize: 15,
                 height: 1.55,
-                color: Color(0xFF4A382D),
+                color: AppColors.textDark,
               ),
             ),
 
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
 
-            // Action toolbar: Heart + show/hide pill + reply-to-author.
+            // Flat text actions: Like | N replies | Reply.
             Row(
               children: [
-                _ReactionItem(
-                  icon: Icons.favorite_border,
-                  count: post.reactions['heart'] ?? 0,
-                  active: post.userReactions.contains('heart'),
+                _TextAction(
+                  icon: liked
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                  label: 'Like',
+                  active: liked,
                   onTap: () => widget.onReactionTap('heart'),
                 ),
-                const SizedBox(width: 6),
-
-                // Show / hide replies pill — no popup, only expands thread.
-                InkWell(
+                const SizedBox(width: 20),
+                _TextAction(
+                  icon: Icons.chat_bubble_outline_rounded,
+                  label: post.replies.length == 1
+                      ? '1 reply'
+                      : '${post.replies.length} replies',
                   onTap: () {
                     HapticFeedback.lightImpact().catchError((_) {});
                     setState(
                       () => _repliesExpanded = !_repliesExpanded,
                     );
                   },
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 7,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.goldLight.withValues(alpha: 0.45),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: AppColors.gold.withValues(alpha: 0.45),
-                        width: 0.7,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.chat_bubble_outline_rounded,
-                          size: 13,
-                          color: AppColors.roseDeep,
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          '${post.replies.length}',
-                          style: const TextStyle(
-                            fontFamily: 'Lora',
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.roseDeep,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Icon(
-                          _repliesExpanded
-                              ? Icons.expand_less_rounded
-                              : Icons.expand_more_rounded,
-                          size: 14,
-                          color: AppColors.roseDeep,
-                        ),
-                      ],
-                    ),
-                  ),
                 ),
-                const SizedBox(width: 6),
-
-                // Reply to the main message — no mention, just focus
-                // the box. Mentions only happen on reply-to-reply.
-                Tooltip(
-                  message: 'Reply',
-                  child: InkWell(
-                    onTap: _replyToPost,
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 7,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.goldLight.withValues(alpha: 0.45),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: AppColors.gold.withValues(alpha: 0.45),
-                          width: 0.7,
-                        ),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.reply_rounded,
-                            size: 15,
-                            color: AppColors.roseDeep,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                const SizedBox(width: 20),
+                _TextAction(
+                  icon: Icons.reply_rounded,
+                  label: 'Reply',
+                  onTap: _replyToPost,
                 ),
               ],
             ),
 
-            // Inline replies: shown by default, indented under the
-            // parent message with a thread rail on the left.
-            // Each reply has its own reply-arrow so people can answer
-            // each other person-to-person.
-            if (_repliesExpanded && post.replies.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Padding(
-                padding: const EdgeInsets.only(left: 20),
-                child: Container(
-                  padding: const EdgeInsets.only(left: 12),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      left: BorderSide(
-                        color: AppColors.rose.withValues(alpha: 0.4),
-                        width: 1.5,
-                      ),
-                    ),
+            if (showThread) ...[
+              const SizedBox(height: 14),
+              Container(
+                height: 1,
+                color: AppColors.stoneBorder.withValues(alpha: 0.6),
+              ),
+              const SizedBox(height: 14),
+              for (var i = 0; i < post.replies.length; i++)
+                Padding(
+                  padding: EdgeInsets.only(
+                    bottom: i == post.replies.length - 1 ? 0 : 16,
                   ),
-                  child: Column(
-                    children: [
-                      for (var i = 0; i < post.replies.length; i++)
-                        Padding(
-                          padding: EdgeInsets.only(
-                            bottom:
-                                i == post.replies.length - 1 ? 0 : 10,
-                          ),
-                          child: _InlineReply(
-                            reply: post.replies[i],
-                            initials:
-                                _getInitials(post.replies[i].authorName),
-                            timeAgo: _formatExact(
-                              context,
-                              post.replies[i].createdAt,
-                            ),
-                            onReactionTap: (type) =>
-                                widget.onReplyReactionTap(
-                              post.replies[i].id,
-                              type,
-                            ),
-                            onReplyTap: () =>
-                                _targetReply(post.replies[i].authorName),
-                          ),
-                        ),
-                    ],
+                  child: _InlineReply(
+                    reply: post.replies[i],
+                    initials: _getInitials(post.replies[i].authorName),
+                    shortDate:
+                        _formatShort(context, post.replies[i].createdAt),
+                    onReactionTap: (type) => widget.onReplyReactionTap(
+                      post.replies[i].id,
+                      type,
+                    ),
+                    onReplyTap: () =>
+                        _targetReply(post.replies[i].authorName),
                   ),
                 ),
-              ),
             ],
 
-            // Inline composer: always on the card, no sheet.
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
+
+            // Pill composer.
             Column(
               key: _composerKey,
               mainAxisSize: MainAxisSize.min,
@@ -443,7 +352,7 @@ class _ForumPostCardState extends State<ForumPostCard> {
                         const Icon(
                           Icons.subdirectory_arrow_right_rounded,
                           size: 12,
-                          color: AppColors.gold,
+                          color: AppColors.muted,
                         ),
                         const SizedBox(width: 4),
                         Expanded(
@@ -456,9 +365,9 @@ class _ForumPostCardState extends State<ForumPostCard> {
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontFamily: 'Lora',
-                              fontSize: 11.5,
+                              fontSize: 12,
                               fontStyle: FontStyle.italic,
-                              color: AppColors.warmMid,
+                              color: AppColors.muted,
                             ),
                           ),
                         ),
@@ -469,7 +378,7 @@ class _ForumPostCardState extends State<ForumPostCard> {
                             padding: EdgeInsets.all(8),
                             child: Icon(
                               Icons.close_rounded,
-                              size: 13,
+                              size: 14,
                               color: AppColors.muted,
                             ),
                           ),
@@ -480,34 +389,30 @@ class _ForumPostCardState extends State<ForumPostCard> {
                 ],
                 Container(
                   padding: const EdgeInsets.only(
-                    left: 12,
-                    right: 4,
-                    top: 4,
-                    bottom: 4,
+                    left: 16,
+                    right: 6,
+                    top: 6,
+                    bottom: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.blushPaper,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: AppColors.rose.withValues(alpha: 0.35),
-                    ),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: AppColors.stoneBorder),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // Bold mention prefix while typing — matches the
-                      // bold mention shown after send.
                       if (_replyTarget != null &&
                           _replyTarget!.trim().isNotEmpty)
                         Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
                           child: Text(
                             '@${_replyTarget!.trim()} ',
                             style: const TextStyle(
                               fontFamily: 'Lora',
-                              fontSize: 13,
+                              fontSize: 13.5,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.warmDeep,
+                              color: AppColors.roseDeep,
                             ),
                           ),
                         ),
@@ -522,31 +427,33 @@ class _ForumPostCardState extends State<ForumPostCard> {
                           onSubmitted: (_) => _handleSend(),
                           style: const TextStyle(
                             fontFamily: 'Lora',
-                            fontSize: 13,
+                            fontSize: 14,
                             color: AppColors.textDark,
                           ),
                           decoration: InputDecoration(
                             hintText: lang.t('forum_write_reply_hint'),
                             hintStyle: const TextStyle(
                               fontFamily: 'Lora',
-                              fontSize: 12.5,
+                              fontSize: 14,
                               color: AppColors.muted,
                             ),
                             border: InputBorder.none,
                             isDense: true,
                             contentPadding: const EdgeInsets.symmetric(
-                              vertical: 8,
+                              vertical: 10,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 6),
                       IconButton.filled(
                         onPressed: _sending ? null : _handleSend,
                         style: IconButton.styleFrom(
-                          backgroundColor: AppColors.terracotta,
+                          backgroundColor: AppColors.warmDark,
+                          disabledBackgroundColor: AppColors.warmDark
+                              .withValues(alpha: 0.3),
                           foregroundColor: Colors.white,
-                          minimumSize: const Size(34, 34),
+                          minimumSize: const Size(36, 36),
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           padding: EdgeInsets.zero,
                         ),
@@ -556,10 +463,13 @@ class _ForumPostCardState extends State<ForumPostCard> {
                                 height: 14,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: AppColors.linen,
+                                  color: Colors.white,
                                 ),
                               )
-                            : const Icon(Icons.send_rounded, size: 15),
+                            : const Icon(
+                                Icons.arrow_upward_rounded,
+                                size: 18,
+                              ),
                       ),
                     ],
                   ),
@@ -573,20 +483,19 @@ class _ForumPostCardState extends State<ForumPostCard> {
   }
 }
 
-/// One inline reply: small beige avatar + name/time row + message +
-/// its own reaction chip + its own reply-arrow so anyone can answer
-/// that specific person inline (no popup).
+/// Flat reply row: small avatar + name/date + message + heart/Reply.
+/// No bubble, no rail — matches the minimal reference.
 class _InlineReply extends StatelessWidget {
   final ForumReply reply;
   final String initials;
-  final String timeAgo;
+  final String shortDate;
   final void Function(String reactionType) onReactionTap;
   final VoidCallback onReplyTap;
 
   const _InlineReply({
     required this.reply,
     required this.initials,
-    required this.timeAgo,
+    required this.shortDate,
     required this.onReactionTap,
     required this.onReplyTap,
   });
@@ -594,26 +503,18 @@ class _InlineReply extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
+    final liked = reply.userReactions.contains('heart');
+    final count = reply.reactions['heart'] ?? 0;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           width: 28,
           height: 28,
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             shape: BoxShape.circle,
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppColors.roseLight,
-                AppColors.goldLight.withValues(alpha: 0.6),
-              ],
-            ),
-            border: Border.all(
-              color: AppColors.gold.withValues(alpha: 0.4),
-              width: 0.6,
-            ),
+            color: AppColors.mistPaper,
           ),
           child: Center(
             child: Text(
@@ -622,135 +523,148 @@ class _InlineReply extends StatelessWidget {
                 fontFamily: 'Lora',
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: AppColors.roseDeep,
+                color: AppColors.warmDeep,
               ),
             ),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 10),
         Expanded(
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 9,
-            ),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFDEBDD),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppColors.rose.withValues(alpha: 0.28),
-                width: 0.7,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        reply.authorName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontFamily: 'Lora',
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textDark,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      timeAgo,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      reply.authorName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontFamily: 'Lora',
-                        fontSize: 10.5,
-                        color: AppColors.muted,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textDark,
                       ),
                     ),
-                  ],
-                ),
-                // Context line: shows whose message this answers.
-                if (reply.replyToName.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.subdirectory_arrow_right_rounded,
-                        size: 10,
-                        color: AppColors.gold,
-                      ),
-                      const SizedBox(width: 3),
-                      Flexible(
-                        child: Text(
-                          lang.t(
-                            'forum_replying_to',
-                            {'name': reply.replyToName},
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontFamily: 'Lora',
-                            fontSize: 10.5,
-                            fontStyle: FontStyle.italic,
-                            color: AppColors.warmMid,
-                          ),
-                        ),
-                      ),
-                    ],
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    shortDate,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontFamily: 'Lora',
+                      fontSize: 12,
+                      color: AppColors.muted,
+                    ),
                   ),
                 ],
-                const SizedBox(height: 3),
-                _MentionMessageText(message: reply.message),
-                const SizedBox(height: 6),
-                // Heart + reply side by side so each reply can be
-                // answered person-to-person inline (no popup).
+              ),
+              if (reply.replyToName.isNotEmpty) ...[
+                const SizedBox(height: 2),
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    _ReactionItem(
-                      icon: Icons.favorite_border,
-                      count: reply.reactions['heart'] ?? 0,
-                      active: reply.userReactions.contains('heart'),
-                      onTap: () => onReactionTap('heart'),
+                    const Icon(
+                      Icons.subdirectory_arrow_right_rounded,
+                      size: 11,
+                      color: AppColors.muted,
                     ),
-                    const SizedBox(width: 6),
-                    Tooltip(
-                      message: 'Reply to ${reply.authorName}',
-                      child: InkWell(
-                        onTap: () {
-                          HapticFeedback.lightImpact().catchError((_) {});
-                          onReplyTap();
-                        },
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 7,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.7),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color:
-                                  AppColors.gold.withValues(alpha: 0.45),
-                              width: 0.7,
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.reply_rounded,
-                            size: 15,
-                            color: AppColors.roseDeep,
-                          ),
+                    const SizedBox(width: 3),
+                    Flexible(
+                      child: Text(
+                        lang.t(
+                          'forum_replying_to',
+                          {'name': reply.replyToName},
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: 'Lora',
+                          fontSize: 11.5,
+                          fontStyle: FontStyle.italic,
+                          color: AppColors.muted,
                         ),
                       ),
                     ),
                   ],
                 ),
               ],
-            ),
+              const SizedBox(height: 4),
+              _MentionMessageText(message: reply.message),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  InkWell(
+                    onTap: () {
+                      HapticFeedback.lightImpact().catchError((_) {});
+                      onReactionTap('heart');
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 2,
+                        vertical: 6,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            liked
+                                ? Icons.favorite_rounded
+                                : Icons.favorite_border_rounded,
+                            size: 15,
+                            color: liked
+                                ? _LikeRed.color
+                                : AppColors.warmMid,
+                          ),
+                          if (count > 0) ...[
+                            const SizedBox(width: 4),
+                            Text(
+                              '$count',
+                              style: TextStyle(
+                                fontFamily: 'Lora',
+                                fontSize: 12.5,
+                                fontWeight: liked
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                                color: liked
+                                    ? _LikeRed.color
+                                    : AppColors.warmMid,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  InkWell(
+                    onTap: () {
+                      HapticFeedback.lightImpact().catchError((_) {});
+                      onReplyTap();
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 2,
+                        vertical: 6,
+                      ),
+                      child: Text(
+                        'Reply',
+                        style: TextStyle(
+                          fontFamily: 'Lora',
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.warmMid,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ],
@@ -758,8 +672,7 @@ class _InlineReply extends StatelessWidget {
   }
 }
 
-/// Reply message text with the leading @mention in bold so it never
-/// blends into the rest of the message (e.g. "@Anonymous oo nga eh").
+/// @mention in roseDeep bold, rest in body ink.
 class _MentionMessageText extends StatelessWidget {
   final String message;
 
@@ -769,9 +682,9 @@ class _MentionMessageText extends StatelessWidget {
   Widget build(BuildContext context) {
     const baseStyle = TextStyle(
       fontFamily: 'Lora',
-      fontSize: 13,
+      fontSize: 14,
       height: 1.5,
-      color: Color(0xFF4A382D),
+      color: AppColors.textDark,
     );
     final match = RegExp(r'^(@\S+)\s*').firstMatch(message);
     if (match == null) {
@@ -786,7 +699,7 @@ class _MentionMessageText extends StatelessWidget {
             text: mention,
             style: baseStyle.copyWith(
               fontWeight: FontWeight.w700,
-              color: AppColors.warmDeep,
+              color: AppColors.roseDeep,
             ),
           ),
           if (rest.isNotEmpty)
@@ -800,8 +713,7 @@ class _MentionMessageText extends StatelessWidget {
   }
 }
 
-/// Warm gradient initials avatar per DESIGN.md: rose-light → gold-light
-/// diagonal at 60% alpha, ringed by a gold hairline, initials in rose deep.
+/// Flat 40px beige avatar, roseDeep initial. No gradient, no ring.
 class _InitialAvatar extends StatelessWidget {
   final String initials;
 
@@ -810,22 +722,11 @@ class _InitialAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 42,
-      height: 42,
-      decoration: BoxDecoration(
+      width: 40,
+      height: 40,
+      decoration: const BoxDecoration(
         shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.roseLight,
-            AppColors.goldLight.withValues(alpha: 0.6),
-          ],
-        ),
-        border: Border.all(
-          color: AppColors.gold.withValues(alpha: 0.45),
-          width: 0.8,
-        ),
+        color: AppColors.iconBgCream,
       ),
       child: Center(
         child: Text(
@@ -842,113 +743,51 @@ class _InitialAvatar extends StatelessWidget {
   }
 }
 
-/// Reaction chip with smooth hover + tap feedback: hovering (desktop/web)
-/// gently grows the chip, pressing springs it up to 1.4x before settling
-/// back, and the count cross-fades whenever it changes.
-class _ReactionItem extends StatefulWidget {
+/// True heart-red for liked state (not brown).
+class _LikeRed {
+  static const color = Color(0xFFD92D20);
+}
+
+/// Flat text action: icon + label, no fill, no border.
+class _TextAction extends StatelessWidget {
   final IconData icon;
-  final int count;
+  final String label;
   final bool active;
   final VoidCallback onTap;
 
-  const _ReactionItem({
+  const _TextAction({
     required this.icon,
-    required this.count,
-    required this.active,
+    required this.label,
+    this.active = false,
     required this.onTap,
   });
 
   @override
-  State<_ReactionItem> createState() => _ReactionItemState();
-}
-
-class _ReactionItemState extends State<_ReactionItem> {
-  bool _hovering = false;
-  bool _pressing = false;
-
-  double get _scale {
-    if (_pressing) return 1.4;
-    if (_hovering) return 1.15;
-    return 1.0;
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final color = active ? _LikeRed.color : AppColors.warmMid;
     return InkWell(
       onTap: () {
         HapticFeedback.lightImpact().catchError((_) {});
-        widget.onTap();
+        onTap();
       },
-      onHighlightChanged: (pressed) {
-        if (mounted) setState(() => _pressing = pressed);
-      },
-      onHover: (hovering) {
-        if (mounted) setState(() => _hovering = hovering);
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: AnimatedScale(
-        scale: _scale,
-        duration: const Duration(milliseconds: 140),
-        curve: Curves.easeOutBack,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: widget.active
-                  ? AppColors.rose
-                  : AppColors.goldLight.withValues(alpha: 0.45),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: widget.active
-                    ? AppColors.roseDeep.withValues(alpha: 0.5)
-                    : AppColors.gold.withValues(alpha: 0.45),
-                width: 0.7,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'Lora',
+                fontSize: 13.5,
+                fontWeight: FontWeight.w500,
+                color: color,
               ),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  widget.active ? Icons.favorite_rounded : widget.icon,
-                  size: 14,
-                  color: widget.active ? Colors.white : AppColors.terracotta,
-                ),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                transitionBuilder: (child, animation) {
-                  return FadeTransition(
-                    opacity: animation,
-                    child: ScaleTransition(
-                      scale: animation,
-                      child: child,
-                    ),
-                  );
-                },
-                child: widget.count > 0
-                    ? Row(
-                        key: ValueKey(widget.count),
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const SizedBox(width: 4),
-                          Text(
-                            '${widget.count}',
-                            style: TextStyle(
-                              fontFamily: 'Lora',
-                              fontSize: 11,
-                              fontWeight: widget.active
-                                  ? FontWeight.w700
-                                  : FontWeight.w600,
-                              color: widget.active
-                                  ? Colors.white
-                                  : AppColors.roseDeep,
-                            ),
-                          ),
-                        ],
-                      )
-                    : const SizedBox.shrink(key: ValueKey('empty')),
-              ),
-            ],
-          ),
+          ],
         ),
       ),
     );

@@ -111,165 +111,103 @@ class _ForumHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-      decoration: BoxDecoration(
-        color: AppColors.paper,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.sandBorder.withValues(alpha: 0.9),
-          width: 0.8,
+    // Flat minimal header (Image 1 bottom): hairline divider, left
+    // title, globe public note, full-width outlined share button.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          height: 1,
+          color: AppColors.stoneBorder.withValues(alpha: 0.6),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.warmDark.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+        const SizedBox(height: 16),
+        Text(
+          title,
+          style: const TextStyle(
+            fontFamily: 'Lora',
+            fontSize: 20,
+            height: 1.25,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textDark,
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.iconBgCream,
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.layers_outlined,
-                    size: 20,
-                    color: AppColors.warmDeep,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontFamily: 'Lora',
-                        fontSize: 20,
-                        height: 1.2,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textDark,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        fontFamily: 'Lora',
-                        fontSize: 12.5,
-                        color: AppColors.muted,
-                        height: 1.35,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    // Outlined public pill with people icon.
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.cream,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: AppColors.sandBorder,
-                          width: 0.8,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.people_outline_rounded,
-                            size: 12,
-                            color: AppColors.warmMid,
-                          ),
-                          const SizedBox(width: 5),
-                          Flexible(
-                            child: Text(
-                              lang.t('forum_public_note'),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontFamily: 'Lora',
-                                fontSize: 11.5,
-                                color: AppColors.warmMid,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            const Icon(
+              Icons.public_outlined,
+              size: 14,
+              color: AppColors.muted,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                lang.t('forum_public_note'),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontFamily: 'Lora',
+                  fontSize: 13,
+                  color: AppColors.muted,
+                  height: 1.4,
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            height: 52,
-            child: ElevatedButton(
-              onPressed: () {
-                HapticFeedback.lightImpact().catchError((_) {});
-                onShareTap();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.warmDark,
-                foregroundColor: AppColors.linen,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                elevation: 3,
-                shadowColor: AppColors.warmDark.withValues(alpha: 0.35),
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.edit_outlined,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        lang.t('forum_share_button'),
-                        style: const TextStyle(
-                          fontFamily: 'Lora',
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Positioned(
-                    right: 0,
-                    child: Icon(
-                      Icons.arrow_forward_rounded,
-                      size: 18,
-                    ),
-                  ),
-                ],
+            ),
+          ],
+        ),
+        // Subtitle kept for screen readers, visually hidden to match
+        // the minimal reference (title + public note only).
+        Semantics(
+          header: true,
+          child: ExcludeSemantics(
+            excluding: false,
+            child: SizedBox.shrink(
+              child: Text(
+                subtitle,
+                style: const TextStyle(fontSize: 0.1, color: Colors.transparent),
               ),
             ),
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 14),
+        SizedBox(
+          height: 52,
+          child: OutlinedButton(
+            onPressed: () {
+              HapticFeedback.lightImpact().catchError((_) {});
+              onShareTap();
+            },
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.textDark,
+              backgroundColor: Colors.white,
+              side: const BorderSide(color: AppColors.stoneBorder),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              textStyle: const TextStyle(
+                fontFamily: 'Lora',
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.edit_outlined, size: 18),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    lang.t('forum_share_button'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
