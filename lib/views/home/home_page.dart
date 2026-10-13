@@ -278,111 +278,113 @@ class _HomeShellState extends State<HomeShell> {
 
     return Scaffold(
       backgroundColor: AppColors.cream,
-      body: Column(
-        children: [
-          _TopBar(
-            onOpenFamily: () => widget.onTabChanged(2),
-            onOpenTab: widget.onTabChanged,
-          ),
-          // The memorial hero belongs to the home page only — on the other
-          // tabs (gallery, family, words, condolences) the pages show their
-          // own headers instead. On the Story tab its height is derived
-          // straight from the scroll offset, so the photo collapses and
-          // re-expands in lockstep with the finger. Tab switches play a
-          // short animated transition instead (see _heroTabAnimating).
-          ValueListenableBuilder<double>(
-            valueListenable: _storyOffset,
-            builder: (context, storyOffset, _) {
-              final heroHeight = onStoryTab
-                  ? (expandedHeight - storyOffset).clamp(0.0, expandedHeight)
-                  : 0.0;
-              final heroContent = OverflowBox(
-                alignment: Alignment.topCenter,
-                maxHeight: expandedHeight,
-                child: AnimatedOpacity(
-                  opacity: onStoryTab ? 1 : 0,
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeOut,
-                  child: _heroChild,
-                ),
-              );
-              return ClipRect(
-                child: _heroTabAnimating
-                    ? AnimatedContainer(
-                        key: const ValueKey('hero-collapse'),
-                        duration: const Duration(milliseconds: 280),
-                        curve: Curves.easeOutCubic,
-                        height: heroHeight,
-                        color: AppColors.warmDark,
-                        child: heroContent,
-                      )
-                    : Container(
-                        key: const ValueKey('hero-collapse'),
-                        height: heroHeight,
-                        color: AppColors.warmDark,
-                        child: heroContent,
-                      ),
-              );
-            },
-          ),
-          Expanded(
-            child: Stack(
-              children: [
-                // NestedScrollView is gone — nothing here needs outer/inner
-                // sliver coordination anymore, since the hero isn't a sliver.
-                SafeArea(
-                  top: false,
-                  child: Container(
-                    width: double.infinity,
-                    decoration: const BoxDecoration(
-                      color: AppColors.cream,
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(26),
-                      ),
-                    ),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: Responsive.contentMaxWidth(context),
+      // The assistive touch floats over the whole body — top bar, hero,
+      // and content alike — so it can be parked anywhere on screen.
+      body: AbuloyTouchScope(
+        child: Column(
+          children: [
+            _TopBar(
+              onOpenFamily: () => widget.onTabChanged(2),
+              onOpenTab: widget.onTabChanged,
+            ),
+            // The memorial hero belongs to the home page only — on the other
+            // tabs (gallery, family, words, condolences) the pages show their
+            // own headers instead. On the Story tab its height is derived
+            // straight from the scroll offset, so the photo collapses and
+            // re-expands in lockstep with the finger. Tab switches play a
+            // short animated transition instead (see _heroTabAnimating).
+            ValueListenableBuilder<double>(
+              valueListenable: _storyOffset,
+              builder: (context, storyOffset, _) {
+                final heroHeight = onStoryTab
+                    ? (expandedHeight - storyOffset).clamp(0.0, expandedHeight)
+                    : 0.0;
+                final heroContent = OverflowBox(
+                  alignment: Alignment.topCenter,
+                  maxHeight: expandedHeight,
+                  child: AnimatedOpacity(
+                    opacity: onStoryTab ? 1 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOut,
+                    child: _heroChild,
+                  ),
+                );
+                return ClipRect(
+                  child: _heroTabAnimating
+                      ? AnimatedContainer(
+                          key: const ValueKey('hero-collapse'),
+                          duration: const Duration(milliseconds: 280),
+                          curve: Curves.easeOutCubic,
+                          height: heroHeight,
+                          color: AppColors.warmDark,
+                          child: heroContent,
+                        )
+                      : Container(
+                          key: const ValueKey('hero-collapse'),
+                          height: heroHeight,
+                          color: AppColors.warmDark,
+                          child: heroContent,
                         ),
-                        child: AnimatedOpacity(
-                          opacity: _contentOpacity,
-                          duration: _contentFadeDuration,
-                          curve: Curves.easeOut,
-                          child: IndexedStack(
-                            index: widget.selectedTab,
-                            children: [
-                              for (int i = 0; i < bodies.length; i++) bodies[i],
-                            ],
+                );
+              },
+            ),
+            Expanded(
+              child: Stack(
+                children: [
+                  // NestedScrollView is gone — nothing here needs outer/inner
+                  // sliver coordination anymore, since the hero isn't a sliver.
+                  SafeArea(
+                    top: false,
+                    child: Container(
+                      width: double.infinity,
+                      decoration: const BoxDecoration(
+                        color: AppColors.cream,
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(26),
+                        ),
+                      ),
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: Responsive.contentMaxWidth(context),
+                          ),
+                          child: AnimatedOpacity(
+                            opacity: _contentOpacity,
+                            duration: _contentFadeDuration,
+                            curve: Curves.easeOut,
+                            child: IndexedStack(
+                              index: widget.selectedTab,
+                              children: [
+                                for (int i = 0; i < bodies.length; i++)
+                                  bodies[i],
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
 
-                // Floating bottom navigation.
-                Positioned(
-                  left: 20,
-                  right: 20,
-                  bottom: MediaQuery.paddingOf(context).bottom + 16,
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 500),
-                      child: AppBottomNav(
-                        selectedIndex: widget.selectedTab,
-                        onTap: widget.onTabChanged,
+                  // Floating bottom navigation.
+                  Positioned(
+                    left: 20,
+                    right: 20,
+                    bottom: MediaQuery.paddingOf(context).bottom + 16,
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 500),
+                        child: AppBottomNav(
+                          selectedIndex: widget.selectedTab,
+                          onTap: widget.onTabChanged,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                // Floating Abuloy assistive touch: one quiet entry point,
-                // visible on every tab. It positions and drags itself.
-                const AbuloyTouch(),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

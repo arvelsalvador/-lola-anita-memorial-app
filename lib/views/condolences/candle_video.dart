@@ -2,15 +2,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-/// Pure-Flutter candle illustration replicating the memorial badge design:
-/// - Soft warm circular ground with 3 concentric halos centered behind the flame
-/// - Floating spark speckles
-/// - Deep chocolate wood saucer base with bevel highlight rim
-/// - White pillar candle with rounded top shoulders, left wax drip, and peach wax pool
-/// - Solid dark wick
-/// - Golden amber teardrop flame with pure white inner core
-/// - Filipino Sampaguita (Arabian jasmine) flowers with 6 white petals and brown centers
-/// - Fresh green foliage flanking the base
+import 'package:nita/core/constants/app_constants.dart';
+
+/// Pure-Flutter candle illustration for the memorial action: a quiet modern
+/// medallion, softly shaded candle, warm animated flame, and small flowers.
 class CandleVideo extends StatefulWidget {
   final bool lit;
   final VoidCallback onLight;
@@ -75,12 +70,12 @@ class _CandleVideoState extends State<CandleVideo>
     return GestureDetector(
       onTap: _handleTap,
       child: SizedBox(
-        width: 250,
-        height: 250,
+        width: 238,
+        height: 238,
         child: AnimatedBuilder(
           animation: Listenable.merge([_spark, _flicker]),
           builder: (context, _) => CustomPaint(
-            size: const Size(250, 250),
+            size: const Size(238, 238),
             painter: _CandlePainter(
               progress: _spark.value,
               flicker: _flicker.value,
@@ -104,34 +99,27 @@ class _CandlePainter extends CustomPainter {
     required this.lit,
   });
 
-  // Reference art palette
-  static const _bgDisc = Color(0xFFFAF7F2);
-  static const _haloOuter = Color(0xFFF2EFE9);
-  static const _haloMid = Color(0xFFE5DED1);
-  static const _haloInner = Color(0xFFD2C5AF);
+  static const _sparkDark = AppColors.goldInk;
+  static const _sparkLight = AppColors.goldLight;
 
-  static const _sparkDark = Color(0xFF8F7350);
-  static const _sparkLight = Color(0xFFD4C7B4);
+  static const _leafGreen = AppColors.leafSage;
+  static const _leafDeep = AppColors.leafDeep;
 
-  static const _leafGreen = Color(0xFF589858);
+  static const _saucerBase = AppColors.woodDeep;
+  static const _saucerRim = AppColors.woodLight;
 
-  static const _saucerBase = Color(0xFF734500);
-  static const _saucerBevel = Color(0xFFB9A280);
-  static const _saucerRim = Color(0xFF8A5C1F);
+  static const _candleStroke = AppColors.waxShade;
+  static const _waxTop = AppColors.goldLight;
+  static const _waxStroke = AppColors.gold;
 
-  static const _candleBody = Colors.white;
-  static const _candleStroke = Color(0xFFCDC6B9);
+  static const _wick = AppColors.warmDeep;
 
-  static const _waxTop = Color(0xFFF9DCA4);
-  static const _waxStroke = Color(0xFFD9BD88);
+  static const _flameOuter = AppColors.flameAmber;
+  static const _flameMid = AppColors.flameGold;
+  static const _flameInner = AppColors.flameInner;
 
-  static const _wick = Color(0xFF0B0B0B);
-
-  static const _flameOuter = Color(0xFF734500);
-  static const _flameInner = Colors.white;
-
-  static const _petalStroke = Color(0xFFC0B9B0);
-  static const _flowerPistil = Color(0xFF734500);
+  static const _petalStroke = AppColors.petalShade;
+  static const _flowerPistil = AppColors.flowerHeart;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -152,32 +140,57 @@ class _CandlePainter extends CustomPainter {
         ? (0.95 + flicker * 0.08)
         : (0.15 + progress * 0.85);
 
-    // 1. Large background circle disc
+    const discCenter = Offset(291.5, 280.5);
+    final discRect = Rect.fromCircle(center: discCenter, radius: 251.5);
+
     canvas.drawCircle(
-      const Offset(291.5, 280.5),
-      251.5,
-      Paint()..color = _bgDisc,
+      discCenter.translate(0, 12),
+      232,
+      Paint()
+        ..color = AppColors.warmDark.withValues(alpha: 0.08)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 18),
     );
 
-    // 2. Three concentric halo circles centered behind the flame
+    canvas.drawCircle(
+      discCenter,
+      251.5,
+      Paint()
+        ..shader = const RadialGradient(
+          center: Alignment(-0.18, -0.24),
+          radius: 0.95,
+          colors: [
+            AppColors.paper,
+            AppColors.cream,
+            AppColors.goldLight,
+          ],
+          stops: [0.0, 0.70, 1.0],
+        ).createShader(discRect),
+    );
+    canvas.drawCircle(
+      discCenter,
+      249.5,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.2
+        ..color = AppColors.gold.withValues(alpha: 0.18),
+    );
+
     final haloBreath = lit ? (flicker - 0.5) * 1.5 : 0.0;
     const haloCenter = Offset(291.5, 194.0);
-
-    canvas.drawCircle(
-      haloCenter,
-      165.0 + haloBreath,
-      Paint()..color = _haloOuter,
-    );
-    canvas.drawCircle(
-      haloCenter,
-      117.0 + haloBreath * 0.8,
-      Paint()..color = _haloMid,
-    );
-    canvas.drawCircle(
-      haloCenter,
-      72.0 + haloBreath * 0.6,
-      Paint()..color = _haloInner,
-    );
+    for (final ring in const [
+      (166.0, 0.12, 1.0),
+      (116.0, 0.18, 0.8),
+      (70.0, 0.24, 0.6),
+    ]) {
+      canvas.drawCircle(
+        haloCenter,
+        ring.$1 + haloBreath * ring.$3,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = ring.$1 > 150 ? 10 : 8
+          ..color = AppColors.gold.withValues(alpha: ring.$2),
+      );
+    }
 
     // 3. Floating spark speckles
     final sparkTwinkle = lit ? flickerOffset * 0.3 : 0.0;
@@ -234,7 +247,12 @@ class _CandlePainter extends CustomPainter {
   }
 
   void _paintFoliage(Canvas canvas) {
-    final leafPaint = Paint()..color = _leafGreen;
+    final leafPaint = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [_leafGreen, _leafDeep],
+      ).createShader(const Rect.fromLTWH(120, 410, 340, 90));
     const cx = 291.5;
 
     // Left leaves: (tipX, tipY, baseX, baseY, width)
@@ -309,10 +327,22 @@ class _CandlePainter extends CustomPainter {
       height: 54.0,
     );
 
-    // Deep chocolate wood base
-    canvas.drawOval(saucerRect, Paint()..color = _saucerBase);
+    canvas.drawOval(
+      saucerRect.shift(const Offset(0, 7)),
+      Paint()
+        ..color = AppColors.warmDark.withValues(alpha: 0.16)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
+    );
+    canvas.drawOval(
+      saucerRect,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [AppColors.woodLight, _saucerBase],
+        ).createShader(saucerRect),
+    );
 
-    // Top bevel highlight arc
     canvas.drawArc(
       Rect.fromCenter(
         center: const Offset(291.5, 458.0),
@@ -324,17 +354,16 @@ class _CandlePainter extends CustomPainter {
       false,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.2
-        ..color = _saucerBevel,
+        ..strokeWidth = 2
+        ..color = AppColors.paper.withValues(alpha: 0.45),
     );
 
-    // Outer rim outline
     canvas.drawOval(
       saucerRect,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2
-        ..color = _saucerRim,
+        ..strokeWidth = 1.5
+        ..color = _saucerRim.withValues(alpha: 0.65),
     );
   }
 
@@ -355,7 +384,30 @@ class _CandlePainter extends CustomPainter {
       ..lineTo(351.0, 435.0)
       ..close();
 
-    canvas.drawPath(bodyPath, Paint()..color = _candleBody);
+    canvas.drawPath(
+      bodyPath,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.petalWhite,
+            AppColors.waxLight,
+            AppColors.handShade,
+          ],
+          stops: [0.0, 0.66, 1.0],
+        ).createShader(const Rect.fromLTWH(232, 260, 119, 175)),
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(333, 272)
+        ..lineTo(333, 424),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 10
+        ..strokeCap = StrokeCap.round
+        ..color = AppColors.warmDark.withValues(alpha: 0.035),
+    );
     canvas.drawPath(
       bodyPath,
       Paint()
@@ -377,7 +429,7 @@ class _CandlePainter extends CustomPainter {
       ..lineTo(273.0, 260.0)
       ..close();
 
-    canvas.drawPath(dripPath, Paint()..color = _candleBody);
+    canvas.drawPath(dripPath, Paint()..color = AppColors.waxLight);
     canvas.drawPath(
       dripPath,
       Paint()
@@ -394,7 +446,15 @@ class _CandlePainter extends CustomPainter {
       height: 28.0,
     );
 
-    canvas.drawOval(waxRect, Paint()..color = _waxTop);
+    canvas.drawOval(
+      waxRect,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [AppColors.candleGlow, _waxTop],
+        ).createShader(waxRect),
+    );
     canvas.drawOval(
       waxRect,
       Paint()
@@ -431,7 +491,25 @@ class _CandlePainter extends CustomPainter {
       )
       ..close();
 
-    canvas.drawPath(outerFlame, Paint()..color = _flameOuter);
+    canvas.drawPath(
+      outerFlame,
+      Paint()
+        ..color = AppColors.flameGlow.withValues(alpha: 0.42)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
+    );
+    canvas.drawPath(
+      outerFlame,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.bottomCenter,
+          end: Alignment.topCenter,
+          colors: [
+            AppColors.flameEmber,
+            _flameOuter,
+            _flameMid,
+          ],
+        ).createShader(Rect.fromLTWH(fx - hw, topY, hw * 2, baseY - topY)),
+    );
 
     // Inner pure white teardrop flame core
     final coreTopY = 176.0 + (1.0 - flameScale) * 20.0;
@@ -458,7 +536,17 @@ class _CandlePainter extends CustomPainter {
       )
       ..close();
 
-    canvas.drawPath(innerFlame, Paint()..color = _flameInner);
+    canvas.drawPath(
+      innerFlame,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.bottomCenter,
+          end: Alignment.topCenter,
+          colors: [AppColors.flameCore, _flameInner],
+        ).createShader(
+          Rect.fromLTWH(fx - chw, coreTopY, chw * 2, coreBaseY - coreTopY),
+        ),
+    );
   }
 
   void _paintFlowers(Canvas canvas) {

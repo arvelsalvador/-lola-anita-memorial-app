@@ -4,6 +4,7 @@ import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/utils/image_decode.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/core/utils/navigation.dart';
+import 'package:nita/widgets/abuloy_touch.dart';
 import 'package:nita/widgets/ornamental_card.dart';
 
 part 'settings_about.dart';
@@ -95,8 +96,10 @@ class _SettingsPageState extends State<SettingsPage> {
     return Scaffold(
       backgroundColor: AppColors.cream,
       appBar: _SettingsAppBar(title: lang.t('settings_title')),
-      body: LayoutBuilder(
-        builder: (context, viewport) => SingleChildScrollView(
+      // The assistive touch floats over settings too, like every tab.
+      body: AbuloyTouchScope(
+        child: LayoutBuilder(
+          builder: (context, viewport) => SingleChildScrollView(
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 640),
@@ -277,6 +280,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ),
       ),
+      ),
     );
   }
 }
@@ -401,16 +405,19 @@ class _DetailScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.cream,
-      appBar: _SettingsAppBar(title: title),
-      body: SingleChildScrollView(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 640),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
-              child: child,
+    // Covered by the assistive touch like every other page.
+    return AbuloyTouchScope(
+      child: Scaffold(
+        backgroundColor: AppColors.cream,
+        appBar: _SettingsAppBar(title: title),
+        body: SingleChildScrollView(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 640),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+                child: child,
+              ),
             ),
           ),
         ),

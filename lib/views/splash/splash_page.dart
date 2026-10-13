@@ -246,45 +246,84 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
                     if (showGate)
                       Positioned.fill(
                         child: Container(
-                          color: AppColors.warmDark.withValues(alpha: 0.55),
-                          child: SafeArea(
-                            child: Center(
-                              child: SingleChildScrollView(
-                                padding: const EdgeInsets.all(24),
-                                child: ConstrainedBox(
-                                  constraints: const BoxConstraints(
-                                    maxWidth: 420,
-                                  ),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      VisitorGateForm(
-                                        onEntered: _onGateEntered,
-                                      ),
-                                      // Temporary testing hook: debug builds only,
-                                      // stripped from release via kDebugMode.
-                                      if (kDebugMode) ...[
-                                        const SizedBox(height: 8),
-                                        TextButton(
-                                          onPressed: _resetVisitorForDebug,
-                                          style: TextButton.styleFrom(
-                                            foregroundColor:
-                                                AppColors.petalBlush,
-                                            textStyle: const TextStyle(
-                                              fontFamily: 'Lora',
-                                              fontSize: 11,
-                                            ),
-                                          ),
-                                          child: const Text(
-                                            'Reset visitor (debug)',
-                                          ),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                AppColors.darkSoot.withValues(alpha: 0.94),
+                                AppColors.darkEmber.withValues(alpha: 0.82),
+                                AppColors.warmDark.withValues(alpha: 0.68),
+                              ],
+                            ),
+                          ),
+                          child: Stack(
+                            children: [
+                              // Night-vigil ambience: twinkling star-filled
+                              // sky over a soft ground mist. Painted
+                              // above the scrim so it stays visible
+                              // behind the card.
+                              Positioned.fill(
+                                child: ExcludeSemantics(
+                                  child: RepaintBoundary(
+                                    child: AnimatedBuilder(
+                                      animation: _petalCtrl,
+                                      builder: (context, _) => CustomPaint(
+                                        painter: _GateAmbiencePainter(
+                                          progress: animationsDisabled()
+                                              ? 0.0
+                                              : _petalCtrl.value,
+                                          seeds: _petalSeeds,
                                         ),
-                                      ],
-                                    ],
+                                        size: Size.infinite,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
+                              SafeArea(
+                                child: Center(
+                                  child: SingleChildScrollView(
+                                    padding: const EdgeInsets.all(24),
+                                    child: ConstrainedBox(
+                                      constraints: const BoxConstraints(
+                                        maxWidth: 420,
+                                      ),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          _GateCardEntrance(
+                                            child: VisitorGateForm(
+                                              onEntered: _onGateEntered,
+                                            ),
+                                          ),
+                                          // Temporary testing hook: debug builds only,
+                                          // stripped from release via kDebugMode.
+                                          if (kDebugMode) ...[
+                                            const SizedBox(height: 8),
+                                            TextButton(
+                                              onPressed:
+                                                  _resetVisitorForDebug,
+                                              style: TextButton.styleFrom(
+                                                foregroundColor:
+                                                    AppColors.petalBlush,
+                                                textStyle: const TextStyle(
+                                                  fontFamily: 'Lora',
+                                                  fontSize: 11,
+                                                ),
+                                              ),
+                                              child: const Text(
+                                                'Reset visitor (debug)',
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -528,4 +567,88 @@ class _PetalPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _PetalPainter oldDelegate) =>
       oldDelegate.progress != progress;
+}
+
+/// Night-vigil ambience painted behind the visitor-gate card: a star-filled
+/// upper sky with lively twinkling stars over a soft ground mist. Driven
+/// by the existing petal loop, so no extra ticker. All motion is a pure
+/// function of [progress].
+class _GateAmbiencePainter extends CustomPainter {
+  _GateAmbiencePainter({required this.progress, required this.seeds});
+
+  final double progress;
+  final List<_PetalSeed> seeds;
+
+  static const _starCount = 80;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+    final minSide = math.min(size.width, size.height);
+
+    // Star-filled upper sky (deterministic from seeds). Each star
+    // twinkles at its own rate, fading and swelling for a lively sky.
+    for (var i = 0; i < _starCount; i++) {
+      final seed = seeds[i % seeds.length];
+      final sx = (seed.x + i * 0.173) % 1.0 * size.width;
+      final sy = (seed.phase + i * 0.311) % 1.0 * size.height * 0.80;
+      final speed = 1.0 + (i % 5) * 0.6;
+      final twinkle =
+          0.5 +
+          0.5 * math.sin((progress * speed + seed.phase + i * 0.13) * 6.28);
+      final baseRadius = i % 9 == 0 ? 2.0 : i % 3 == 0 ? 1.4 : 0.9;
+      paint.color = AppColors.linen.withValues(
+        alpha: 0.05 + 0.60 * twinkle,
+      );
+      canvas.drawCircle(
+        Offset(sx, sy),
+        baseRadius + twinkle * 0.9,
+        paint,
+      );
+    }
+
+    // Soft ground mist along the bottom.
+    paint.color = AppColors.petalBlush.withValues(alpha: 0.05);
+    canvas.drawCircle(
+      Offset(size.width * 0.5, size.height * 1.02),
+      minSide * 0.55,
+      paint,
+    );
+    paint.color = AppColors.rose.withValues(alpha: 0.05);
+    canvas.drawCircle(
+      Offset(size.width * 0.15, size.height * 1.0),
+      minSide * 0.35,
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _GateAmbiencePainter oldDelegate) =>
+      oldDelegate.progress != progress;
+}
+
+/// One-shot entrance for the gate card: fades in while rising 18px.
+/// Keeps the form feeling alive without an endless motion loop.
+class _GateCardEntrance extends StatelessWidget {
+  const _GateCardEntrance({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (animationsDisabled()) return child;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 650),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) => Opacity(
+        opacity: value,
+        child: Transform.translate(
+          offset: Offset(0, (1 - value) * 18),
+          child: child,
+        ),
+      ),
+      child: child,
+    );
+  }
 }

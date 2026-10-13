@@ -1,21 +1,57 @@
 /// Abuloy (GCash) details for the Pakikiramay tab.
 ///
-/// Fill in the family's real values here. The QR image itself lives at
-/// [qrAssetPath] — drop the file at `assets/images/donation/gcash-qr.png`.
-/// Until both are set, the section still renders with a graceful
-/// placeholder so the app never shows an error to a mourning visitor.
+/// Send abuloy to either account below. Each account owns its QR image
+/// ([DonationAccount.qrAssetPath]); tapping a name shows that account's QR.
+/// Names/numbers are intentionally masked on screen (e.g. "0909063 ****"),
+/// while copy always uses the full [copyNumber].
+/// The section still renders with a graceful placeholder when a QR asset
+/// is absent, so the app never shows an error to a mourning visitor.
+class DonationAccount {
+  const DonationAccount({
+    required this.accountName,
+    required this.displayNumber,
+    required this.copyNumber,
+    required this.qrAssetPath,
+  });
+
+  /// Masked display name shown above the number (e.g. "MA*C AR**L S.").
+  final String accountName;
+
+  /// Masked number shown in the UI (e.g. "0909063 ****" — last 4 hidden).
+  final String displayNumber;
+
+  /// Plain full digits actually copied to the clipboard (e.g. "09090634076").
+  final String copyNumber;
+
+  /// Bundled QR image for this account.
+  final String qrAssetPath;
+}
+
 class DonationDetails {
   DonationDetails._();
 
-  /// Display name shown under the QR (e.g. "Lorie S.").
-  // TODO(family): replace with the real GCash account name.
-  static const String accountName = 'Family GCash';
+  /// Family GCash accounts visitors can send abuloy to.
+  static const List<DonationAccount> accounts = [
+    DonationAccount(
+      accountName: 'MA*C AR**L S.',
+      displayNumber: '0909063 ****',
+      copyNumber: '09090634076',
+      qrAssetPath: 'assets/images/donation/Arvel gcash.jpg',
+    ),
+    DonationAccount(
+      accountName: 'LO**E S.',
+      displayNumber: '0946835 ****',
+      copyNumber: '09468357721',
+      qrAssetPath: 'assets/images/donation/Lorie gcash.jpg',
+    ),
+  ];
 
-  /// GCash mobile number visitors send abuloy to.
-  // TODO(family): replace with the real GCash number, e.g. '0917 123 4567'.
-  static const String gcashNumber = '09xx xxx xxxx';
+  /// First account — kept so older call sites keep working.
+  static String get accountName => accounts.first.accountName;
 
-  /// Bundled QR image. Add the file at this path; the widget falls back
-  /// to a placeholder when it is absent.
-  static const String qrAssetPath = 'assets/images/donation/gcash-qr.png';
+  /// First account number — kept so older call sites keep working.
+  static String get gcashNumber => accounts.first.copyNumber;
+
+  /// First account QR — kept so older call sites keep working.
+  static String get qrAssetPath => accounts.first.qrAssetPath;
 }

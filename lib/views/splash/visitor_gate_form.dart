@@ -98,11 +98,10 @@ class _VisitorGateFormState extends State<VisitorGateForm> {
     final isValid = nameErrorKey == null && addressErrorKey == null;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
       decoration: BoxDecoration(
-        color: AppColors.paper,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.gold.withValues(alpha: 0.3)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: AppColors.warmDark.withValues(alpha: 0.25),
@@ -120,37 +119,40 @@ class _VisitorGateFormState extends State<VisitorGateForm> {
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontFamily: 'Lora',
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textDark,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1A1A1A),
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
             lang.t('visitor_subtitle'),
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontFamily: 'Lora',
-              fontSize: 12.5,
-              fontStyle: FontStyle.italic,
-              color: AppColors.warmMid,
-              height: 1.5,
+              fontSize: 13.5,
+              color: AppColors.muted,
+              height: 1.4,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           _GateField(
             controller: _nameController,
+            label: lang.t('visitor_name_label'),
             hint: lang.t('visitor_name_hint'),
+            prefixIcon: Icons.person_outline,
             error: switch (_shownKey(_nameController.text, nameErrorKey)) {
               null => null,
               final key => lang.t(key),
             },
             textCapitalization: TextCapitalization.words,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           _GateField(
             controller: _addressController,
+            label: lang.t('visitor_address_label'),
             hint: lang.t('visitor_address_hint'),
+            prefixIcon: Icons.location_on_outlined,
             error: switch (_shownKey(
               _addressController.text,
               addressErrorKey,
@@ -177,9 +179,9 @@ class _VisitorGateFormState extends State<VisitorGateForm> {
               ),
             ),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: 18),
           SizedBox(
-            height: 50,
+            height: 52,
             child: ElevatedButton(
               onPressed: (isValid && !_sending) ? _submit : null,
               style: ElevatedButton.styleFrom(
@@ -192,25 +194,36 @@ class _VisitorGateFormState extends State<VisitorGateForm> {
                 ),
                 textStyle: const TextStyle(
                   fontFamily: 'Lora',
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               child: _sending
                   ? Text(lang.t('visitor_sending'))
-                  : Text(lang.t('visitor_enter')),
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(lang.t('visitor_enter')),
+                        const SizedBox(width: 8),
+                        const Icon(
+                          Icons.arrow_forward,
+                          size: 18,
+                          color: AppColors.gold,
+                        ),
+                      ],
+                    ),
             ),
           ),
-          const SizedBox(height: 10),
-          Text(
-            lang.t('visitor_privacy'),
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontFamily: 'Lora',
-              fontSize: 11,
-              color: AppColors.muted,
-              height: 1.5,
-            ),
+          const SizedBox(height: 14),
+          _PrivacyNote(
+            icon: Icons.visibility_outlined,
+            text: lang.t('visitor_privacy_candle'),
+          ),
+          const SizedBox(height: 4),
+          _PrivacyNote(
+            icon: Icons.lock_outline,
+            text: lang.t('visitor_privacy_private'),
           ),
         ],
       ),
@@ -220,52 +233,90 @@ class _VisitorGateFormState extends State<VisitorGateForm> {
 
 class _GateField extends StatelessWidget {
   final TextEditingController controller;
+  final String label;
   final String hint;
+  final IconData prefixIcon;
   final String? error;
   final TextCapitalization textCapitalization;
 
   const _GateField({
     required this.controller,
+    required this.label,
     required this.hint,
+    required this.prefixIcon,
     required this.textCapitalization,
     this.error,
   });
 
   @override
   Widget build(BuildContext context) {
+    final borderColor = error != null
+        ? AppColors.terracotta
+        : const Color(0xFFE0E0E0);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-          decoration: BoxDecoration(
-            color: AppColors.fieldPaper,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: error != null
-                  ? AppColors.terracotta
-                  : AppColors.gold.withValues(alpha: 0.3),
-            ),
+        Text(
+          label,
+          style: const TextStyle(
+            fontFamily: 'Lora',
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF333333),
           ),
-          child: TextField(
-            controller: controller,
-            textCapitalization: textCapitalization,
-            style: const TextStyle(
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          textCapitalization: textCapitalization,
+          style: const TextStyle(
+            fontFamily: 'Lora',
+            fontSize: 14,
+            color: AppColors.textDark,
+          ),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: const TextStyle(
               fontFamily: 'Lora',
               fontSize: 14,
-              color: AppColors.textDark,
+              color: Color(0xFF9E9E9E),
             ),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: const TextStyle(
-                fontFamily: 'Lora',
-                fontSize: 12,
-                color: AppColors.muted,
+            prefixIcon: Icon(
+              prefixIcon,
+              size: 20,
+              color: const Color(0xFF9E9E9E),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 14,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: borderColor),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: error != null
+                    ? AppColors.terracotta
+                    : AppColors.gold.withValues(alpha: 0.6),
+                width: 1.5,
               ),
-              border: InputBorder.none,
-              isDense: true,
-              contentPadding: EdgeInsets.zero,
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.terracotta),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: AppColors.terracotta,
+                width: 1.5,
+              ),
             ),
           ),
         ),
@@ -280,6 +331,35 @@ class _GateField extends StatelessWidget {
             ),
           ),
         ],
+      ],
+    );
+  }
+}
+
+class _PrivacyNote extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _PrivacyNote({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 14, color: AppColors.muted),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(
+              fontFamily: 'Lora',
+              fontSize: 11.5,
+              color: AppColors.muted,
+              height: 1.4,
+            ),
+          ),
+        ),
       ],
     );
   }
