@@ -623,4 +623,11 @@ const Map<String, String> translationsTl = {
       'Kusang-loob lamang — diretso sa pamilya ang bawat bigay.',
   'donate_missing_qr': 'Parating na ang QR — puwede muna sa number sa ibaba.',
   'donate_close': 'Isara',
+  'donate_web_title': 'Nasa browser ka',
+  'donate_web_body':
+      'Hindi mabubuksan ang GCash mula sa link. Nakopya na ang number — buksan ang GCash sa phone, tapos:',
+  'donate_web_step1': '1. Sa GCash, pindutin ang Send Money / QR',
+  'donate_web_step2': '2. I-paste ang number o i-scan ang QR',
+  'donate_web_step3': '3. Ilagay ang amount, tapos Send',
+  'donate_download_gcash': 'I-download ang GCash',
 };

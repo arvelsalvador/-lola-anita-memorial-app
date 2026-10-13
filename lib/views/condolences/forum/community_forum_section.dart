@@ -9,19 +9,35 @@ import 'package:nita/views/condolences/forum/create_post_dialog.dart';
 import 'package:nita/views/condolences/forum/forum_post_card.dart';
 
 /// The community messages & stories board connected directly to the database.
-class CommunityForumSection extends StatelessWidget {
+///
+/// Subscribes to Supabase Realtime on mount so posts, replies, and likes
+/// from other visitors appear without refresh.
+class CommunityForumSection extends StatefulWidget {
   final ForumController forumController;
 
   const CommunityForumSection({super.key, required this.forumController});
+
+  @override
+  State<CommunityForumSection> createState() => _CommunityForumSectionState();
+}
+
+class _CommunityForumSectionState extends State<CommunityForumSection> {
+  @override
+  void initState() {
+    super.initState();
+    // Fire-and-forget: no-op when offline or already subscribed.
+    widget.forumController.subscribeRealtime().catchError((_) {});
+  }
 
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
 
     return ListenableBuilder(
-      listenable: forumController,
+      listenable: widget.forumController,
       builder: (context, _) {
-        final posts = forumController.posts;
+        final controller = widget.forumController;
+        final posts = controller.posts;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -30,15 +46,20 @@ class CommunityForumSection extends StatelessWidget {
             _ForumHeader(
               title: lang.t('forum_title'),
               subtitle: lang.t('forum_subtitle'),
+              live: controller.realtimeConnected,
+              onRetry: () {
+                controller.loadPosts();
+                controller.subscribeRealtime().catchError((_) {});
+              },
               onShareTap: () {
-                CreatePostDialog.show(context, controller: forumController);
+                CreatePostDialog.show(context, controller: controller);
               },
             ),
 
             const SizedBox(height: 16),
 
             // Posts Feed
-            if (forumController.loading && posts.isEmpty)
+            if (controller.loading && posts.isEmpty)
               const Center(
                 child: Padding(
                   padding: EdgeInsets.symmetric(vertical: 32),
@@ -66,27 +87,29 @@ class CommunityForumSection extends StatelessWidget {
               )
             else
               ...posts.map(
-                (post) => ForumPostCard(
+                (post) => _LiveInsertWrapper(
                   key: ValueKey(post.id),
-                  post: post,
-                  onReactionTap: (reactionType) {
-                    forumController.toggleReaction(post.id, reactionType);
-                  },
-                  onReplyReactionTap: (replyId, reactionType) {
-                    forumController.toggleReplyReaction(
-                      post.id,
-                      replyId,
-                      reactionType,
-                    );
-                  },
-                  onSendReply: (authorName, message, replyToName) {
-                    return forumController.addReply(
-                      postId: post.id,
-                      authorName: authorName,
-                      message: message,
-                      replyToName: replyToName,
-                    );
-                  },
+                  child: ForumPostCard(
+                    post: post,
+                    onReactionTap: (reactionType) {
+                      controller.toggleReaction(post.id, reactionType);
+                    },
+                    onReplyReactionTap: (replyId, reactionType) {
+                      controller.toggleReplyReaction(
+                        post.id,
+                        replyId,
+                        reactionType,
+                      );
+                    },
+                    onSendReply: (authorName, message, replyToName) {
+                      return controller.addReply(
+                        postId: post.id,
+                        authorName: authorName,
+                        message: message,
+                        replyToName: replyToName,
+                      );
+                    },
+                  ),
                 ),
               ),
           ],
@@ -96,14 +119,133 @@ class CommunityForumSection extends StatelessWidget {
   }
 }
 
+/// Fades + slides a newly inserted card in so live arrivals don't jolt.
+class _LiveInsertWrapper extends StatefulWidget {
+  final Widget child;
+
+  const _LiveInsertWrapper({super.key, required this.child});
+
+  @override
+  State<_LiveInsertWrapper> createState() => _LiveInsertWrapperState();
+}
+
+class _LiveInsertWrapperState extends State<_LiveInsertWrapper>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _opacity;
+  late final Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    _opacity = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _opacity,
+      child: SlideTransition(position: _slide, child: widget.child),
+    );
+  }
+}
+
+/// Green LIVE pill when the realtime socket is up; muted offline note
+/// with a retry tap when showing cached posts.
+class _LiveBadge extends StatelessWidget {
+  final bool live;
+  final VoidCallback onRetry;
+
+  const _LiveBadge({required this.live, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    if (live) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration: const BoxDecoration(
+              color: Color(0xFF1F9D55),
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 6),
+          const Text(
+            'LIVE',
+            style: TextStyle(
+              fontFamily: 'Lora',
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
+              color: Color(0xFF1F9D55),
+            ),
+          ),
+        ],
+      );
+    }
+    return InkWell(
+      onTap: () {
+        HapticFeedback.lightImpact().catchError((_) {});
+        onRetry();
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: const Padding(
+        padding: EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.cloud_off_outlined, size: 13, color: AppColors.muted),
+            SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                'Offline • showing saved — tap to retry',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: 'Lora',
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                  color: AppColors.muted,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ForumHeader extends StatelessWidget {
   final String title;
   final String subtitle;
+  final bool live;
+  final VoidCallback onRetry;
   final VoidCallback onShareTap;
 
   const _ForumHeader({
     required this.title,
     required this.subtitle,
+    required this.live,
+    required this.onRetry,
     required this.onShareTap,
   });
 
@@ -121,15 +263,22 @@ class _ForumHeader extends StatelessWidget {
           color: AppColors.stoneBorder.withValues(alpha: 0.6),
         ),
         const SizedBox(height: 16),
-        Text(
-          title,
-          style: const TextStyle(
-            fontFamily: 'Lora',
-            fontSize: 20,
-            height: 1.25,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textDark,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontFamily: 'Lora',
+                  fontSize: 20,
+                  height: 1.25,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textDark,
+                ),
+              ),
+            ),
+            _LiveBadge(live: live, onRetry: onRetry),
+          ],
         ),
         const SizedBox(height: 6),
         Row(

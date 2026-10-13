@@ -620,4 +620,11 @@ const Map<String, String> translationsBi = {
   'donate_note': 'Boluntaryo sana — diretso sa pamilya an kada tao.',
   'donate_missing_qr': 'Mabot pa an QR — puwede muna sa numero sa ibaba.',
   'donate_close': 'Isara',
+  'donate_web_title': 'Nasa browser ka',
+  'donate_web_body':
+      'Dai mabukasan an GCash hali sa link. Nakopya na an numero — buksan an GCash sa phone, dangan:',
+  'donate_web_step1': '1. Sa GCash, pinduton an Send Money / QR',
+  'donate_web_step2': '2. I-paste an numero o i-scan an QR',
+  'donate_web_step3': '3. Ilaag an amount, dangan Send',
+  'donate_download_gcash': 'I-download an GCash',
 };

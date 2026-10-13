@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +8,7 @@ import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/constants/donation.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/widgets/ornamental_card.dart';
+import 'package:nita/widgets/ornament_divider.dart';
 
 /// Abuloy (GCash) section at the bottom of the Pakikiramay tab.
 ///
@@ -94,7 +96,7 @@ class _DonationCardBodyState extends State<DonationCardBody> {
           selected.accountName,
           style: const TextStyle(
             fontFamily: 'Lora',
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: FontWeight.w600,
             color: AppColors.textDark,
           ),
@@ -114,10 +116,16 @@ class _DonationCardBodyState extends State<DonationCardBody> {
         const SizedBox(height: 12),
         _OpenGcashButton(
           label: lang.t('donate_open_gcash'),
-          copyNumber: selected.copyNumber,
+          account: selected,
           copiedMessage: lang.t('donate_copied'),
         ),
         const SizedBox(height: 10),
+        const OrnamentDivider(
+          lineLength: 64,
+          gap: 8,
+          center: OrnamentCenter.leaf,
+        ),
+        const SizedBox(height: 6),
         Text(
           lang.t('donate_note'),
           textAlign: TextAlign.center,
@@ -144,14 +152,31 @@ class _QrImage extends StatelessWidget {
     return Semantics(
       image: true,
       label: qrLabel,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Image.asset(
-          qrAssetPath,
-          width: 200,
-          height: 200,
-          fit: BoxFit.cover,
-          errorBuilder: (context, _, _) => _QrPlaceholder(label: qrLabel),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.stoneBorder),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.warmDark.withValues(alpha: 0.06),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.asset(
+              qrAssetPath,
+              width: 190,
+              height: 190,
+              fit: BoxFit.cover,
+              errorBuilder: (context, _, _) => _QrPlaceholder(label: qrLabel),
+            ),
+          ),
         ),
       ),
     );
@@ -234,16 +259,18 @@ class _AccountBlock extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Ink(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: selected ? AppColors.paper : AppColors.fieldPaper,
-            borderRadius: BorderRadius.circular(14),
+            color: selected
+                ? AppColors.goldLight.withValues(alpha: 0.3)
+                : AppColors.paper,
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: selected ? AppColors.gold : AppColors.stoneBorder,
-              width: selected ? 1.5 : 1,
+              width: selected ? 1.2 : 1,
             ),
           ),
           child: Row(
@@ -337,11 +364,11 @@ class _AccountBlock extends StatelessWidget {
 
 class _OpenGcashButton extends StatelessWidget {
   final String label;
-  final String copyNumber;
+  final DonationAccount account;
   final String copiedMessage;
   const _OpenGcashButton({
     required this.label,
-    required this.copyNumber,
+    required this.account,
     required this.copiedMessage,
   });
 
@@ -371,6 +398,12 @@ class _OpenGcashButton extends StatelessWidget {
           children: [
             const Icon(Icons.open_in_new_outlined, size: 18),
             const SizedBox(width: 8),
+            Container(
+              width: 1,
+              height: 18,
+              color: AppColors.linen.withValues(alpha: 0.4),
+            ),
+            const SizedBox(width: 8),
             Flexible(
               child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
@@ -380,18 +413,26 @@ class _OpenGcashButton extends StatelessWidget {
     );
   }
 
-  /// Copy-then-open (Option A): copies the selected account number first so
-  /// the visitor can paste it inside GCash, then opens the GCash app.
-  /// Falls back to the Play Store / App Store when GCash is not installed.
-  /// Never throws — clipboard/launch failures stay silent, number is already
-  /// copied so manual paste still works.
+  /// Copy-then-open: copies the selected number first, then opens GCash.
+  ///
+  /// Web (GitHub Pages link) cannot jump to the GCash app — browsers block
+  /// the `gcash://` scheme — so on web we stop after copying and show a
+  /// guide dialog instead of attempting any deep link. Never throws.
   Future<void> _openGcash(BuildContext context) async {
     try {
       HapticFeedback.lightImpact().catchError((_) {});
     } catch (_) {
       // Haptics unavailable on desktop — continue anyway.
     }
-    await copyGcashNumber(context, copyNumber, copiedMessage);
+    await copyGcashNumber(context, account.copyNumber, copiedMessage);
+    if (!context.mounted) return;
+    if (kIsWeb) {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => _WebGcashGuideDialog(account: account),
+      );
+      return;
+    }
     for (final uri in [
       Uri.parse('gcash://'),
       Uri.parse(
@@ -405,6 +446,122 @@ class _OpenGcashButton extends StatelessWidget {
         continue;
       }
     }
+  }
+}
+
+/// Browser-only guide: explains the number is copied and GCash must be
+/// opened on the phone. Offers the QR + a store link in a new tab.
+class _WebGcashGuideDialog extends StatelessWidget {
+  final DonationAccount account;
+  const _WebGcashGuideDialog({required this.account});
+
+  Future<void> _openStore(BuildContext context) async {
+    final uri = Uri.parse(
+      'https://play.google.com/store/apps/details?id=com.globe.gcash.android',
+    );
+    try {
+      await launchUrl(uri, mode: LaunchMode.platformDefault);
+    } catch (_) {
+      // Stay on the dialog — number/QR already visible for manual use.
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Text(
+        lang.t('donate_web_title'),
+        style: const TextStyle(
+          fontFamily: 'Lora',
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textDark,
+        ),
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              lang.t('donate_web_body'),
+              style: const TextStyle(
+                fontFamily: 'Lora',
+                fontSize: 13,
+                height: 1.5,
+                color: AppColors.warmMid,
+              ),
+            ),
+            const SizedBox(height: 10),
+            _QrImage(
+              qrAssetPath: account.qrAssetPath,
+              qrLabel:
+                  '${lang.t('donate_qr_label')} — ${account.accountName}',
+            ),
+            const SizedBox(height: 10),
+            Text(
+              account.displayNumber,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontFamily: 'Lora',
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+                color: AppColors.textDark,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              lang.t('donate_web_step1'),
+              style: const TextStyle(
+                fontFamily: 'Lora',
+                fontSize: 13,
+                height: 1.5,
+                color: AppColors.textDark,
+              ),
+            ),
+            Text(
+              lang.t('donate_web_step2'),
+              style: const TextStyle(
+                fontFamily: 'Lora',
+                fontSize: 13,
+                height: 1.5,
+                color: AppColors.textDark,
+              ),
+            ),
+            Text(
+              lang.t('donate_web_step3'),
+              style: const TextStyle(
+                fontFamily: 'Lora',
+                fontSize: 13,
+                height: 1.5,
+                color: AppColors.textDark,
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(lang.t('donate_close')),
+        ),
+        ElevatedButton(
+          onPressed: () => _openStore(context),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.warmDark,
+            foregroundColor: AppColors.linen,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          child: Text(lang.t('donate_download_gcash')),
+        ),
+      ],
+    );
   }
 }
 

@@ -594,4 +594,11 @@ const Map<String, String> translationsEn = {
       'Voluntary and optional — every gift goes directly to the family.',
   'donate_missing_qr': 'QR coming soon — you can send to the number below.',
   'donate_close': 'Close',
+  'donate_web_title': 'You are viewing in a browser',
+  'donate_web_body':
+      'GCash cannot open from a link. Number already copied — open GCash on your phone, then:',
+  'donate_web_step1': '1. In GCash tap Send Money / QR',
+  'donate_web_step2': '2. Paste the number or scan the QR',
+  'donate_web_step3': '3. Enter the amount, then Send',
+  'donate_download_gcash': 'Download GCash',
 };

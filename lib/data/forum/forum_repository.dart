@@ -22,6 +22,7 @@ class ForumRepository {
 
   static const String messagesTable = 'pakikiramay_messages';
   static const String repliesTable = 'pakikiramay_replies';
+  static const String reactionsTable = 'pakikiramay_reactions';
 
   /// Fetches real messages directly from Supabase.
   /// Falls back to local cache if offline or unconfigured.
@@ -45,6 +46,14 @@ class ForumRepository {
 
         // Fetch replies from database if table is available
         Map<String, List<ForumReply>> dbReplies = {};
+        // Remote like counts (shared across devices). Empty when the
+        // reactions table is missing or offline — local cache wins then.
+        Map<String, Map<String, int>> remoteCounts = {};
+        try {
+          remoteCounts = await fetchReactionCounts();
+        } catch (_) {
+          remoteCounts = {};
+        }
         try {
           final replyRows = await client
               .from(repliesTable)
@@ -63,12 +72,14 @@ class ForumRepository {
                   ? DateTime.tryParse(r['created_at'] as String) ?? DateTime.now()
                   : DateTime.now(),
             );
-            // Overlay local reply-reaction state (same id-keyed stores
-            // as post reactions).
-            if (reactionCounts.containsKey(replyId) ||
+            // Overlay remote like counts first, then local reaction state
+            // (same id-keyed stores as post reactions).
+            final baseReactions =
+                remoteCounts[replyId] ?? reactionCounts[replyId];
+            if (baseReactions != null ||
                 userReactions.containsKey(replyId)) {
               reply = reply.copyWith(
-                reactions: reactionCounts[replyId] ?? reply.reactions,
+                reactions: baseReactions ?? reply.reactions,
                 userReactions: userReactions[replyId] ?? <String>{},
               );
             }
@@ -96,7 +107,8 @@ class ForumRepository {
             ...?localReplies[id]?.where((lr) => !dbReplies.containsKey(id) || !dbReplies[id]!.any((dr) => dr.id == lr.id)),
           ];
 
-          final postReactions = reactionCounts[id] ?? {
+          final postReactions = remoteCounts[id] ??
+              reactionCounts[id] ?? {
             'candle': 0,
             'dove': 0,
             'heart': 0,
@@ -291,6 +303,137 @@ class ForumRepository {
     } catch (e) {
       debugPrint('ForumRepository toggleReaction error: $e');
     }
+  }
+
+  /// Shared like counts across devices (powers live likes).
+  /// Returns {targetId: {reactionType: count}}. Empty when offline,
+  /// unconfigured, or the reactions table is missing.
+  Future<Map<String, Map<String, int>>> fetchReactionCounts() async {
+    if (!SupabaseConfig.isConfigured) return {};
+    try {
+      final client = Supabase.instance.client;
+      final rows = await client
+          .from(reactionsTable)
+          .select('target_id, reaction_type')
+          .limit(2000)
+          .timeout(const Duration(seconds: 8));
+      final Map<String, Map<String, int>> counts = {};
+      for (final row in (rows as List)) {
+        final target = row['target_id']?.toString() ?? '';
+        final type = (row['reaction_type'] as String? ?? '').trim();
+        if (target.isEmpty || type.isEmpty) continue;
+        counts.putIfAbsent(target, () => {
+              'candle': 0,
+              'dove': 0,
+              'heart': 0,
+              'pray': 0,
+            });
+        counts[target]![type] = (counts[target]![type] ?? 0) + 1;
+      }
+      return counts;
+    } catch (e) {
+      debugPrint('ForumRepository fetchReactionCounts skipped: $e');
+      return {};
+    }
+  }
+
+  /// Persists a like remotely so other devices see it live.
+  /// Temp ids (msg-...) never exist remotely — skipped silently.
+  Future<void> addReactionRemote({
+    required String targetId,
+    required String reactionType,
+  }) async {
+    if (!SupabaseConfig.isConfigured) return;
+    if (targetId.startsWith('msg-') || targetId.startsWith('reply-')) return;
+    if (targetId.isEmpty) return;
+    try {
+      await Supabase.instance.client.from(reactionsTable).insert({
+        'target_id': targetId,
+        'reaction_type': reactionType,
+      }).timeout(const Duration(seconds: 8));
+    } catch (e) {
+      debugPrint('ForumRepository addReactionRemote skipped: $e');
+    }
+  }
+
+  /// Removes one remote like (un-like). Deletes a single matching row
+  /// so other users' likes on the same post are preserved.
+  Future<void> removeReactionRemote({
+    required String targetId,
+    required String reactionType,
+  }) async {
+    if (!SupabaseConfig.isConfigured) return;
+    if (targetId.startsWith('msg-') || targetId.startsWith('reply-')) return;
+    if (targetId.isEmpty) return;
+    try {
+      final client = Supabase.instance.client;
+      final rows = await client
+          .from(reactionsTable)
+          .select('id')
+          .eq('target_id', targetId)
+          .eq('reaction_type', reactionType)
+          .limit(1)
+          .timeout(const Duration(seconds: 8));
+      final list = rows as List;
+      if (list.isEmpty) return;
+      final rowId = list.first['id']?.toString() ?? '';
+      if (rowId.isEmpty) return;
+      await client
+          .from(reactionsTable)
+          .delete()
+          .eq('id', rowId)
+          .timeout(const Duration(seconds: 8));
+    } catch (e) {
+      debugPrint('ForumRepository removeReactionRemote skipped: $e');
+    }
+  }
+
+  /// Parses a Supabase Realtime INSERT payload row into a [ForumPost].
+  /// Returns null when the row is not a displayable message.
+  ForumPost? parsePostRecord(Map<String, dynamic> record) {
+    final id = record['id']?.toString() ?? '';
+    final message = (record['message'] as String? ?? '').trim();
+    if (id.isEmpty || message.isEmpty) return null;
+    final author = (record['name'] as String? ?? '').trim();
+    DateTime createdAt = DateTime.now();
+    final rawAt = record['created_at'];
+    if (rawAt is String) createdAt = DateTime.tryParse(rawAt) ?? DateTime.now();
+    return ForumPost(
+      id: id,
+      authorName: author.isEmpty ? 'Anonymous' : author,
+      message: message,
+      createdAt: createdAt,
+    );
+  }
+
+  /// Parses a Supabase Realtime INSERT payload row into a [ForumReply].
+  ForumReply? parseReplyRecord(Map<String, dynamic> record) {
+    final id = record['id']?.toString() ?? '';
+    final postId = record['post_id']?.toString() ?? '';
+    final message = (record['message'] as String? ?? '').trim();
+    if (id.isEmpty || postId.isEmpty || message.isEmpty) return null;
+    final author = (record['author_name'] as String? ?? '').trim();
+    DateTime createdAt = DateTime.now();
+    final rawAt = record['created_at'];
+    if (rawAt is String) createdAt = DateTime.tryParse(rawAt) ?? DateTime.now();
+    return ForumReply(
+      id: id,
+      postId: postId,
+      authorName: author.isEmpty ? 'Anonymous' : author,
+      message: message,
+      createdAt: createdAt,
+    );
+  }
+
+  /// Parses a reactions-table payload row into (targetId, reactionType).
+  /// Returns null when the row is malformed.
+  ({String targetId, String reactionType})? parseReactionRecord(
+    Map<String, dynamic> record,
+  ) {
+    final target = record['target_id']?.toString() ?? '';
+    final type = (record['reaction_type'] as String? ?? '').trim();
+    if (target.isEmpty || type.isEmpty) return null;
+    return (targetId: target, reactionType: type);
   }
 
   Future<void> _saveLocalCache(

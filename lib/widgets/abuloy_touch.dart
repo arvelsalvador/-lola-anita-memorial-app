@@ -351,12 +351,18 @@ Future<void> showAbuloyDialog(BuildContext context) {
                   children: [
                     Row(
                       children: [
+                        const Icon(
+                          Icons.eco_rounded,
+                          size: 20,
+                          color: AppColors.gold,
+                        ),
+                        const SizedBox(width: 6),
                         Expanded(
                           child: Text(
                             lang.t('donate_title'),
                             style: const TextStyle(
-                              fontFamily: 'Lora',
-                              fontSize: 20,
+                              fontFamily: 'PlayfairDisplay',
+                              fontSize: 22,
                               height: 1.25,
                               fontWeight: FontWeight.w700,
                               color: AppColors.textDark,
