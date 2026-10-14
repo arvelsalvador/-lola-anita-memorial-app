@@ -580,6 +580,8 @@ const Map<String, String> translationsEn = {
   'forum_hours_ago': '{count}h ago',
   'forum_days_ago': '{count}d ago',
   'forum_reply_sheet_title': 'Replies',
+  'forum_likers_title': 'Likes',
+  'forum_likers_empty': 'No likes yet — tap the heart to be the first.',
   'forum_require_content': 'Please write a message before posting.',
   'forum_require_name': 'Please enter your name.',
   // ── Abuloy / Donation (Pakikiramay) ──────────────────────────────────

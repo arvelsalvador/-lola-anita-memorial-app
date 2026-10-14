@@ -608,6 +608,8 @@ const Map<String, String> translationsTl = {
   'forum_hours_ago': '{count} oras ang nakalipas',
   'forum_days_ago': '{count} araw ang nakalipas',
   'forum_reply_sheet_title': 'Mga Tugon',
+  'forum_likers_title': 'Mga Nag-like',
+  'forum_likers_empty': 'Wala pang nag-like — pindutin ang puso para maging una.',
   'forum_require_content': 'Pakisulat ang mensahe bago mag-post.',
   'forum_require_name': 'Pakilagay ang iyong pangalan.',
   // ── Abuloy / Donasyon (Pakikiramay) ──────────────────────────────────

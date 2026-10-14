@@ -1,14 +1,14 @@
 import 'package:flutter/foundation.dart';
 
-/// A reply to a community message. Replies support the same four
-/// reactions as posts, keyed by reply id in the local reaction stores.
+/// A reply to a community message. Replies support a heart Like,
+/// keyed by reply id in the local reaction stores.
 class ForumReply {
   final String id;
   final String postId;
   final String authorName;
   final String message;
   final DateTime createdAt;
-  final Map<String, int> reactions; // {'candle': 0, 'dove': 0, 'heart': 0, 'pray': 0}
+  final Map<String, int> reactions; // {'heart': 0}
   final Set<String> userReactions; // reaction types tapped on this device
   /// Name of the person this reply answers. Empty = replies to the post.
   /// Shown as "Tumutugon kay X" so others see the context.
@@ -20,7 +20,7 @@ class ForumReply {
     required this.authorName,
     required this.message,
     required this.createdAt,
-    this.reactions = const {'candle': 0, 'dove': 0, 'heart': 0, 'pray': 0},
+    this.reactions = const {'heart': 0},
     this.userReactions = const {},
     this.replyToName = '',
   });
@@ -49,10 +49,7 @@ class ForumReply {
 
   static Map<String, int> _parseReactions(Map<String, dynamic>? raw) {
     return {
-      'candle': (raw?['candle'] as num?)?.toInt() ?? 0,
-      'dove': (raw?['dove'] as num?)?.toInt() ?? 0,
       'heart': (raw?['heart'] as num?)?.toInt() ?? 0,
-      'pray': (raw?['pray'] as num?)?.toInt() ?? 0,
     };
   }
 
@@ -88,7 +85,7 @@ class ForumPost {
   final String authorName;
   final String message;
   final DateTime createdAt;
-  final Map<String, int> reactions; // {'candle': 0, 'dove': 0, 'heart': 0, 'pray': 0}
+  final Map<String, int> reactions; // {'heart': 0}
   final Set<String> userReactions;  // reaction types tapped on this device
   final List<ForumReply> replies;
 
@@ -97,7 +94,7 @@ class ForumPost {
     required this.authorName,
     required this.message,
     required this.createdAt,
-    this.reactions = const {'candle': 0, 'dove': 0, 'heart': 0, 'pray': 0},
+    this.reactions = const {'heart': 0},
     this.userReactions = const {},
     this.replies = const [],
   });
@@ -134,10 +131,7 @@ class ForumPost {
   factory ForumPost.fromJson(Map<String, dynamic> json) {
     final rawReactions = json['reactions'] as Map<String, dynamic>?;
     final Map<String, int> parsedReactions = {
-      'candle': (rawReactions?['candle'] as num?)?.toInt() ?? 0,
-      'dove': (rawReactions?['dove'] as num?)?.toInt() ?? 0,
       'heart': (rawReactions?['heart'] as num?)?.toInt() ?? 0,
-      'pray': (rawReactions?['pray'] as num?)?.toInt() ?? 0,
     };
 
     final rawReplies = json['replies'] as List<dynamic>? ?? [];

@@ -91,6 +91,12 @@ class _CommunityForumSectionState extends State<CommunityForumSection> {
                   key: ValueKey(post.id),
                   child: ForumPostCard(
                     post: post,
+                    isPostAuthorOnline:
+                        controller.isOnline(post.authorName),
+                    isReplyAuthorOnline: (name) =>
+                        controller.isOnline(name),
+                    onViewLikers: (targetId) =>
+                        controller.likerNames(targetId),
                     onReactionTap: (reactionType) {
                       controller.toggleReaction(post.id, reactionType);
                     },

@@ -5,6 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:nita/core/constants/supabase_config.dart';
 import 'package:nita/data/forum/forum_repository.dart';
+import 'package:nita/data/forum/reaction_identity.dart';
+import 'package:nita/data/visitors/visitor_repository.dart';
 import 'package:nita/models/forum_post_model.dart';
 
 /// Controller for the community messages, memories, and condolences board.
@@ -28,10 +30,46 @@ class ForumController extends ChangeNotifier {
   RealtimeChannel? _channel;
   bool _subscribing = false;
   bool _realtimeConnected = false;
+  // Anonymous owner id of this phone's likes (loaded lazily).
+  String _deviceId = '';
+  // Display name from the visitor gate (loaded lazily).
+  String _visitorName = '';
+  // Names currently on the Pakikiramay page (Supabase Presence).
+  Set<String> _onlineNames = {};
+  bool _presenceTracked = false;
+  // Per-post/reply write queue: taps run instantly on screen, but their
+  // server writes run one-after-another per target so an Unlike can
+  // never overtake its Like and leak a row.
+  final Map<String, Future<void>> _reactionQueues = {};
 
   List<ForumPost> get posts => _posts;
   bool get loading => _loading;
   bool get realtimeConnected => _realtimeConnected;
+  Set<String> get onlineNames => Set.unmodifiable(_onlineNames);
+  int get onlineCount => _onlineNames.length;
+
+  /// True when [authorName] is currently on the Pakikiramay page.
+  bool isOnline(String authorName) =>
+      _onlineNames.contains(authorName.trim());
+
+  /// Display names of who liked [targetId] (post or reply id).
+  Future<List<String>> likerNames(String targetId) =>
+      _repository.fetchLikerNames(targetId);
+
+  /// Pure merge of presence states into online names — unit-testable
+  /// without sockets. Shapes: [{name}, ...] metas per presence key.
+  static Set<String> onlineNamesFromMetas(
+    List<List<Map<String, dynamic>>> allMetas,
+  ) {
+    final names = <String>{};
+    for (final metas in allMetas) {
+      for (final meta in metas) {
+        final name = (meta['name'] as String? ?? '').trim();
+        if (name.isNotEmpty) names.add(name);
+      }
+    }
+    return names;
+  }
 
   /// Loads real posts from the database / local cache.
   Future<void> loadPosts() async {
@@ -107,7 +145,7 @@ class ForumController extends ChangeNotifier {
     }
   }
 
-  /// Toggles a reaction (candle, dove, heart, pray) with optimistic UI update.
+  /// Toggles the heart Like with optimistic UI update.
   Future<void> toggleReaction(String postId, String reactionType) async {
     if (_disposed) return;
     final idx = _posts.indexWhere((p) => p.id == postId);
@@ -140,25 +178,24 @@ class ForumController extends ChangeNotifier {
     ).catchError((err) {
       debugPrint('Reaction error: $err');
     });
-    // Shared counts so other devices see the like live. Fire-and-forget.
-    if (!hasReacted) {
-      unawaited(
-        _repository.addReactionRemote(
-          targetId: postId,
-          reactionType: reactionType,
-        ),
-      );
-    } else {
-      unawaited(
-        _repository.removeReactionRemote(
-          targetId: postId,
-          reactionType: reactionType,
-        ),
-      );
-    }
+    // Shared counts so other devices see the like live. Queued per
+    // target: rapid Like->Unlike->Like runs in tap order, and the
+    // authoritative server count reconciles afterwards.
+    _enqueueReactionSync(postId, reactionType, liked: !hasReacted);
   }
 
-  /// Toggles a reaction on a reply, with the same optimistic update
+  /// This phone's display name for presence + liker stamps.
+  Future<String> _localDisplayName() async {
+    if (_visitorName.trim().isNotEmpty) return _visitorName.trim();
+    try {
+      final name =
+          await const VisitorRepository().localName().timeout(const Duration(seconds: 3));
+      _visitorName = (name ?? '').trim();
+    } catch (_) {}
+    return _visitorName.isEmpty ? 'Anonymous' : _visitorName;
+  }
+
+  /// Toggles the heart Like on a reply, with the same optimistic update
   /// pattern as posts. Persisted in the same id-keyed local stores.
   Future<void> toggleReplyReaction(
     String postId,
@@ -202,21 +239,7 @@ class ForumController extends ChangeNotifier {
     ).catchError((err) {
       debugPrint('Reply reaction error: $err');
     });
-    if (!hasReacted) {
-      unawaited(
-        _repository.addReactionRemote(
-          targetId: replyId,
-          reactionType: reactionType,
-        ),
-      );
-    } else {
-      unawaited(
-        _repository.removeReactionRemote(
-          targetId: replyId,
-          reactionType: reactionType,
-        ),
-      );
-    }
+    _enqueueReactionSync(replyId, reactionType, liked: !hasReacted);
   }
 
   /// Opens the shared Realtime feed. Safe to call twice; subsequent
@@ -227,9 +250,14 @@ class ForumController extends ChangeNotifier {
     if (!SupabaseConfig.isConfigured) return;
     _subscribing = true;
     try {
+      _deviceId = await ReactionIdentity.deviceId();
+      if (_disposed) return;
       final client = Supabase.instance.client;
       final channel = client.channel('pakikiramay-feed');
       channel
+          .onPresenceSync((_) => _refreshPresence())
+          .onPresenceJoin((_) => _refreshPresence())
+          .onPresenceLeave((_) => _refreshPresence())
           .onPostgresChanges(
             event: PostgresChangeEvent.insert,
             schema: 'public',
@@ -250,6 +278,13 @@ class ForumController extends ChangeNotifier {
               final parsed =
                   _repository.parseReactionRecord(payload.newRecord);
               if (parsed != null) {
+                if (_isOwnReactionEcho(parsed.deviceId)) {
+                  // Our optimistic update already counted it; snap to
+                  // the server truth instead of adding again.
+                  unawaited(_reconcileReaction(
+                      parsed.targetId, parsed.reactionType));
+                  return;
+                }
                 _applyReactionDelta(parsed.targetId, parsed.reactionType, 1);
               }
             },
@@ -262,6 +297,11 @@ class ForumController extends ChangeNotifier {
               final parsed =
                   _repository.parseReactionRecord(payload.oldRecord);
               if (parsed != null) {
+                if (_isOwnReactionEcho(parsed.deviceId)) {
+                  unawaited(_reconcileReaction(
+                      parsed.targetId, parsed.reactionType));
+                  return;
+                }
                 _applyReactionDelta(parsed.targetId, parsed.reactionType, -1);
               }
             },
@@ -273,6 +313,7 @@ class ForumController extends ChangeNotifier {
           debugPrint('ForumController realtime status error: $error');
         }
         notifyListeners();
+        if (_realtimeConnected) unawaited(_trackPresence());
       });
       _channel = channel;
     } catch (e) {
@@ -289,13 +330,48 @@ class ForumController extends ChangeNotifier {
     final channel = _channel;
     _channel = null;
     _realtimeConnected = false;
+    _presenceTracked = false;
+    _onlineNames = {};
     if (channel == null) return;
     try {
+      await channel.untrack();
       await Supabase.instance.client.removeChannel(channel);
     } catch (e) {
       debugPrint('ForumController.unsubscribeRealtime skipped: $e');
     }
     if (!_disposed) notifyListeners();
+  }
+
+  /// Announces this visitor on the presence channel so others see
+  /// their green dot. Ephemeral — vanishes on disconnect.
+  Future<void> _trackPresence() async {
+    final channel = _channel;
+    if (_disposed || channel == null || _presenceTracked) return;
+    try {
+      if (_deviceId.isEmpty) _deviceId = await ReactionIdentity.deviceId();
+      final name = await _localDisplayName();
+      if (_disposed || _channel == null) return;
+      await channel.track({'device_id': _deviceId, 'name': name});
+      _presenceTracked = true;
+    } catch (e) {
+      debugPrint('ForumController track presence skipped: $e');
+    }
+  }
+
+  /// Rebuilds the online-name set from the channel presence state.
+  void _refreshPresence() {
+    if (_disposed) return;
+    try {
+      final channel = _channel;
+      if (channel == null) return;
+      final states = channel.presenceState();
+      _onlineNames = onlineNamesFromMetas(
+        states.map((s) => s.presences.map((p) => p.payload).toList()).toList(),
+      );
+      notifyListeners();
+    } catch (e) {
+      debugPrint('ForumController presence refresh skipped: $e');
+    }
   }
 
   void _handleLivePost(Map<String, dynamic> record) {
@@ -357,6 +433,108 @@ class ForumController extends ChangeNotifier {
     }
   }
 
+  /// Queues a server write behind any in-flight write for the same
+  /// post/reply, so rapid Like->Unlike->Like runs in tap order and an
+  /// Unlike can never overtake its Like and leak a row.
+  void _enqueueReactionSync(
+    String targetId,
+    String type, {
+    required bool liked,
+  }) {
+    final prev = _reactionQueues[targetId] ?? Future.value();
+    final next = prev.then(
+      (_) => _syncReactionRemote(targetId, type, liked: liked),
+    );
+    _reactionQueues[targetId] = next;
+    unawaited(next.then((_) {
+      if (_reactionQueues[targetId] == next) {
+        _reactionQueues.remove(targetId);
+      }
+    }));
+  }
+
+  /// Writes our own tap to Supabase, then reconciles with the
+  /// authoritative server count. Failures keep the optimistic local
+  /// state and log loudly (no more silent loss).
+  Future<void> _syncReactionRemote(
+    String targetId,
+    String type, {
+    required bool liked,
+  }) async {
+    if (_disposed) return;
+    if (_deviceId.isEmpty) {
+      try {
+        _deviceId = await ReactionIdentity.deviceId();
+      } catch (e) {
+        debugPrint('ForumController device id skipped: $e');
+        return;
+      }
+      if (_disposed) return;
+    }
+    final reactorName = await _localDisplayName();
+    if (_disposed) return;
+    final ok = liked
+        ? await _repository.addReactionRemote(
+            targetId: targetId,
+            reactionType: type,
+            deviceId: _deviceId,
+            reactorName: reactorName)
+        : await _repository.removeReactionRemote(
+            targetId: targetId, reactionType: type, deviceId: _deviceId);
+    if (_disposed) return;
+    if (!ok) {
+      debugPrint(
+        'ForumController reaction NOT saved remotely '
+        '(target=$targetId type=$type liked=$liked). '
+        'Check Supabase RLS / Data API exposure on pakikiramay_reactions.',
+      );
+      return;
+    }
+    await _reconcileReaction(targetId, type);
+  }
+
+  /// True when a realtime reaction echo carries our own device id —
+  /// our optimistic update already counted it.
+  bool _isOwnReactionEcho(String echoDeviceId) {
+    return echoDeviceId.isNotEmpty && echoDeviceId == _deviceId;
+  }
+
+  Future<void> _reconcileReaction(String targetId, String type) async {
+    try {
+      final counts = await _repository.fetchReactionCountFor(targetId);
+      if (_disposed || counts == null) return;
+      _setReactionCount(targetId, type, counts[type] ?? 0);
+    } catch (e) {
+      debugPrint('ForumController reconcile reaction skipped: $e');
+    }
+  }
+
+  void _setReactionCount(String targetId, String type, int value) {
+    if (_disposed || targetId.isEmpty) return;
+    final postIdx = _posts.indexWhere((p) => p.id == targetId);
+    if (postIdx != -1) {
+      final post = _posts[postIdx];
+      final next = Map<String, int>.from(post.reactions);
+      next[type] = value.clamp(0, 99999);
+      _posts[postIdx] = post.copyWith(reactions: next);
+      notifyListeners();
+      return;
+    }
+    for (var i = 0; i < _posts.length; i++) {
+      final post = _posts[i];
+      final replyIdx = post.replies.indexWhere((r) => r.id == targetId);
+      if (replyIdx == -1) continue;
+      final updated = List<ForumReply>.from(post.replies);
+      final reply = updated[replyIdx];
+      final next = Map<String, int>.from(reply.reactions);
+      next[type] = value.clamp(0, 99999);
+      updated[replyIdx] = reply.copyWith(reactions: next);
+      _posts[i] = post.copyWith(replies: updated);
+      notifyListeners();
+      return;
+    }
+  }
+
   void _applyReactionDelta(String targetId, String type, int delta) {
     if (_disposed || targetId.isEmpty || delta == 0) return;
     try {
@@ -392,8 +570,10 @@ class ForumController extends ChangeNotifier {
     _disposed = true;
     final channel = _channel;
     _channel = null;
+    _onlineNames = {};
     if (channel != null) {
       try {
+        unawaited(channel.untrack());
         Supabase.instance.client.removeChannel(channel);
       } catch (_) {}
     }

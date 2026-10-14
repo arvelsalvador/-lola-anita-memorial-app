@@ -6,6 +6,7 @@ import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/data/visitors/visitor_repository.dart';
 import 'package:nita/models/forum_post_model.dart';
+import 'package:nita/views/condolences/forum/likers_sheet.dart';
 
 /// Minimal flat message card (Image 1 port, warm-adapted):
 /// paper card, flat avatars, text-only actions, divider, flat replies,
@@ -19,6 +20,12 @@ class ForumPostCard extends StatefulWidget {
     String message,
     String replyToName,
   ) onSendReply;
+  /// True when the post author is currently online (green dot).
+  final bool isPostAuthorOnline;
+  /// True when the named reply author is currently online.
+  final bool Function(String authorName) isReplyAuthorOnline;
+  /// Loads liker display names for a post id or reply id.
+  final Future<List<String>> Function(String targetId) onViewLikers;
 
   const ForumPostCard({
     super.key,
@@ -26,7 +33,12 @@ class ForumPostCard extends StatefulWidget {
     required this.onReactionTap,
     required this.onReplyReactionTap,
     required this.onSendReply,
+    this.isPostAuthorOnline = false,
+    this.isReplyAuthorOnline = _offline,
+    required this.onViewLikers,
   });
+
+  static bool _offline(String _) => false;
 
   @override
   State<ForumPostCard> createState() => _ForumPostCardState();
@@ -47,6 +59,18 @@ class _ForumPostCardState extends State<ForumPostCard> {
   void initState() {
     super.initState();
     _loadVisitorName();
+    // Desktop/web: plain Enter sends, Shift+Enter inserts a newline.
+    _composerFocus.onKeyEvent = (node, event) {
+      if (event is! KeyDownEvent) return KeyEventResult.ignored;
+      if (event.logicalKey != LogicalKeyboardKey.enter) {
+        return KeyEventResult.ignored;
+      }
+      if (HardwareKeyboard.instance.isShiftPressed) {
+        return KeyEventResult.ignored; // let Shift+Enter make a newline
+      }
+      _handleSend();
+      return KeyEventResult.handled;
+    };
   }
 
   Future<void> _loadVisitorName() async {
@@ -208,6 +232,7 @@ class _ForumPostCardState extends State<ForumPostCard> {
     final postedAt = _formatExact(context, post.createdAt);
     final lang = context.watch<LanguageProvider>();
     final liked = post.userReactions.contains('heart');
+    final heartCount = post.reactions['heart'] ?? 0;
     final hasReplies = post.replies.isNotEmpty;
     final showThread = _repliesExpanded && hasReplies;
 
@@ -227,7 +252,10 @@ class _ForumPostCardState extends State<ForumPostCard> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                _InitialAvatar(initials: _getInitials(post.authorName)),
+                _InitialAvatar(
+                  initials: _getInitials(post.authorName),
+                  isOnline: widget.isPostAuthorOnline,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
@@ -277,6 +305,7 @@ class _ForumPostCardState extends State<ForumPostCard> {
             const SizedBox(height: 12),
 
             // Flat text actions: Like | N replies | Reply.
+            // The like count (when > 0) opens the likers sheet.
             Row(
               children: [
                 _TextAction(
@@ -287,6 +316,17 @@ class _ForumPostCardState extends State<ForumPostCard> {
                   active: liked,
                   onTap: () => widget.onReactionTap('heart'),
                 ),
+                if (heartCount > 0) ...[
+                  const SizedBox(width: 4),
+                  _LikeCountTap(
+                    count: heartCount,
+                    active: liked,
+                    onTap: () => LikersSheet.show(
+                      context,
+                      loadNames: () => widget.onViewLikers(post.id),
+                    ),
+                  ),
+                ],
                 const SizedBox(width: 20),
                 _TextAction(
                   icon: Icons.chat_bubble_outline_rounded,
@@ -326,9 +366,17 @@ class _ForumPostCardState extends State<ForumPostCard> {
                     initials: _getInitials(post.replies[i].authorName),
                     shortDate:
                         _formatShort(context, post.replies[i].createdAt),
+                    isOnline: widget.isReplyAuthorOnline(
+                      post.replies[i].authorName,
+                    ),
                     onReactionTap: (type) => widget.onReplyReactionTap(
                       post.replies[i].id,
                       type,
+                    ),
+                    onViewLikers: () => LikersSheet.show(
+                      context,
+                      loadNames: () =>
+                          widget.onViewLikers(post.replies[i].id),
                     ),
                     onReplyTap: () =>
                         _targetReply(post.replies[i].authorName),
@@ -421,6 +469,7 @@ class _ForumPostCardState extends State<ForumPostCard> {
                           controller: _composerController,
                           focusNode: _composerFocus,
                           textCapitalization: TextCapitalization.sentences,
+                          textInputAction: TextInputAction.send,
                           minLines: 1,
                           maxLines: 3,
                           enabled: !_sending,
@@ -489,14 +538,18 @@ class _InlineReply extends StatelessWidget {
   final ForumReply reply;
   final String initials;
   final String shortDate;
+  final bool isOnline;
   final void Function(String reactionType) onReactionTap;
+  final VoidCallback onViewLikers;
   final VoidCallback onReplyTap;
 
   const _InlineReply({
     required this.reply,
     required this.initials,
     required this.shortDate,
+    this.isOnline = false,
     required this.onReactionTap,
+    required this.onViewLikers,
     required this.onReplyTap,
   });
 
@@ -509,21 +562,25 @@ class _InlineReply extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 28,
-          height: 28,
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            color: AppColors.mistPaper,
-          ),
-          child: Center(
-            child: Text(
-              initials,
-              style: const TextStyle(
-                fontFamily: 'Lora',
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: AppColors.warmDeep,
+        _OnlineAvatar(
+          size: 28,
+          isOnline: isOnline,
+          child: Container(
+            width: 28,
+            height: 28,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.mistPaper,
+            ),
+            child: Center(
+              child: Text(
+                initials,
+                style: const TextStyle(
+                  fontFamily: 'Lora',
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.warmDeep,
+                ),
               ),
             ),
           ),
@@ -621,17 +678,33 @@ class _InlineReply extends StatelessWidget {
                           ),
                           if (count > 0) ...[
                             const SizedBox(width: 4),
-                            Text(
-                              '$count',
-                              style: TextStyle(
-                                fontFamily: 'Lora',
-                                fontSize: 12.5,
-                                fontWeight: liked
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                                color: liked
-                                    ? _LikeRed.color
-                                    : AppColors.warmMid,
+                            InkWell(
+                              onTap: () {
+                                HapticFeedback.lightImpact()
+                                    .catchError((_) {});
+                                onViewLikers();
+                              },
+                              borderRadius: BorderRadius.circular(8),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 6,
+                                ),
+                                child: Text(
+                                  '$count',
+                                  style: TextStyle(
+                                    fontFamily: 'Lora',
+                                    fontSize: 12.5,
+                                    fontWeight: liked
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                    color: liked
+                                        ? _LikeRed.color
+                                        : AppColors.warmMid,
+                                    decoration:
+                                        TextDecoration.underline,
+                                  ),
+                                ),
                               ),
                             ),
                           ],
@@ -714,28 +787,111 @@ class _MentionMessageText extends StatelessWidget {
 }
 
 /// Flat 40px beige avatar, roseDeep initial. No gradient, no ring.
+/// Shows a green presence dot at the lower-right when [isOnline].
 class _InitialAvatar extends StatelessWidget {
   final String initials;
+  final bool isOnline;
 
-  const _InitialAvatar({required this.initials});
+  const _InitialAvatar({required this.initials, this.isOnline = false});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        color: AppColors.iconBgCream,
+    return _OnlineAvatar(
+      size: 40,
+      isOnline: isOnline,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          color: AppColors.iconBgCream,
+        ),
+        child: Center(
+          child: Text(
+            initials,
+            style: const TextStyle(
+              fontFamily: 'Lora',
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: AppColors.roseDeep,
+            ),
+          ),
+        ),
       ),
-      child: Center(
+    );
+  }
+}
+
+/// Wraps an avatar with a green presence dot pinned to its
+/// lower-right edge. Zero layout shift when offline.
+class _OnlineAvatar extends StatelessWidget {
+  final double size;
+  final bool isOnline;
+  final Widget child;
+
+  const _OnlineAvatar({
+    required this.size,
+    required this.isOnline,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isOnline) return child;
+    final dot = size * 0.32;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        child,
+        Positioned(
+          right: -1,
+          bottom: -1,
+          child: Container(
+            width: dot,
+            height: dot,
+            decoration: BoxDecoration(
+              color: const Color(0xFF1F9D55),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Underlined like count next to the Like action — opens the likers sheet.
+class _LikeCountTap extends StatelessWidget {
+  final int count;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _LikeCountTap({
+    required this.count,
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = active ? _LikeRed.color : AppColors.warmMid;
+    return InkWell(
+      onTap: () {
+        HapticFeedback.lightImpact().catchError((_) {});
+        onTap();
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
         child: Text(
-          initials,
-          style: const TextStyle(
+          '$count',
+          style: TextStyle(
             fontFamily: 'Lora',
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: AppColors.roseDeep,
+            fontSize: 13.5,
+            fontWeight: FontWeight.w500,
+            color: color,
+            decoration: TextDecoration.underline,
           ),
         ),
       ),

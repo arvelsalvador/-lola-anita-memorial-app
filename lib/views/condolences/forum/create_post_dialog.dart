@@ -29,6 +29,8 @@ class CreatePostDialog extends StatefulWidget {
 class _CreatePostDialogState extends State<CreatePostDialog> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _contentController = TextEditingController();
+  final FocusNode _nameFocus = FocusNode();
+  final FocusNode _contentFocus = FocusNode();
   final VisitorRepository _visitorRepo = const VisitorRepository();
 
   bool _submitting = false;
@@ -38,6 +40,20 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
   void initState() {
     super.initState();
     _loadVisitorInfo();
+    // Desktop/web: Ctrl+Enter (or Cmd+Enter on macOS) submits the
+    // multiline message box without killing paragraph breaks.
+    _contentFocus.onKeyEvent = (node, event) {
+      if (event is! KeyDownEvent) return KeyEventResult.ignored;
+      if (event.logicalKey != LogicalKeyboardKey.enter) {
+        return KeyEventResult.ignored;
+      }
+      if (!(HardwareKeyboard.instance.isControlPressed ||
+          HardwareKeyboard.instance.isMetaPressed)) {
+        return KeyEventResult.ignored; // plain Enter = newline
+      }
+      _handleSubmit();
+      return KeyEventResult.handled;
+    };
   }
 
   Future<void> _loadVisitorInfo() async {
@@ -55,10 +71,13 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
   void dispose() {
     _nameController.dispose();
     _contentController.dispose();
+    _nameFocus.dispose();
+    _contentFocus.dispose();
     super.dispose();
   }
 
   Future<void> _handleSubmit() async {
+    if (_submitting) return;
     final name = _nameController.text.trim();
     final content = _contentController.text.trim();
 
@@ -156,7 +175,10 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
                 ),
                 child: TextField(
                   controller: _nameController,
+                  focusNode: _nameFocus,
                   textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => _contentFocus.requestFocus(),
                   style: const TextStyle(
                     fontFamily: 'Lora',
                     fontSize: 14,
@@ -189,9 +211,11 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
                 ),
                 child: TextField(
                   controller: _contentController,
+                  focusNode: _contentFocus,
                   maxLines: 5,
                   minLines: 3,
                   textCapitalization: TextCapitalization.sentences,
+                  textInputAction: TextInputAction.newline,
                   style: const TextStyle(
                     fontFamily: 'Lora',
                     fontSize: 14,

@@ -109,10 +109,7 @@ class ForumRepository {
 
           final postReactions = remoteCounts[id] ??
               reactionCounts[id] ?? {
-            'candle': 0,
-            'dove': 0,
             'heart': 0,
-            'pray': 0,
           };
 
           realPosts.add(
@@ -157,7 +154,7 @@ class ForumRepository {
       authorName: cleanName,
       message: cleanMessage,
       createdAt: now,
-      reactions: const {'candle': 0, 'dove': 0, 'heart': 0, 'pray': 0},
+      reactions: const {'heart': 0},
       userReactions: const {},
       replies: const [],
     );
@@ -264,8 +261,8 @@ class ForumRepository {
     return newReply;
   }
 
-  /// Toggles a reaction (candle, dove, heart, pray) for a post OR a
-  /// reply — both are keyed by their unique id in the same local stores.
+  /// Toggles the heart Like for a post OR a reply — both are keyed by
+  /// their unique id in the same local stores.
   Future<void> toggleReaction({
     required String postId,
     required String reactionType,
@@ -279,10 +276,7 @@ class ForumRepository {
       final hasReacted = currentSet.contains(reactionType);
 
       final currentMap = reactionCounts[postId] ?? {
-        'candle': 0,
-        'dove': 0,
         'heart': 0,
-        'pray': 0,
       };
 
       final currentCount = currentMap[reactionType] ?? 0;
@@ -323,10 +317,7 @@ class ForumRepository {
         final type = (row['reaction_type'] as String? ?? '').trim();
         if (target.isEmpty || type.isEmpty) continue;
         counts.putIfAbsent(target, () => {
-              'candle': 0,
-              'dove': 0,
               'heart': 0,
-              'pray': 0,
             });
         counts[target]![type] = (counts[target]![type] ?? 0) + 1;
       }
@@ -338,33 +329,52 @@ class ForumRepository {
   }
 
   /// Persists a like remotely so other devices see it live.
-  /// Temp ids (msg-...) never exist remotely — skipped silently.
-  Future<void> addReactionRemote({
+  /// Returns true when the row was saved. Never throws — failures are
+  /// logged and reported as false so the caller can retry/reconcile.
+  /// Temp ids (msg-...) never exist remotely — skipped as false.
+  /// [deviceId] stamps the row owner so unlike deletes only our row.
+  /// [reactorName] is the display name shown in the likers sheet.
+  Future<bool> addReactionRemote({
     required String targetId,
     required String reactionType,
+    required String deviceId,
+    String reactorName = 'Anonymous',
   }) async {
-    if (!SupabaseConfig.isConfigured) return;
-    if (targetId.startsWith('msg-') || targetId.startsWith('reply-')) return;
-    if (targetId.isEmpty) return;
+    if (!SupabaseConfig.isConfigured) return false;
+    if (targetId.startsWith('msg-') || targetId.startsWith('reply-')) {
+      return false;
+    }
+    if (targetId.isEmpty || deviceId.isEmpty) return false;
+    final trimmed = reactorName.trim();
+    final cleanName =
+        trimmed.isEmpty ? 'Anonymous' : trimmed.substring(0, trimmed.length > 50 ? 50 : trimmed.length);
     try {
       await Supabase.instance.client.from(reactionsTable).insert({
         'target_id': targetId,
         'reaction_type': reactionType,
+        'device_id': deviceId,
+        'reactor_name': cleanName,
       }).timeout(const Duration(seconds: 8));
+      return true;
     } catch (e) {
-      debugPrint('ForumRepository addReactionRemote skipped: $e');
+      debugPrint('ForumRepository addReactionRemote FAILED: $e');
+      return false;
     }
   }
 
-  /// Removes one remote like (un-like). Deletes a single matching row
-  /// so other users' likes on the same post are preserved.
-  Future<void> removeReactionRemote({
+  /// Removes our own remote like (un-like). Scoped to this device's row
+  /// so other visitors' likes on the same post are preserved.
+  /// Returns true when a row was deleted.
+  Future<bool> removeReactionRemote({
     required String targetId,
     required String reactionType,
+    required String deviceId,
   }) async {
-    if (!SupabaseConfig.isConfigured) return;
-    if (targetId.startsWith('msg-') || targetId.startsWith('reply-')) return;
-    if (targetId.isEmpty) return;
+    if (!SupabaseConfig.isConfigured) return false;
+    if (targetId.startsWith('msg-') || targetId.startsWith('reply-')) {
+      return false;
+    }
+    if (targetId.isEmpty || deviceId.isEmpty) return false;
     try {
       final client = Supabase.instance.client;
       final rows = await client
@@ -372,19 +382,78 @@ class ForumRepository {
           .select('id')
           .eq('target_id', targetId)
           .eq('reaction_type', reactionType)
+          .eq('device_id', deviceId)
           .limit(1)
           .timeout(const Duration(seconds: 8));
       final list = rows as List;
-      if (list.isEmpty) return;
+      if (list.isEmpty) return false;
       final rowId = list.first['id']?.toString() ?? '';
-      if (rowId.isEmpty) return;
+      if (rowId.isEmpty) return false;
       await client
           .from(reactionsTable)
           .delete()
           .eq('id', rowId)
           .timeout(const Duration(seconds: 8));
+      return true;
     } catch (e) {
-      debugPrint('ForumRepository removeReactionRemote skipped: $e');
+      debugPrint('ForumRepository removeReactionRemote FAILED: $e');
+      return false;
+    }
+  }
+
+  /// Display names of who liked a post/reply, oldest first, deduped.
+  /// Powers the likers bottom sheet. Empty when offline, unconfigured,
+  /// or nobody liked yet. Never throws.
+  Future<List<String>> fetchLikerNames(String targetId) async {
+    if (!SupabaseConfig.isConfigured || targetId.isEmpty) return [];
+    if (targetId.startsWith('msg-') || targetId.startsWith('reply-')) {
+      return [];
+    }
+    try {
+      final rows = await Supabase.instance.client
+          .from(reactionsTable)
+          .select('reactor_name, created_at')
+          .eq('target_id', targetId)
+          .eq('reaction_type', 'heart')
+          .order('created_at', ascending: true)
+          .limit(100)
+          .timeout(const Duration(seconds: 8));
+      final names = <String>[];
+      for (final row in (rows as List)) {
+        final raw = (row as Map)['reactor_name'];
+        final name = (raw is String ? raw : '').trim();
+        final clean = name.isEmpty ? 'Anonymous' : name;
+        if (!names.contains(clean)) names.add(clean);
+      }
+      return names;
+    } catch (e) {
+      debugPrint('ForumRepository fetchLikerNames skipped: $e');
+      return [];
+    }
+  }
+
+  /// Authoritative remote count for one post/reply, used to reconcile
+  /// after our own write (kills echo double-counts). Null when offline
+  /// or the table is missing.
+  Future<Map<String, int>?> fetchReactionCountFor(String targetId) async {
+    if (!SupabaseConfig.isConfigured || targetId.isEmpty) return null;
+    try {
+      final rows = await Supabase.instance.client
+          .from(reactionsTable)
+          .select('reaction_type')
+          .eq('target_id', targetId)
+          .limit(2000)
+          .timeout(const Duration(seconds: 8));
+      final counts = {'heart': 0};
+      for (final row in (rows as List)) {
+        final type = (row['reaction_type'] as String? ?? '').trim();
+        if (type.isEmpty) continue;
+        counts[type] = (counts[type] ?? 0) + 1;
+      }
+      return counts;
+    } catch (e) {
+      debugPrint('ForumRepository fetchReactionCountFor skipped: $e');
+      return null;
     }
   }
 
@@ -425,15 +494,18 @@ class ForumRepository {
     );
   }
 
-  /// Parses a reactions-table payload row into (targetId, reactionType).
-  /// Returns null when the row is malformed.
-  ({String targetId, String reactionType})? parseReactionRecord(
+  /// Parses a reactions-table payload row into (targetId, reactionType,
+  /// deviceId). Returns null when the row is malformed. deviceId is ''
+  /// for rows written before the owner column existed.
+  ({String targetId, String reactionType, String deviceId})?
+      parseReactionRecord(
     Map<String, dynamic> record,
   ) {
     final target = record['target_id']?.toString() ?? '';
     final type = (record['reaction_type'] as String? ?? '').trim();
     if (target.isEmpty || type.isEmpty) return null;
-    return (targetId: target, reactionType: type);
+    final device = (record['device_id'] as String? ?? '').trim();
+    return (targetId: target, reactionType: type, deviceId: device);
   }
 
   Future<void> _saveLocalCache(

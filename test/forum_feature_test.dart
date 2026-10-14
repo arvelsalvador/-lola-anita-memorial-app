@@ -67,12 +67,12 @@ void main() {
       expect(controller.posts, isNotEmpty);
 
       final firstPost = controller.posts.first;
-      final initialCandles = firstPost.reactions['candle'] ?? 0;
+      final initialHearts = firstPost.reactions['heart'] ?? 0;
 
-      await controller.toggleReaction(firstPost.id, 'candle');
+      await controller.toggleReaction(firstPost.id, 'heart');
       final updatedFirstPost = controller.posts.firstWhere((p) => p.id == firstPost.id);
-      expect(updatedFirstPost.reactions['candle'], initialCandles + 1);
-      expect(updatedFirstPost.userReactions.contains('candle'), isTrue);
+      expect(updatedFirstPost.reactions['heart'], initialHearts + 1);
+      expect(updatedFirstPost.userReactions.contains('heart'), isTrue);
     });
   });
 

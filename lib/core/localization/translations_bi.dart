@@ -607,6 +607,8 @@ const Map<String, String> translationsBi = {
   'forum_hours_ago': '{count} oras an nakaagi',
   'forum_days_ago': '{count} aldaw an nakaagi',
   'forum_reply_sheet_title': 'Mga Simbag',
+  'forum_likers_title': 'Mga Nag-like',
+  'forum_likers_empty': 'Mayo pang nag-like — pinduta an puso tanganing maging enot.',
   'forum_require_content': 'Pakisurat an mensahe bago mag-post.',
   'forum_require_name': 'Pakilaag an saimong pangaran.',
   // ── Abuloy / Donasyon (Pakikiramay) ──────────────────────────────────
