@@ -250,7 +250,7 @@ class _FeaturedQuoteCard extends StatelessWidget {
                 child: Text(
                   '· ${lang.t('words_featured_label')} ·',
                   style: const TextStyle(
-                    fontFamily: 'Lora',
+                    fontFamily: 'Inter',
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 2.4,
@@ -264,7 +264,7 @@ class _FeaturedQuoteCard extends StatelessWidget {
             const Text(
               '\u201C',
               style: TextStyle(
-                fontFamily: 'Lora',
+                fontFamily: 'Inter',
                 fontSize: 40,
                 color: AppColors.gold,
                 height: 0.6,
@@ -288,7 +288,7 @@ class _FeaturedQuoteCard extends StatelessWidget {
                 Text(
                   '\u2014 ${lang.t(quote.nameKey)}',
                   style: const TextStyle(
-                    fontFamily: 'Lora',
+                    fontFamily: 'Inter',
                     fontSize: 12,
                     color: AppColors.warmMid,
                   ),
@@ -351,7 +351,7 @@ class FamilyQuoteCard extends StatelessWidget {
                           TextSpan(
                             text: '\u2014 ${lang.t(quote.nameKey)}',
                             style: const TextStyle(
-                              fontFamily: 'Lora',
+                              fontFamily: 'Inter',
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
                               color: AppColors.warmDark,
@@ -360,7 +360,7 @@ class FamilyQuoteCard extends StatelessWidget {
                           TextSpan(
                             text: '   ${lang.t(quote.relationKey)}',
                             style: const TextStyle(
-                              fontFamily: 'Lora',
+                              fontFamily: 'Inter',
                               fontSize: 11,
                               color: AppColors.roseDeep,
                             ),
@@ -382,7 +382,7 @@ class FamilyQuoteCard extends StatelessWidget {
                 child: Text(
                   lang.t(quote.dateKey),
                   style: const TextStyle(
-                    fontFamily: 'Lora',
+                    fontFamily: 'Inter',
                     fontSize: 10.5,
                     color: AppColors.muted,
                   ),

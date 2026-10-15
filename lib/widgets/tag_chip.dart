@@ -30,7 +30,7 @@ class TagChip extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-          fontFamily: 'Lora',
+          fontFamily: 'Inter',
           fontSize: 9,
           fontWeight: FontWeight.w600,
           color: rose ? AppColors.roseDeep : AppColors.warmDeep,

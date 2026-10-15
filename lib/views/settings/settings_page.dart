@@ -130,7 +130,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             lang.t('settings_search_empty'),
                             textAlign: TextAlign.center,
                             style: const TextStyle(
-                              fontFamily: 'Lora',
+                              fontFamily: 'Inter',
                               fontSize: 13,
                               color: AppColors.muted,
                             ),
@@ -163,7 +163,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                         fontSize: 17,
                                         fontWeight: FontWeight.w700,
                                         color: AppColors.textDark,
-                                        fontFamily: 'Lora',
+                                        fontFamily: 'Inter',
                                         fontFamilyFallback: [
                                           'Times New Roman',
                                           'serif',
@@ -221,7 +221,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                         fontSize: 15,
                                         fontWeight: FontWeight.w600,
                                         color: AppColors.textDark,
-                                        fontFamily: 'Lora',
+                                        fontFamily: 'Inter',
                                         fontFamilyFallback: [
                                           'Times New Roman',
                                           'serif',
@@ -235,7 +235,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
-                                          fontFamily: 'Lora',
+                                          fontFamily: 'Inter',
                                           fontSize: 12,
                                           color: AppColors.muted,
                                           height: 1.4,
@@ -267,7 +267,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         'Nanay Anita · ${lang.t('settings_about_app_version')}',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
-                          fontFamily: 'Lora',
+                          fontFamily: 'Inter',
                           fontSize: 11.5,
                           color: AppColors.muted,
                         ),
@@ -310,7 +310,7 @@ class _SettingsAppBar extends StatelessWidget implements PreferredSizeWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(
-          fontFamily: 'Lora',
+          fontFamily: 'Inter',
           fontSize: 17,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.3,
@@ -343,14 +343,14 @@ class _SearchBar extends StatelessWidget {
         controller: controller,
         onChanged: onChanged,
         style: const TextStyle(
-          fontFamily: 'Lora',
+          fontFamily: 'Inter',
           fontSize: 14,
           color: AppColors.textDark,
         ),
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: const TextStyle(
-            fontFamily: 'Lora',
+            fontFamily: 'Inter',
             fontSize: 14,
             color: AppColors.muted,
           ),

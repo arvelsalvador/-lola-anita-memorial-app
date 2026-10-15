@@ -53,7 +53,7 @@ class LanguageToggle extends StatelessWidget {
                   child: Text(
                     flag,
                     style: const TextStyle(
-                      fontFamily: 'Lora',
+                      fontFamily: 'Inter',
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.5,
@@ -67,7 +67,7 @@ class LanguageToggle extends StatelessWidget {
               Text(
                 DisplayUtils.languageCode(lang.language),
                 style: TextStyle(
-                  fontFamily: 'Lora',
+                  fontFamily: 'Inter',
                   fontSize: 11,
                   color: AppColors.linen,
                   fontWeight: lang.isBicol ? FontWeight.w400 : FontWeight.w600,
@@ -113,7 +113,7 @@ class _LanguageSheet extends StatelessWidget {
           Text(
             lang.t('settings_language'),
             style: const TextStyle(
-              fontFamily: 'Lora',
+              fontFamily: 'Inter',
               fontSize: 18,
               fontWeight: FontWeight.w600,
               color: AppColors.textDark,
@@ -194,7 +194,7 @@ class _LangOption extends StatelessWidget {
             Text(
               flag,
               style: TextStyle(
-                fontFamily: 'Lora',
+                fontFamily: 'Inter',
                 fontSize: isPlainCode ? 15 : 24,
                 letterSpacing: isPlainCode ? 0.5 : 0,
               ),
@@ -203,7 +203,7 @@ class _LangOption extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                fontFamily: 'Lora',
+                fontFamily: 'Inter',
                 fontSize: 15,
                 fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                 color: AppColors.textDark,

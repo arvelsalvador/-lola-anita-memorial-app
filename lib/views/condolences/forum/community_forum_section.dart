@@ -22,6 +22,11 @@ class CommunityForumSection extends StatefulWidget {
 }
 
 class _CommunityForumSectionState extends State<CommunityForumSection> {
+  static const int _pageSize = 20;
+  int _visibleCount = _pageSize;
+  final Set<String> _seenIds = {};
+  int? _prevTotal;
+
   @override
   void initState() {
     super.initState();
@@ -69,6 +74,59 @@ class _CommunityForumSectionState extends State<CommunityForumSection> {
                   ),
                 ),
               )
+            else if (posts.isEmpty && controller.loadError)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.cloud_off_outlined,
+                      size: 28,
+                      color: AppColors.muted,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      lang.t('forum_load_error'),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 13.5,
+                        fontStyle: FontStyle.italic,
+                        color: AppColors.warmMid,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        HapticFeedback.lightImpact().catchError((_) {});
+                        controller.loadPosts();
+                        controller.subscribeRealtime().catchError((_) {});
+                      },
+                      icon: const Icon(Icons.refresh_rounded, size: 16),
+                      label: Text(
+                        lang.t('forum_retry'),
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.textDark,
+                        side: const BorderSide(color: AppColors.stoneBorder),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
             else if (posts.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
@@ -77,7 +135,7 @@ class _CommunityForumSectionState extends State<CommunityForumSection> {
                     lang.t('forum_empty_state'),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      fontFamily: 'Lora',
+                      fontFamily: 'Inter',
                       fontSize: 13.5,
                       fontStyle: FontStyle.italic,
                       color: AppColors.warmMid,
@@ -85,39 +143,158 @@ class _CommunityForumSectionState extends State<CommunityForumSection> {
                   ),
                 ),
               )
-            else
-              ...posts.map(
-                (post) => _LiveInsertWrapper(
-                  key: ValueKey(post.id),
-                  child: ForumPostCard(
-                    post: post,
-                    isPostAuthorOnline:
-                        controller.isOnline(post.authorName),
-                    isReplyAuthorOnline: (name) =>
-                        controller.isOnline(name),
-                    onViewLikers: (targetId) =>
-                        controller.likerNames(targetId),
-                    onReactionTap: (reactionType) {
-                      controller.toggleReaction(post.id, reactionType);
-                    },
-                    onReplyReactionTap: (replyId, reactionType) {
-                      controller.toggleReplyReaction(
+            else ...[
+              ...() {
+                // Keep what the user already sees when live posts arrive
+                // at the top: grow the window by the delta so the bottom
+                // card isn't pushed out.
+                if (_prevTotal != null && posts.length > _prevTotal!) {
+                  _visibleCount += posts.length - _prevTotal!;
+                }
+                _prevTotal = posts.length;
+                if (_visibleCount > posts.length) {
+                  _visibleCount = posts.length;
+                }
+                // Paginate: first paint builds max 20 cards, not 100.
+                final visible =
+                    posts.take(_visibleCount).toList();
+                // Animate only live arrivals, never the initial load.
+                // First build marks everything seen with no animation,
+                // so 100 cached posts cost zero AnimationControllers.
+                final bool wasFirstBuild = _seenIds.isEmpty;
+                final currentIds =
+                    posts.map((p) => p.id).toSet();
+                final Set<String> newIds = wasFirstBuild
+                    ? <String>{}
+                    : currentIds.difference(_seenIds);
+                // Prune deleted ids so the set stays bounded.
+                _seenIds.retainAll(currentIds);
+                _seenIds.addAll(currentIds);
+                final bool isInitialLoad = wasFirstBuild;
+
+                Widget buildCard(post) {
+                  final card = RepaintBoundary(
+                    child: ForumPostCard(
+                      key: ValueKey(post.id),
+                      post: post,
+                      isPostAuthorOnline:
+                          controller.isOnline(post.authorName),
+                      isReplyAuthorOnline: (name) =>
+                          controller.isOnline(name),
+                      onViewLikers: (targetId) =>
+                          controller.likerNames(targetId),
+                      onReactionTap: (reactionType) {
+                        controller.toggleReaction(post.id, reactionType);
+                      },
+                      onReplyReactionTap: (replyId, reactionType) {
+                        controller.toggleReplyReaction(
+                          post.id,
+                          replyId,
+                          reactionType,
+                        );
+                      },
+                      onSendReply: (authorName, message, replyToName) {
+                        return controller.addReply(
+                          postId: post.id,
+                          authorName: authorName,
+                          message: message,
+                          replyToName: replyToName,
+                        );
+                      },
+                      isPostReported: controller.isReported(post.id),
+                      isReplyReported: (replyId) =>
+                          controller.isReported(replyId),
+                      onSubmitReport:
+                          (targetId, targetKind, reason, details) {
+                        return controller.reportTarget(
+                          targetId: targetId,
+                          targetKind: targetKind,
+                          reason: reason,
+                          details: details,
+                        );
+                      },
+                      isPostOwn: controller.isOwnPost(post.id),
+                      canEditPost: controller.canEditPost(post.id),
+                      isReplyOwn: (replyId) =>
+                          controller.isOwnReply(replyId),
+                      canEditReply: (replyId) => controller.canEditReply(
                         post.id,
                         replyId,
-                        reactionType,
-                      );
-                    },
-                    onSendReply: (authorName, message, replyToName) {
-                      return controller.addReply(
+                      ),
+                      onEditPost: (message) => controller.editPost(
                         postId: post.id,
-                        authorName: authorName,
                         message: message,
-                        replyToName: replyToName,
-                      );
-                    },
-                  ),
-                ),
-              ),
+                      ),
+                      onDeletePost: () =>
+                          controller.deletePost(post.id),
+                      onEditReply: (replyId, message) =>
+                          controller.editReply(
+                        postId: post.id,
+                        replyId: replyId,
+                        message: message,
+                      ),
+                      onDeleteReply: (replyId) => controller.deleteReply(
+                        postId: post.id,
+                        replyId: replyId,
+                      ),
+                    ),
+                  );
+                  if (isInitialLoad || !newIds.contains(post.id)) {
+                    return card;
+                  }
+                  return _LiveInsertWrapper(
+                    key: ValueKey('anim-${post.id}'),
+                    child: card,
+                  );
+                }
+
+                final widgets =
+                    visible.map(buildCard).toList();
+                if (_visibleCount < posts.length) {
+                  final remaining = posts.length - _visibleCount;
+                  widgets.add(
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          HapticFeedback.lightImpact()
+                              .catchError((_) {});
+                          setState(() {
+                            _visibleCount += _pageSize;
+                          });
+                        },
+                        icon: const Icon(
+                            Icons.expand_more_rounded,
+                            size: 16),
+                        label: Text(
+                          lang.t('forum_show_more',
+                              {'remaining': '$remaining'}),
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.textDark,
+                          backgroundColor: Colors.white,
+                          side: const BorderSide(
+                              color: AppColors.stoneBorder),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                return widgets;
+              }(),
+            ],
           ],
         );
       },
@@ -197,7 +374,7 @@ class _LiveBadge extends StatelessWidget {
           const Text(
             'LIVE',
             style: TextStyle(
-              fontFamily: 'Lora',
+              fontFamily: 'Inter',
               fontSize: 11,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.2,
@@ -226,7 +403,7 @@ class _LiveBadge extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontFamily: 'Lora',
+                  fontFamily: 'Inter',
                   fontSize: 12,
                   fontStyle: FontStyle.italic,
                   color: AppColors.muted,
@@ -274,9 +451,11 @@ class _ForumHeader extends StatelessWidget {
             Expanded(
               child: Text(
                 title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontFamily: 'Lora',
-                  fontSize: 20,
+                  fontFamily: 'Inter',
+                  fontSize: 18,
                   height: 1.25,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textDark,
@@ -301,7 +480,7 @@ class _ForumHeader extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontFamily: 'Lora',
+                  fontFamily: 'Inter',
                   fontSize: 13,
                   color: AppColors.muted,
                   height: 1.4,
@@ -341,7 +520,7 @@ class _ForumHeader extends StatelessWidget {
               ),
               padding: const EdgeInsets.symmetric(horizontal: 20),
               textStyle: const TextStyle(
-                fontFamily: 'Lora',
+                fontFamily: 'Inter',
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
               ),

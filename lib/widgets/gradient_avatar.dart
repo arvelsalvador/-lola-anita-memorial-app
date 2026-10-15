@@ -61,7 +61,7 @@ class GradientAvatar extends StatelessWidget {
             : Text(
                 initials ?? '',
                 style: TextStyle(
-                  fontFamily: 'Lora',
+                  fontFamily: 'Inter',
                   fontSize: initialsSize,
                   fontWeight: FontWeight.w600,
                   color: iconColor,

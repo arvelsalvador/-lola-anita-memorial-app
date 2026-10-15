@@ -205,7 +205,7 @@ class _CandleSectionState extends State<CandleSection> {
               Text(
                 lit ? lang.t('candle_lit') : lang.t('candle_light'),
                 style: const TextStyle(
-                  fontFamily: 'Lora',
+                  fontFamily: 'Inter',
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textDark,
@@ -220,7 +220,7 @@ class _CandleSectionState extends State<CandleSection> {
                 Text(
                   lang.t('candle_thanks_subtitle'),
                   style: const TextStyle(
-                    fontFamily: 'Lora',
+                    fontFamily: 'Inter',
                     fontSize: 12.5,
                     height: 1.5,
                     color: AppColors.warmMid,
@@ -240,7 +240,7 @@ class _CandleSectionState extends State<CandleSection> {
             {'count': '${controller.displayCount}'},
           ),
           style: const TextStyle(
-            fontFamily: 'Lora',
+            fontFamily: 'Inter',
             fontSize: 14,
             color: AppColors.muted,
             height: 1.5,
@@ -272,7 +272,7 @@ class _CandleSectionState extends State<CandleSection> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontFamily: 'Lora',
+                    fontFamily: 'Inter',
                     fontSize: 12.5,
                     color: AppColors.muted,
                     height: 1.4,
@@ -302,7 +302,7 @@ class _CandleSectionState extends State<CandleSection> {
                 elevation: 0,
                 shadowColor: Colors.transparent,
                 textStyle: const TextStyle(
-                  fontFamily: 'Lora',
+                  fontFamily: 'Inter',
                   fontSize: 15.5,
                   fontWeight: FontWeight.w600,
                 ),
@@ -330,7 +330,7 @@ class _CandleSectionState extends State<CandleSection> {
             Text(
               lang.t(messageErrorKey),
               style: const TextStyle(
-                fontFamily: 'Lora',
+                fontFamily: 'Inter',
                 fontSize: 12,
                 fontStyle: FontStyle.italic,
                 color: AppColors.warmMid,
@@ -399,7 +399,7 @@ class _RememberingList extends StatelessWidget {
                     Text(
                       lang.t('candle_list_offline'),
                       style: const TextStyle(
-                        fontFamily: 'Lora',
+                        fontFamily: 'Inter',
                         fontSize: 12.5,
                         fontStyle: FontStyle.italic,
                         color: AppColors.warmMid,
@@ -418,7 +418,7 @@ class _RememberingList extends StatelessWidget {
                       child: Text(
                         lang.t('candle_list_empty'),
                         style: const TextStyle(
-                          fontFamily: 'Lora',
+                          fontFamily: 'Inter',
                           fontSize: 12.5,
                           fontStyle: FontStyle.italic,
                           color: AppColors.warmMid,
@@ -441,7 +441,7 @@ class _RememberingList extends StatelessWidget {
                                 {'count': '$moreCount'},
                               ),
                               style: const TextStyle(
-                                fontFamily: 'Lora',
+                                fontFamily: 'Inter',
                                 fontSize: 12,
                                 fontStyle: FontStyle.italic,
                                 color: AppColors.warmMid,
@@ -501,7 +501,7 @@ class _NotebookPaper extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontFamily: 'Lora',
+                      fontFamily: 'Inter',
                       fontSize: 17,
                       fontWeight: FontWeight.w600,
                       fontStyle: FontStyle.italic,
@@ -655,7 +655,7 @@ class _NotebookLine extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontFamily: 'Lora',
+                fontFamily: 'Inter',
                 fontSize: 14.5,
                 height: 1.3,
                 color: Color(0xFF6B5B4F),
@@ -729,7 +729,7 @@ class _PreLightMessageField extends StatelessWidget {
             const SizedBox.shrink(),
         textCapitalization: TextCapitalization.sentences,
         style: const TextStyle(
-          fontFamily: 'Lora',
+          fontFamily: 'Inter',
           fontSize: 14,
           color: AppColors.textDark,
           height: 1.5,
@@ -737,7 +737,7 @@ class _PreLightMessageField extends StatelessWidget {
         decoration: InputDecoration(
           hintText: lang.t('candle_message_hint'),
           hintStyle: const TextStyle(
-            fontFamily: 'Lora',
+            fontFamily: 'Inter',
             fontSize: 14,
             color: AppColors.muted,
           ),

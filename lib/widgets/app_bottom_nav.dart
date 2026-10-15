@@ -6,7 +6,7 @@ import 'package:nita/core/localization/language_provider.dart';
 /// Floating bottom navigation with the five tab entries.
 ///
 /// Cleaner modern look: light paper shell with a hairline gold border,
-/// Lora tab labels, and a small gold indicator under the active tab
+/// Inter tab labels, and a small gold indicator under the active tab
 /// instead of the old solid rose fill pill.
 class AppBottomNav extends StatelessWidget {
   final int selectedIndex;
@@ -94,7 +94,7 @@ class AppBottomNav extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontFamily: 'Lora',
+                            fontFamily: 'Inter',
                             fontSize: 10,
                             color: active
                                 ? AppColors.roseDeep

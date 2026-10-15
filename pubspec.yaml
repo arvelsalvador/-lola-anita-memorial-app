@@ -48,8 +48,8 @@ flutter:
     - assets/Video/
     - assets/audio/
 
-  # Two-Voice Rule (DESIGN.md): PlayfairDisplay = display/headings,
-  # Lora = body. Bundled locally (no runtime font fetch); only weights
+  # Body voice: Inter (open SF Pro stand-in) for all body copy; PlayfairDisplay
+  # = display/headings. Bundled locally (no runtime font fetch); only weights
   # actually referenced in code are bundled.
   fonts:
     - family: PlayfairDisplay
@@ -61,12 +61,14 @@ flutter:
           weight: 600
         - asset: assets/fonts/playfair_display/PlayfairDisplay-Bold.ttf
           weight: 700
-    - family: Lora
+    - family: Inter
       fonts:
-        - asset: assets/fonts/lora/Lora-Regular.ttf
-        - asset: assets/fonts/lora/Lora-Italic.ttf
+        - asset: assets/fonts/inter/Inter-Regular.ttf
+        - asset: assets/fonts/inter/Inter-Italic.ttf
           style: italic
-        - asset: assets/fonts/lora/Lora-Medium.ttf
+        - asset: assets/fonts/inter/Inter-Medium.ttf
           weight: 500
-        - asset: assets/fonts/lora/Lora-SemiBold.ttf
+        - asset: assets/fonts/inter/Inter-SemiBold.ttf
           weight: 600
+        - asset: assets/fonts/inter/Inter-Bold.ttf
+          weight: 700

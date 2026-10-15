@@ -19,7 +19,7 @@ void main() {
 
   group('ForumRepository & Controller Tests', () {
     test('creates new post and persists locally', () async {
-      final repo = const ForumRepository();
+      const repo = ForumRepository();
       final post = await repo.createPost(
         authorName: 'Juan Dela Cruz',
         message: 'Isang taos-pusong pakikiramay para sa pamilya.',
@@ -34,7 +34,7 @@ void main() {
     });
 
     test('adds reply to post', () async {
-      final repo = const ForumRepository();
+      const repo = ForumRepository();
       final post = await repo.createPost(
         authorName: 'Maria',
         message: 'Pakikiramay po.',
@@ -70,7 +70,9 @@ void main() {
       final initialHearts = firstPost.reactions['heart'] ?? 0;
 
       await controller.toggleReaction(firstPost.id, 'heart');
-      final updatedFirstPost = controller.posts.firstWhere((p) => p.id == firstPost.id);
+      final updatedFirstPost = controller.posts.firstWhere(
+        (p) => p.id == firstPost.id,
+      );
       expect(updatedFirstPost.reactions['heart'], initialHearts + 1);
       expect(updatedFirstPost.userReactions.contains('heart'), isTrue);
     });

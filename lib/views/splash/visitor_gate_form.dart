@@ -118,7 +118,7 @@ class _VisitorGateFormState extends State<VisitorGateForm> {
             lang.t('visitor_title'),
             textAlign: TextAlign.center,
             style: const TextStyle(
-              fontFamily: 'Lora',
+              fontFamily: 'Inter',
               fontSize: 20,
               fontWeight: FontWeight.w700,
               color: Color(0xFF1A1A1A),
@@ -129,7 +129,7 @@ class _VisitorGateFormState extends State<VisitorGateForm> {
             lang.t('visitor_subtitle'),
             textAlign: TextAlign.center,
             style: const TextStyle(
-              fontFamily: 'Lora',
+              fontFamily: 'Inter',
               fontSize: 13.5,
               color: AppColors.muted,
               height: 1.4,
@@ -171,7 +171,7 @@ class _VisitorGateFormState extends State<VisitorGateForm> {
               lang.t('visitor_required'),
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontFamily: 'Lora',
+                fontFamily: 'Inter',
                 fontSize: 12,
                 fontStyle: FontStyle.italic,
                 color: AppColors.warmMid,
@@ -193,7 +193,7 @@ class _VisitorGateFormState extends State<VisitorGateForm> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 textStyle: const TextStyle(
-                  fontFamily: 'Lora',
+                  fontFamily: 'Inter',
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
                 ),
@@ -260,7 +260,7 @@ class _GateField extends StatelessWidget {
         Text(
           label,
           style: const TextStyle(
-            fontFamily: 'Lora',
+            fontFamily: 'Inter',
             fontSize: 13,
             fontWeight: FontWeight.w500,
             color: Color(0xFF333333),
@@ -271,14 +271,14 @@ class _GateField extends StatelessWidget {
           controller: controller,
           textCapitalization: textCapitalization,
           style: const TextStyle(
-            fontFamily: 'Lora',
+            fontFamily: 'Inter',
             fontSize: 14,
             color: AppColors.textDark,
           ),
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(
-              fontFamily: 'Lora',
+              fontFamily: 'Inter',
               fontSize: 14,
               color: Color(0xFF9E9E9E),
             ),
@@ -325,7 +325,7 @@ class _GateField extends StatelessWidget {
           Text(
             error!,
             style: const TextStyle(
-              fontFamily: 'Lora',
+              fontFamily: 'Inter',
               fontSize: 12,
               color: AppColors.terracotta,
             ),
@@ -353,7 +353,7 @@ class _PrivacyNote extends StatelessWidget {
           child: Text(
             text,
             style: const TextStyle(
-              fontFamily: 'Lora',
+              fontFamily: 'Inter',
               fontSize: 11.5,
               color: AppColors.muted,
               height: 1.4,

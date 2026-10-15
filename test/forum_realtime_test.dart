@@ -48,10 +48,7 @@ void main() {
       expect(reply, isNotNull);
       expect(reply!.postId, '11111111-1111-1111-1111-111111111111');
 
-      expect(
-        repo.parseReplyRecord({'id': 'x', 'message': 'hi'}),
-        isNull,
-      );
+      expect(repo.parseReplyRecord({'id': 'x', 'message': 'hi'}), isNull);
     });
 
     test('parseReactionRecord accepts valid row', () {
@@ -63,47 +60,59 @@ void main() {
       expect(parsed!.targetId, '11111111-1111-1111-1111-111111111111');
       expect(parsed.reactionType, 'heart');
 
-      expect(repo.parseReactionRecord({'target_id': '', 'reaction_type': 'heart'}), isNull);
+      expect(
+        repo.parseReactionRecord({'target_id': '', 'reaction_type': 'heart'}),
+        isNull,
+      );
     });
 
-    test('fetchReactionCounts returns empty when Supabase uninitialized', () async {
-      // In tests Supabase is never initialized; must fall back to {}.
-      final counts = await repo.fetchReactionCounts();
-      expect(counts, isEmpty);
-    });
+    test(
+      'fetchReactionCounts returns empty when Supabase uninitialized',
+      () async {
+        // In tests Supabase is never initialized; must fall back to {}.
+        final counts = await repo.fetchReactionCounts();
+        expect(counts, isEmpty);
+      },
+    );
 
-    test('remote writes report false (never throw) when Supabase uninitialized',
-        () async {
-      expect(
-        await repo.addReactionRemote(
+    test(
+      'remote writes report false (never throw) when Supabase uninitialized',
+      () async {
+        expect(
+          await repo.addReactionRemote(
             targetId: '11111111-1111-1111-1111-111111111111',
             reactionType: 'heart',
-            deviceId: 'dev-test'),
-        isFalse,
-      );
-      expect(
-        await repo.removeReactionRemote(
+            deviceId: 'dev-test',
+          ),
+          isFalse,
+        );
+        expect(
+          await repo.removeReactionRemote(
             targetId: '11111111-1111-1111-1111-111111111111',
             reactionType: 'heart',
-            deviceId: 'dev-test'),
-        isFalse,
-      );
-      expect(await repo.fetchReactionCountFor('anything'), isNull);
-    });
+            deviceId: 'dev-test',
+          ),
+          isFalse,
+        );
+        expect(await repo.fetchReactionCountFor('anything'), isNull);
+      },
+    );
 
     test('remote writes reject empty device id without throwing', () async {
       expect(
         await repo.addReactionRemote(
-            targetId: '11111111-1111-1111-1111-111111111111',
-            reactionType: 'heart',
-            deviceId: ''),
+          targetId: '11111111-1111-1111-1111-111111111111',
+          reactionType: 'heart',
+          deviceId: '',
+        ),
         isFalse,
       );
       expect(
         await repo.removeReactionRemote(
-            targetId: '11111111-1111-1111-1111-111111111111',
-            reactionType: 'heart',
-            deviceId: ''),
+          targetId: '11111111-1111-1111-1111-111111111111',
+          reactionType: 'heart',
+          deviceId: '',
+        ),
         isFalse,
       );
     });
@@ -150,8 +159,9 @@ void main() {
   });
 
   group('Enter-to-send composer', () {
-    testWidgets('plain Enter sends the reply, Shift+Enter makes a newline',
-        (tester) async {
+    testWidgets('plain Enter sends the reply, Shift+Enter makes a newline', (
+      tester,
+    ) async {
       var sent = 0;
       final post = ForumPost(
         id: 'post-1',
@@ -173,6 +183,7 @@ void main() {
                   onReplyReactionTap: (replyId, type) {},
                   onSendReply: (author, message, replyTo) async {
                     sent++;
+                    return null;
                   },
                 ),
               ),
@@ -180,6 +191,10 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
+
+      // Composer is reply-gated: tap the replies button to open it.
+      await tester.tap(find.text('0 replies'));
       await tester.pumpAndSettle();
 
       final field = find.byType(TextField);
@@ -234,8 +249,7 @@ void main() {
 
       await controller.toggleReaction(created!.id, 'heart');
       await controller.toggleReaction(created.id, 'heart');
-      final post =
-          controller.posts.firstWhere((p) => p.id == created.id);
+      final post = controller.posts.firstWhere((p) => p.id == created.id);
       // Toggled on then off: back to zero, flag cleared.
       expect(post.reactions['heart'], 0);
       expect(post.userReactions.contains('heart'), isFalse);
@@ -272,14 +286,15 @@ void main() {
       expect(await repo.fetchLikerNames('msg-temp'), isEmpty);
     });
 
-    testWidgets('online author shows presence dot, offline does not',
-        (tester) async {
+    testWidgets('online author shows presence dot, offline does not', (
+      tester,
+    ) async {
       ForumPost post({required String author}) => ForumPost(
-            id: 'post-$author',
-            authorName: author,
-            message: 'Hi.',
-            createdAt: DateTime(2026, 10, 6),
-          );
+        id: 'post-$author',
+        authorName: author,
+        message: 'Hi.',
+        createdAt: DateTime(2026, 10, 6),
+      );
       Future<List<String>> likers(String _) async => <String>[];
 
       Future<void> pumpCard({required bool online}) async {
@@ -295,7 +310,9 @@ void main() {
                     onViewLikers: likers,
                     onReactionTap: (type) {},
                     onReplyReactionTap: (replyId, type) {},
-                    onSendReply: (a, m, r) async {},
+                    onSendReply: (a, m, r) async {
+                      return null;
+                    },
                   ),
                 ),
               ),

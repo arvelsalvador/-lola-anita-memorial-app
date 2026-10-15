@@ -603,7 +603,7 @@ class QuoteCard extends StatelessWidget {
           const Text(
             '\u201C',
             style: TextStyle(
-              fontFamily: 'Lora',
+              fontFamily: 'Inter',
               fontSize: 40,
               color: AppColors.gold,
               height: 0.6,

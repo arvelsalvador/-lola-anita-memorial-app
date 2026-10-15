@@ -93,14 +93,14 @@ class _FamilySearchBarState extends State<FamilySearchBar> {
                   focusNode: _focus,
                   onChanged: (value) => setState(() => _query = value),
                   style: const TextStyle(
-                    fontFamily: 'Lora',
+                    fontFamily: 'Inter',
                     fontSize: 13.5,
                     color: AppColors.textDark,
                   ),
                   decoration: InputDecoration.collapsed(
                     hintText: lang.t('family_search_hint'),
                     hintStyle: const TextStyle(
-                      fontFamily: 'Lora',
+                      fontFamily: 'Inter',
                       fontSize: 13.5,
                       color: AppColors.muted,
                     ),
@@ -145,7 +145,7 @@ class _FamilySearchBarState extends State<FamilySearchBar> {
                       child: Text(
                         lang.t('family_search_empty'),
                         style: const TextStyle(
-                          fontFamily: 'Lora',
+                          fontFamily: 'Inter',
                           fontSize: 13,
                           color: AppColors.muted,
                         ),
@@ -163,7 +163,7 @@ class _FamilySearchBarState extends State<FamilySearchBar> {
                               'count': '${results.length}',
                             }),
                             style: const TextStyle(
-                              fontFamily: 'Lora',
+                              fontFamily: 'Inter',
                               fontSize: 11,
                               letterSpacing: 0.6,
                               color: AppColors.muted,
@@ -214,7 +214,7 @@ class _SearchResultTile extends StatelessWidget {
                       child: Text(
                         initials,
                         style: TextStyle(
-                          fontFamily: 'Lora',
+                          fontFamily: 'Inter',
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: fg,
@@ -231,7 +231,7 @@ class _SearchResultTile extends StatelessWidget {
                           child: Text(
                             initials,
                             style: TextStyle(
-                              fontFamily: 'Lora',
+                              fontFamily: 'Inter',
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
                               color: fg,
@@ -248,7 +248,7 @@ class _SearchResultTile extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontFamily: 'Lora',
+                  fontFamily: 'Inter',
                   fontSize: 13.5,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textDark,

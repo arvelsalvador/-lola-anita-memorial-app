@@ -33,7 +33,7 @@ class DonationSection extends StatelessWidget {
         Text(
           lang.t('donate_title'),
           style: const TextStyle(
-            fontFamily: 'Lora',
+            fontFamily: 'Inter',
             fontSize: 20,
             height: 1.25,
             fontWeight: FontWeight.w700,
@@ -44,7 +44,7 @@ class DonationSection extends StatelessWidget {
         Text(
           lang.t('donate_subtitle'),
           style: const TextStyle(
-            fontFamily: 'Lora',
+            fontFamily: 'Inter',
             fontSize: 13,
             fontStyle: FontStyle.italic,
             color: AppColors.warmMid,
@@ -95,7 +95,7 @@ class _DonationCardBodyState extends State<DonationCardBody> {
         Text(
           selected.accountName,
           style: const TextStyle(
-            fontFamily: 'Lora',
+            fontFamily: 'Inter',
             fontSize: 14,
             fontWeight: FontWeight.w600,
             color: AppColors.textDark,
@@ -130,7 +130,7 @@ class _DonationCardBodyState extends State<DonationCardBody> {
           lang.t('donate_note'),
           textAlign: TextAlign.center,
           style: const TextStyle(
-            fontFamily: 'Lora',
+            fontFamily: 'Inter',
             fontSize: 12,
             fontStyle: FontStyle.italic,
             color: AppColors.muted,
@@ -218,7 +218,7 @@ class _QrPlaceholder extends StatelessWidget {
             child: Text(
               lang.t('donate_missing_qr'),
               style: const TextStyle(
-                fontFamily: 'Lora',
+                fontFamily: 'Inter',
                 fontSize: 12,
                 fontStyle: FontStyle.italic,
                 color: AppColors.warmMid,
@@ -286,7 +286,7 @@ class _AccountBlock extends StatelessWidget {
                 child: Text(
                   _initials,
                   style: const TextStyle(
-                    fontFamily: 'Lora',
+                    fontFamily: 'Inter',
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: AppColors.warmDeep,
@@ -304,7 +304,7 @@ class _AccountBlock extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontFamily: 'Lora',
+                        fontFamily: 'Inter',
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: AppColors.textDark,
@@ -316,7 +316,7 @@ class _AccountBlock extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontFamily: 'Lora',
+                        fontFamily: 'Inter',
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
@@ -388,7 +388,7 @@ class _OpenGcashButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
           ),
           textStyle: const TextStyle(
-            fontFamily: 'Lora',
+            fontFamily: 'Inter',
             fontSize: 15,
             fontWeight: FontWeight.w600,
           ),
@@ -474,7 +474,7 @@ class _WebGcashGuideDialog extends StatelessWidget {
       title: Text(
         lang.t('donate_web_title'),
         style: const TextStyle(
-          fontFamily: 'Lora',
+          fontFamily: 'Inter',
           fontSize: 17,
           fontWeight: FontWeight.w700,
           color: AppColors.textDark,
@@ -488,7 +488,7 @@ class _WebGcashGuideDialog extends StatelessWidget {
             Text(
               lang.t('donate_web_body'),
               style: const TextStyle(
-                fontFamily: 'Lora',
+                fontFamily: 'Inter',
                 fontSize: 13,
                 height: 1.5,
                 color: AppColors.warmMid,
@@ -505,7 +505,7 @@ class _WebGcashGuideDialog extends StatelessWidget {
               account.displayNumber,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontFamily: 'Lora',
+                fontFamily: 'Inter',
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.5,
@@ -516,7 +516,7 @@ class _WebGcashGuideDialog extends StatelessWidget {
             Text(
               lang.t('donate_web_step1'),
               style: const TextStyle(
-                fontFamily: 'Lora',
+                fontFamily: 'Inter',
                 fontSize: 13,
                 height: 1.5,
                 color: AppColors.textDark,
@@ -525,7 +525,7 @@ class _WebGcashGuideDialog extends StatelessWidget {
             Text(
               lang.t('donate_web_step2'),
               style: const TextStyle(
-                fontFamily: 'Lora',
+                fontFamily: 'Inter',
                 fontSize: 13,
                 height: 1.5,
                 color: AppColors.textDark,
@@ -534,7 +534,7 @@ class _WebGcashGuideDialog extends StatelessWidget {
             Text(
               lang.t('donate_web_step3'),
               style: const TextStyle(
-                fontFamily: 'Lora',
+                fontFamily: 'Inter',
                 fontSize: 13,
                 height: 1.5,
                 color: AppColors.textDark,

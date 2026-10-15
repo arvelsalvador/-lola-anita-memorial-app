@@ -138,7 +138,7 @@ class _HighlightSlideshowState extends State<HighlightSlideshow> {
                 Text(
                   lang.t('gallery_choose_music'),
                   style: const TextStyle(
-                    fontFamily: 'Lora',
+                    fontFamily: 'Inter',
                     fontWeight: FontWeight.w700,
                     fontSize: 17,
                     color: AppColors.paper,
@@ -323,7 +323,7 @@ class _HighlightSlideshowState extends State<HighlightSlideshow> {
                           Text(
                             lang.t(item.group.key),
                             style: const TextStyle(
-                              fontFamily: 'Lora',
+                              fontFamily: 'Inter',
                               fontSize: 15,
                               color: AppColors.paper,
                             ),

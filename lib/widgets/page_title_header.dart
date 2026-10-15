@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:nita/core/constants/app_constants.dart';
 
 /// Shared centered page title, copied from the Family page header
-/// ([FamilyPageHeader]): Lora title, upright subtitle, and gold rule.
+/// ([FamilyPageHeader]): Inter title, upright subtitle, and gold rule.
 /// Used by the Words, Pakikiramay, and Gallery tabs so every page reads
 /// as one design system.
 class PageTitleHeader extends StatelessWidget {
@@ -25,7 +25,7 @@ class PageTitleHeader extends StatelessWidget {
             title,
             textAlign: TextAlign.center,
               style: const TextStyle(
-                fontFamily: 'Lora',
+                fontFamily: 'Inter',
                 fontSize: 31,
               height: 1,
               fontWeight: FontWeight.w700,
@@ -38,7 +38,7 @@ class PageTitleHeader extends StatelessWidget {
           subtitle,
           textAlign: TextAlign.center,
           style: const TextStyle(
-            fontFamily: 'Lora',
+            fontFamily: 'Inter',
             fontSize: 13.5,
             color: AppColors.warmMid,
           ),

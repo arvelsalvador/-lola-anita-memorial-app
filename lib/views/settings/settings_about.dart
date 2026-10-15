@@ -54,7 +54,7 @@ class _AboutUsPage extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.8,
                         color: AppColors.textDark,
-                        fontFamily: 'Lora',
+                        fontFamily: 'Inter',
                         fontFamilyFallback: ['Times New Roman', 'serif'],
                       ),
                     ),
@@ -69,7 +69,7 @@ class _AboutUsPage extends StatelessWidget {
                 Text(
                   lang.t('settings_about_app_version'),
                   style: const TextStyle(
-                    fontFamily: 'Lora',
+                    fontFamily: 'Inter',
                     fontSize: 12,
                     color: AppColors.muted,
                   ),
@@ -78,7 +78,7 @@ class _AboutUsPage extends StatelessWidget {
                 Text(
                   lang.t('settings_about_app_credits'),
                   style: const TextStyle(
-                    fontFamily: 'Lora',
+                    fontFamily: 'Inter',
                     fontSize: 12,
                     color: AppColors.muted,
                     height: 1.6,
@@ -94,7 +94,7 @@ class _AboutUsPage extends StatelessWidget {
               fontSize: 22,
               fontWeight: FontWeight.w700,
               color: AppColors.textDark,
-              fontFamily: 'Lora',
+              fontFamily: 'Inter',
               fontFamilyFallback: ['Times New Roman', 'serif'],
             ),
           ),
@@ -198,7 +198,7 @@ class _AboutUsPage extends StatelessWidget {
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                           color: AppColors.textDark,
-                          fontFamily: 'Lora',
+                          fontFamily: 'Inter',
                           fontFamilyFallback: ['Times New Roman', 'serif'],
                         ),
                       ),
@@ -206,7 +206,7 @@ class _AboutUsPage extends StatelessWidget {
                       Text(
                         lang.t('settings_about_made_body'),
                         style: const TextStyle(
-                          fontFamily: 'Lora',
+                          fontFamily: 'Inter',
                           fontSize: 12.5,
                           color: AppColors.muted,
                           height: 1.5,
@@ -224,7 +224,7 @@ class _AboutUsPage extends StatelessWidget {
               lang.t('settings_about_thanks'),
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontFamily: 'Lora',
+                fontFamily: 'Inter',
                 fontSize: 12.5,
                 color: AppColors.muted,
               ),
@@ -283,7 +283,7 @@ class _AboutRow extends StatelessWidget {
                         fontSize: 15.5,
                         fontWeight: FontWeight.w700,
                         color: AppColors.textDark,
-                        fontFamily: 'Lora',
+                        fontFamily: 'Inter',
                         fontFamilyFallback: ['Times New Roman', 'serif'],
                       ),
                     ),
@@ -293,7 +293,7 @@ class _AboutRow extends StatelessWidget {
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontFamily: 'Lora',
+                        fontFamily: 'Inter',
                         fontSize: 12,
                         color: AppColors.muted,
                         height: 1.5,

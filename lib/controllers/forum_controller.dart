@@ -1,11 +1,15 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:nita/core/constants/supabase_config.dart';
 import 'package:nita/data/forum/forum_repository.dart';
+import 'package:nita/data/forum/own_ids.dart';
 import 'package:nita/data/forum/reaction_identity.dart';
+import 'package:nita/data/forum/spam_guard.dart';
 import 'package:nita/data/visitors/visitor_repository.dart';
 import 'package:nita/models/forum_post_model.dart';
 
@@ -22,10 +26,12 @@ class ForumController extends ChangeNotifier {
     loadPosts();
     // Fire-and-forget: never blocks construction or tests.
     unawaited(subscribeRealtime());
+    unawaited(_loadOwnIds());
   }
 
   List<ForumPost> _posts = [];
   bool _loading = false;
+  bool _loadError = false;
   bool _disposed = false;
   RealtimeChannel? _channel;
   bool _subscribing = false;
@@ -41,9 +47,27 @@ class ForumController extends ChangeNotifier {
   // server writes run one-after-another per target so an Unlike can
   // never overtake its Like and leak a row.
   final Map<String, Future<void>> _reactionQueues = {};
+  // Ids this device already reported (per-device dedupe, survives restart).
+  static const String _reportedIdsKey = 'memorial_reported_ids_v1';
+  Set<String> _reportedIds = {};
+  bool _reportedLoaded = false;
+  // Ids of posts/replies created on this device (fix #4: only these
+  // show Edit/Delete). Loaded once, kept in memory for sync checks.
+  Set<String> _ownPostIds = {};
+  Set<String> _ownReplyIds = {};
+  bool _ownLoaded = false;
+
+  /// Edit window for your own posts/replies (fix #4).
+  static const editWindow = Duration(minutes: 15);
+
+  /// Pure check for the edit window — unit-testable without clocks.
+  static bool editableAt(DateTime createdAt, DateTime now) {
+    return now.difference(createdAt.toLocal()) <= editWindow;
+  }
 
   List<ForumPost> get posts => _posts;
   bool get loading => _loading;
+  bool get loadError => _loadError;
   bool get realtimeConnected => _realtimeConnected;
   Set<String> get onlineNames => Set.unmodifiable(_onlineNames);
   int get onlineCount => _onlineNames.length;
@@ -53,8 +77,190 @@ class ForumController extends ChangeNotifier {
       _onlineNames.contains(authorName.trim());
 
   /// Display names of who liked [targetId] (post or reply id).
-  Future<List<String>> likerNames(String targetId) =>
-      _repository.fetchLikerNames(targetId);
+  /// Merges remote names with this device's local like so the sheet never
+  /// says empty while the heart count shows > 0 (offline / temp ids).
+  Future<List<String>> likerNames(String targetId) async {
+    final remote = await _repository.fetchLikerNames(targetId);
+    final names = <String>[...remote];
+    if (_hasLocalHeart(targetId)) {
+      final me = await _localDisplayName();
+      if (!names.contains(me)) names.insert(0, me);
+    }
+    return names;
+  }
+
+  bool _hasLocalHeart(String targetId) {
+    for (final p in _posts) {
+      if (p.id == targetId) return p.userReactions.contains('heart');
+      for (final r in p.replies) {
+        if (r.id == targetId) return r.userReactions.contains('heart');
+      }
+    }
+    return false;
+  }
+
+  /// True when this device already reported [targetId].
+  bool isReported(String targetId) => _reportedIds.contains(targetId);
+
+  /// True when [postId] was created on this device (fix #4).
+  bool isOwnPost(String postId) => _ownPostIds.contains(postId);
+
+  /// True when [replyId] was created on this device (fix #4).
+  bool isOwnReply(String replyId) => _ownReplyIds.contains(replyId);
+
+  /// True when your own post is still inside the edit window.
+  bool canEditPost(String postId) {
+    if (!isOwnPost(postId)) return false;
+    for (final p in _posts) {
+      if (p.id == postId) return editableAt(p.createdAt, DateTime.now());
+    }
+    return false;
+  }
+
+  /// True when your own reply is still inside the edit window.
+  bool canEditReply(String postId, String replyId) {
+    if (!isOwnReply(replyId)) return false;
+    for (final p in _posts) {
+      if (p.id != postId) continue;
+      for (final r in p.replies) {
+        if (r.id == replyId) return editableAt(r.createdAt, DateTime.now());
+      }
+    }
+    return false;
+  }
+
+  Future<void> _loadOwnIds() async {
+    if (_ownLoaded) return;
+    _ownLoaded = true;
+    try {
+      _ownPostIds = await OwnIds.loadPosts();
+      _ownReplyIds = await OwnIds.loadReplies();
+      if (!_disposed) notifyListeners();
+    } catch (_) {}
+  }
+
+  /// One-time backfill: claims loaded posts/replies whose author matches
+  /// this device's splash-gate name, so messages made before fix #4 (or
+  /// before a reinstall) still get Edit/Delete. Persisted, so a later
+  /// gate-name change never un-claims them. Never throws.
+  Future<void> _adoptOwnByGateName() async {
+    try {
+      final name = (await _localDisplayName()).trim();
+      // _localDisplayName falls back to 'Anonymous' when the gate was
+      // never completed — adopting that would claim strangers' posts.
+      if (name.isEmpty || name.toLowerCase() == 'anonymous') return;
+      final lower = name.toLowerCase();
+      var changed = false;
+      for (final p in _posts) {
+        if (p.authorName.trim().toLowerCase() == lower &&
+            _ownPostIds.add(p.id)) {
+          changed = true;
+          unawaited(OwnIds.addPost(p.id));
+        }
+        for (final r in p.replies) {
+          if (r.authorName.trim().toLowerCase() == lower &&
+              _ownReplyIds.add(r.id)) {
+            changed = true;
+            unawaited(OwnIds.addReply(r.id));
+          }
+        }
+      }
+      if (changed && !_disposed) notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> _ensureReportedLoaded() async {
+    if (_reportedLoaded) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_reportedIdsKey);
+      if (raw != null && raw.isNotEmpty) {
+        final list = (jsonDecode(raw) as List).map((e) => '$e').toList();
+        _reportedIds = list.toSet();
+      }
+    } catch (_) {}
+    _reportedLoaded = true;
+  }
+
+  /// Sends a moderation report. Returns true when saved remotely.
+  /// Returns false when already reported, offline, or temp id.
+  /// Never throws.
+  Future<bool> reportTarget({
+    required String targetId,
+    required String targetKind,
+    required String reason,
+    String details = '',
+  }) async {
+    if (_disposed || targetId.isEmpty || reason.trim().isEmpty) return false;
+    await _ensureReportedLoaded();
+    if (_disposed) return false;
+    if (_reportedIds.contains(targetId)) return false;
+    try {
+      if (_deviceId.isEmpty) {
+        _deviceId = await ReactionIdentity.deviceId();
+      }
+    } catch (_) {}
+    if (_disposed) return false;
+    final reporterName = await _localDisplayName();
+    if (_disposed) return false;
+    final ok = await _repository.submitReport(
+      targetId: targetId,
+      targetKind: targetKind,
+      reason: reason.trim(),
+      details: details,
+      deviceId: _deviceId,
+      reporterName: reporterName,
+    );
+    if (!ok || _disposed) return ok;
+    _reportedIds.add(targetId);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+          _reportedIdsKey, jsonEncode(_reportedIds.toList()));
+    } catch (_) {}
+    notifyListeners();
+    // Spam layer 3: hide immediately once the threshold report lands.
+    unawaited(_hideIfThresholdReached(targetId));
+    return true;
+  }
+
+  /// Removes [targetId] from the feed when its report count reaches the
+  /// threshold, remembering the hide locally so offline stays hidden.
+  Future<void> _hideIfThresholdReached(String targetId) async {
+    try {
+      final count = await _repository.fetchReportCount(targetId);
+      if (count < SpamGuard.hideThreshold || _disposed) return;
+      final hidden = await SpamGuard.loadHiddenIds();
+      hidden.add(targetId);
+      await SpamGuard.saveHiddenIds(hidden);
+      if (_disposed) return;
+      _removeTargetLocally(targetId);
+    } catch (_) {}
+  }
+
+  void _removeTargetLocally(String targetId) {
+    var changed = false;
+    _posts = _posts.where((p) {
+      if (p.id == targetId) {
+        changed = true;
+        return false;
+      }
+      return true;
+    }).toList();
+    if (!changed) {
+      for (var i = 0; i < _posts.length; i++) {
+        final post = _posts[i];
+        if (post.replies.any((r) => r.id == targetId)) {
+          _posts[i] = post.copyWith(
+            replies: post.replies.where((r) => r.id != targetId).toList(),
+          );
+          changed = true;
+          break;
+        }
+      }
+    }
+    if (changed && !_disposed) notifyListeners();
+  }
 
   /// Pure merge of presence states into online names — unit-testable
   /// without sockets. Shapes: [{name}, ...] metas per presence key.
@@ -75,14 +281,23 @@ class ForumController extends ChangeNotifier {
   Future<void> loadPosts() async {
     if (_loading || _disposed) return;
     _loading = true;
+    _loadError = false;
     notifyListeners();
 
     try {
       final fetched = await _repository.fetchPosts();
       if (_disposed) return;
       _posts = fetched;
+      _loadError = false;
+      // Fix #4 backfill: posts made before ownership tracking (or on a
+      // previous install) are claimed when they match this device's
+      // gate name. Skipped for empty/Anonymous names.
+      unawaited(_adoptOwnByGateName());
     } catch (e) {
       debugPrint('ForumController.loadPosts error: $e');
+      if (!_disposed && _posts.isEmpty) {
+        _loadError = true;
+      }
     } finally {
       if (!_disposed) {
         _loading = false;
@@ -104,6 +319,8 @@ class ForumController extends ChangeNotifier {
       );
       if (post != null && !_disposed) {
         _posts = [post, ..._posts.where((p) => p.id != post.id)];
+        _ownPostIds.add(post.id);
+        unawaited(OwnIds.addPost(post.id));
         notifyListeners();
       }
       return post;
@@ -135,6 +352,8 @@ class ForumController extends ChangeNotifier {
         if (idx != -1) {
           final target = _posts[idx];
           _posts[idx] = target.copyWith(replies: [...target.replies, reply]);
+          _ownReplyIds.add(reply.id);
+          unawaited(OwnIds.addReply(reply.id));
           notifyListeners();
         }
       }
@@ -142,6 +361,179 @@ class ForumController extends ChangeNotifier {
     } catch (e) {
       debugPrint('ForumController.addReply error: $e');
       return null;
+    }
+  }
+
+  /// Edits your own post's text (fix #4). Only ids in the own-set and
+  /// inside [editWindow] are accepted. Optimistic: reverts + false when
+  /// the save fails (e.g. missing UPDATE policy). Never throws.
+  Future<bool> editPost({
+    required String postId,
+    required String message,
+  }) async {
+    if (_disposed || !isOwnPost(postId) || !canEditPost(postId)) return false;
+    final clean = message.trim();
+    if (clean.isEmpty || clean.length > 1000) return false;
+    final idx = _posts.indexWhere((p) => p.id == postId);
+    if (idx == -1) return false;
+    final previous = _posts[idx].message;
+    if (previous == clean) return true;
+    _posts[idx] = _posts[idx].copyWith(message: clean);
+    notifyListeners();
+    try {
+      final ok = await _repository.updatePostMessage(
+        postId: postId,
+        message: clean,
+      );
+      if (!ok && !_disposed) {
+        _posts[idx] = _posts[idx].copyWith(message: previous);
+        notifyListeners();
+      }
+      return ok;
+    } catch (_) {
+      if (!_disposed) {
+        final i = _posts.indexWhere((p) => p.id == postId);
+        if (i != -1) {
+          _posts[i] = _posts[i].copyWith(message: previous);
+          notifyListeners();
+        }
+      }
+      return false;
+    }
+  }
+
+  /// Edits your own reply's text (fix #4). Same rules as [editPost].
+  /// Never throws.
+  Future<bool> editReply({
+    required String postId,
+    required String replyId,
+    required String message,
+  }) async {
+    if (_disposed ||
+        !isOwnReply(replyId) ||
+        !canEditReply(postId, replyId)) {
+      return false;
+    }
+    final clean = message.trim();
+    if (clean.isEmpty || clean.length > 1000) return false;
+    final postIdx = _posts.indexWhere((p) => p.id == postId);
+    if (postIdx == -1) return false;
+    final replyIdx =
+        _posts[postIdx].replies.indexWhere((r) => r.id == replyId);
+    if (replyIdx == -1) return false;
+    final previous = _posts[postIdx].replies[replyIdx].message;
+    if (previous == clean) return true;
+    final updated = List<ForumReply>.from(_posts[postIdx].replies);
+    updated[replyIdx] = updated[replyIdx].copyWith(message: clean);
+    _posts[postIdx] = _posts[postIdx].copyWith(replies: updated);
+    notifyListeners();
+    try {
+      final ok = await _repository.updateReplyMessage(
+        postId: postId,
+        replyId: replyId,
+        message: clean,
+      );
+      if (!ok && !_disposed) {
+        _revertReplyMessage(postId, replyId, previous);
+      }
+      return ok;
+    } catch (_) {
+      if (!_disposed) _revertReplyMessage(postId, replyId, previous);
+      return false;
+    }
+  }
+
+  void _revertReplyMessage(String postId, String replyId, String previous) {
+    final postIdx = _posts.indexWhere((p) => p.id == postId);
+    if (postIdx == -1) return;
+    final replyIdx =
+        _posts[postIdx].replies.indexWhere((r) => r.id == replyId);
+    if (replyIdx == -1) return;
+    final updated = List<ForumReply>.from(_posts[postIdx].replies);
+    updated[replyIdx] = updated[replyIdx].copyWith(message: previous);
+    _posts[postIdx] = _posts[postIdx].copyWith(replies: updated);
+    notifyListeners();
+  }
+
+  /// Deletes your own post and its replies (fix #4). No time limit.
+  /// Optimistic: restores + false when the delete fails. Never throws.
+  Future<bool> deletePost(String postId) async {
+    if (_disposed || !isOwnPost(postId)) return false;
+    final idx = _posts.indexWhere((p) => p.id == postId);
+    if (idx == -1) return false;
+    final removed = _posts[idx];
+    _posts = _posts.where((p) => p.id != postId).toList();
+    notifyListeners();
+    try {
+      final ok = await _repository.deletePost(postId);
+      if (_disposed) return ok;
+      if (ok) {
+        _ownPostIds.remove(postId);
+        for (final r in removed.replies) {
+          _ownReplyIds.remove(r.id);
+          unawaited(OwnIds.removeReply(r.id));
+        }
+        unawaited(OwnIds.removePost(postId));
+      } else {
+        _posts = [removed, ..._posts];
+        notifyListeners();
+      }
+      return ok;
+    } catch (_) {
+      if (!_disposed) {
+        _posts = [removed, ..._posts];
+        notifyListeners();
+      }
+      return false;
+    }
+  }
+
+  /// Deletes your own reply (fix #4). No time limit. Never throws.
+  Future<bool> deleteReply({
+    required String postId,
+    required String replyId,
+  }) async {
+    if (_disposed || !isOwnReply(replyId)) return false;
+    final postIdx = _posts.indexWhere((p) => p.id == postId);
+    if (postIdx == -1) return false;
+    final replyIdx =
+        _posts[postIdx].replies.indexWhere((r) => r.id == replyId);
+    if (replyIdx == -1) return false;
+    final removed = _posts[postIdx].replies[replyIdx];
+    final updated = List<ForumReply>.from(_posts[postIdx].replies)
+      ..removeAt(replyIdx);
+    _posts[postIdx] = _posts[postIdx].copyWith(replies: updated);
+    notifyListeners();
+    try {
+      final ok = await _repository.deleteReply(
+        postId: postId,
+        replyId: replyId,
+      );
+      if (_disposed) return ok;
+      if (ok) {
+        _ownReplyIds.remove(replyId);
+        unawaited(OwnIds.removeReply(replyId));
+      } else {
+        final i = _posts.indexWhere((p) => p.id == postId);
+        if (i != -1) {
+          _posts[i] = _posts[i].copyWith(
+            replies: [..._posts[i].replies, removed],
+          );
+          notifyListeners();
+        }
+      }
+      return ok;
+    } catch (_) {
+      if (!_disposed) {
+        final i = _posts.indexWhere((p) => p.id == postId);
+        if (i != -1) {
+          _posts[i] = _posts[i].copyWith(
+            replies: [..._posts[i].replies, removed],
+          );
+          notifyListeners();
+        }
+      }
+      return false;
     }
   }
 
@@ -359,15 +751,28 @@ class ForumController extends ChangeNotifier {
   }
 
   /// Rebuilds the online-name set from the channel presence state.
+  /// Skips our own device so you never see yourself as online, and two
+  /// visitors sharing the name "Anonymous" don't both light each other
+  /// misleadingly — only *other* devices count.
   void _refreshPresence() {
     if (_disposed) return;
     try {
       final channel = _channel;
       if (channel == null) return;
       final states = channel.presenceState();
-      _onlineNames = onlineNamesFromMetas(
-        states.map((s) => s.presences.map((p) => p.payload).toList()).toList(),
-      );
+      final allMetas = states
+          .map((s) => s.presences.map((p) => p.payload).toList())
+          .toList();
+      final names = <String>{};
+      for (final metas in allMetas) {
+        for (final meta in metas) {
+          final device = (meta['device_id'] as String? ?? '').trim();
+          if (device.isNotEmpty && device == _deviceId) continue;
+          final name = (meta['name'] as String? ?? '').trim();
+          if (name.isNotEmpty) names.add(name);
+        }
+      }
+      _onlineNames = names;
       notifyListeners();
     } catch (e) {
       debugPrint('ForumController presence refresh skipped: $e');
@@ -379,6 +784,8 @@ class ForumController extends ChangeNotifier {
     try {
       final post = _repository.parsePostRecord(record);
       if (post == null) return;
+      // Spam layer 2: never render blocked content arriving live.
+      if (SpamGuard.containsBlockedWords(post.message)) return;
       if (_posts.any((p) => p.id == post.id)) return; // own echo
       // Replace just-sent temp post (same author+message) with the real row.
       final tempIdx = _posts.indexWhere(
@@ -388,11 +795,17 @@ class ForumController extends ChangeNotifier {
             p.message == post.message,
       );
       if (tempIdx != -1) {
+        final tempId = _posts[tempIdx].id;
         _posts[tempIdx] = post.copyWith(
           reactions: _posts[tempIdx].reactions,
           userReactions: _posts[tempIdx].userReactions,
           replies: _posts[tempIdx].replies,
         );
+        // Fix #4: keep ownership across the temp → real id swap.
+        if (_ownPostIds.remove(tempId)) {
+          _ownPostIds.add(post.id);
+          unawaited(OwnIds.migratePost(tempId, post.id));
+        }
       } else {
         _posts = [post, ..._posts];
       }
@@ -407,6 +820,8 @@ class ForumController extends ChangeNotifier {
     try {
       final reply = _repository.parseReplyRecord(record);
       if (reply == null) return;
+      // Spam layer 2: never render blocked content arriving live.
+      if (SpamGuard.containsBlockedWords(reply.message)) return;
       final postIdx = _posts.indexWhere((p) => p.id == reply.postId);
       if (postIdx == -1) return;
       final post = _posts[postIdx];
@@ -417,11 +832,17 @@ class ForumController extends ChangeNotifier {
               r.message == reply.message);
       final updated = List<ForumReply>.from(post.replies);
       if (tempIdx != -1) {
+        final tempId = updated[tempIdx].id;
         updated[tempIdx] = reply.copyWith(
           replyToName: updated[tempIdx].replyToName,
           reactions: updated[tempIdx].reactions,
           userReactions: updated[tempIdx].userReactions,
         );
+        // Fix #4: keep ownership across the temp → real id swap.
+        if (_ownReplyIds.remove(tempId)) {
+          _ownReplyIds.add(reply.id);
+          unawaited(OwnIds.migrateReply(tempId, reply.id));
+        }
       } else {
         updated.add(reply);
         updated.sort((a, b) => a.createdAt.compareTo(b.createdAt));
@@ -454,8 +875,10 @@ class ForumController extends ChangeNotifier {
   }
 
   /// Writes our own tap to Supabase, then reconciles with the
-  /// authoritative server count. Failures keep the optimistic local
-  /// state and log loudly (no more silent loss).
+  /// authoritative server count. Local-first: the optimistic heart always
+  /// sticks (even offline or on temp ids) so taps never flicker away.
+  /// Remote failures are only logged — the local SharedPreferences state
+  /// already saved by toggleReaction() is the source of truth offline.
   Future<void> _syncReactionRemote(
     String targetId,
     String type, {
@@ -466,11 +889,14 @@ class ForumController extends ChangeNotifier {
       try {
         _deviceId = await ReactionIdentity.deviceId();
       } catch (e) {
-        debugPrint('ForumController device id skipped: $e');
+        debugPrint('ForumController device id skipped, keeping local like: $e');
         return;
       }
       if (_disposed) return;
     }
+    // Temp ids don't exist remotely yet — keep the local heart.
+    if (targetId.startsWith('msg-') || targetId.startsWith('reply-')) return;
+    if (!SupabaseConfig.isConfigured) return;
     final reactorName = await _localDisplayName();
     if (_disposed) return;
     final ok = liked
@@ -484,9 +910,8 @@ class ForumController extends ChangeNotifier {
     if (_disposed) return;
     if (!ok) {
       debugPrint(
-        'ForumController reaction NOT saved remotely '
-        '(target=$targetId type=$type liked=$liked). '
-        'Check Supabase RLS / Data API exposure on pakikiramay_reactions.',
+        'ForumController reaction kept locally, remote sync deferred '
+        '(target=$targetId type=$type liked=$liked).',
       );
       return;
     }

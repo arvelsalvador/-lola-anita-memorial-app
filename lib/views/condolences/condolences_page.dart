@@ -90,7 +90,7 @@ class _CondolencesPageState extends State<CondolencesPage> {
   }
 }
 
-/// Pakikiramay title matching the reference image: large Lora bold
+/// Pakikiramay title matching the reference image: large Inter bold
 /// dark-brown title, warm subtitle, and a line–sprig–line gold divider.
 /// Local to this tab so Words/Gallery headers stay untouched.
 class _PakikiramayHeader extends StatelessWidget {
@@ -109,7 +109,7 @@ class _PakikiramayHeader extends StatelessWidget {
             title,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              fontFamily: 'Lora',
+              fontFamily: 'Inter',
               fontSize: 38,
               height: 1.05,
               fontWeight: FontWeight.w700,
@@ -122,7 +122,7 @@ class _PakikiramayHeader extends StatelessWidget {
           subtitle,
           textAlign: TextAlign.center,
           style: const TextStyle(
-            fontFamily: 'Lora',
+            fontFamily: 'Inter',
             fontSize: 14.5,
             height: 1.5,
             color: AppColors.warmMid,

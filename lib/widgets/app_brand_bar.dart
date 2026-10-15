@@ -74,7 +74,7 @@ class AppBrandBar extends StatelessWidget {
                                             fontWeight: FontWeight.w600,
                                             letterSpacing: 0.6,
                                             color: AppColors.gold,
-                                            fontFamily: 'Lora',
+                                            fontFamily: 'Inter',
                                             fontFamilyFallback: [
                                               'Times New Roman',
                                               'serif',
@@ -90,7 +90,7 @@ class AppBrandBar extends StatelessWidget {
                                             fontWeight: FontWeight.w700,
                                             letterSpacing: 0.3,
                                             color: AppColors.goldLight,
-                                            fontFamily: 'Lora',
+                                            fontFamily: 'Inter',
                                             fontFamilyFallback: [
                                               'Times New Roman',
                                               'serif',
@@ -109,7 +109,7 @@ class AppBrandBar extends StatelessWidget {
                                       fontWeight: FontWeight.w700,
                                       letterSpacing: 0.4,
                                       color: AppColors.goldLight,
-                                      fontFamily: 'Lora',
+                                      fontFamily: 'Inter',
                                       fontFamilyFallback: [
                                         'Times New Roman',
                                         'serif',

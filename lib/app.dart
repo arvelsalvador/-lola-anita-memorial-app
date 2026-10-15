@@ -22,12 +22,17 @@ class LolaApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           scaffoldBackgroundColor: AppColors.cream,
-          // Two-Voice Rule (DESIGN.md): Lora carries all body copy as the
-          // base family; Playfair Display is applied at display/heading
-          // call sites. Georgia is only a fallback — it can't be the base
-          // because it doesn't exist on Android.
-          fontFamily: 'Lora',
-          fontFamilyFallback: const ['Georgia', 'Times New Roman', 'serif'],
+          // Body voice: Inter (open SF Pro stand-in) carries all body copy as
+          // the base family; Playfair Display is applied at display/heading
+          // call sites. Sans fallback chain for body text.
+          fontFamily: 'Inter',
+          fontFamilyFallback: const [
+            '-apple-system',
+            'Inter',
+            'Helvetica Neue',
+            'Arial',
+            'sans-serif',
+          ],
           colorScheme: ColorScheme.fromSeed(seedColor: AppColors.rose),
           useMaterial3: true,
         ),

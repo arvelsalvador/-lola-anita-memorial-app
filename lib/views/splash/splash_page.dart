@@ -308,7 +308,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
                                                 foregroundColor:
                                                     AppColors.petalBlush,
                                                 textStyle: const TextStyle(
-                                                  fontFamily: 'Lora',
+                                                  fontFamily: 'Inter',
                                                   fontSize: 11,
                                                 ),
                                               ),
@@ -388,7 +388,7 @@ class _SplashContent extends StatelessWidget {
               Text(
                 appTitle,
                 style: const TextStyle(
-                  fontFamily: 'Lora',
+                  fontFamily: 'Inter',
                   fontSize: 24,
                   color: AppColors.linen,
                   fontWeight: FontWeight.w300,
@@ -419,7 +419,7 @@ class _SplashContent extends StatelessWidget {
               quote,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontFamily: 'Lora',
+                fontFamily: 'Inter',
                 fontSize: 13,
                 color: AppColors.petalBlush,
                 height: 1.6,
@@ -504,7 +504,7 @@ class _PortraitPhoto extends StatelessWidget {
                 child: Text(
                   'A',
                   style: TextStyle(
-                    fontFamily: 'Lora',
+                    fontFamily: 'Inter',
                     fontSize: 40,
                     color: AppColors.linen,
                     fontWeight: FontWeight.w300,

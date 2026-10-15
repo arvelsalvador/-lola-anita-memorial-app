@@ -380,7 +380,7 @@ Future<void> showAbuloyDialog(BuildContext context) {
                     Text(
                       lang.t('donate_subtitle'),
                       style: const TextStyle(
-                        fontFamily: 'Lora',
+                        fontFamily: 'Inter',
                         fontSize: 13,
                         fontStyle: FontStyle.italic,
                         color: AppColors.warmMid,

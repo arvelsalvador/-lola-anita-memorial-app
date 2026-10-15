@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:nita/core/constants/supabase_config.dart';
+import 'package:nita/data/forum/spam_guard.dart';
 import 'package:nita/models/forum_post_model.dart';
 
 /// Public board repository (Field 2) directly connected to Supabase.
@@ -23,6 +24,7 @@ class ForumRepository {
   static const String messagesTable = 'pakikiramay_messages';
   static const String repliesTable = 'pakikiramay_replies';
   static const String reactionsTable = 'pakikiramay_reactions';
+  static const String reportsTable = 'pakikiramay_reports';
 
   /// Fetches real messages directly from Supabase.
   /// Falls back to local cache if offline or unconfigured.
@@ -49,28 +51,58 @@ class ForumRepository {
         // Remote like counts (shared across devices). Empty when the
         // reactions table is missing or offline — local cache wins then.
         Map<String, Map<String, int>> remoteCounts = {};
+        // Spam layer 3: report counts for auto-hide. Empty when the
+        // reports table is not readable — filtering degrades gracefully.
+        Map<String, int> reportCounts = {};
         try {
           remoteCounts = await fetchReactionCounts();
         } catch (_) {
           remoteCounts = {};
         }
         try {
-          final replyRows = await client
-              .from(repliesTable)
-              .select('id, post_id, author_name, message, created_at')
-              .order('created_at', ascending: true)
-              .timeout(const Duration(seconds: 5));
+          reportCounts = await fetchReportCounts();
+        } catch (_) {
+          reportCounts = {};
+        }
+        try {
+          // Prefer the reply_to_name column; fall back when the DB
+          // hasn't been migrated yet (old deployments).
+          List replyRows;
+          try {
+            replyRows = await client
+                .from(repliesTable)
+                .select(
+                    'id, post_id, author_name, message, created_at, reply_to_name')
+                .order('created_at', ascending: true)
+                .timeout(const Duration(seconds: 5)) as List;
+          } catch (_) {
+            replyRows = await client
+                .from(repliesTable)
+                .select('id, post_id, author_name, message, created_at')
+                .order('created_at', ascending: true)
+                .timeout(const Duration(seconds: 5)) as List;
+          }
 
-          for (final r in (replyRows as List)) {
+          for (final r in replyRows) {
             final replyId = r['id']?.toString() ?? '';
+            final rawMessage = r['message'] as String? ?? '';
+            // Spam layer 3: skip heavily reported replies.
+            if ((reportCounts[replyId] ?? 0) >= SpamGuard.hideThreshold) {
+              continue;
+            }
+            final remoteReplyTo =
+                (r['reply_to_name'] as String? ?? '').trim();
             var reply = ForumReply(
               id: replyId,
               postId: r['post_id']?.toString() ?? '',
               authorName: r['author_name'] as String? ?? 'Anonymous',
-              message: r['message'] as String? ?? '',
+              message: rawMessage,
               createdAt: r['created_at'] != null
                   ? DateTime.tryParse(r['created_at'] as String) ?? DateTime.now()
                   : DateTime.now(),
+              replyToName: remoteReplyTo.isNotEmpty
+                  ? remoteReplyTo
+                  : deriveReplyToFromMention(rawMessage),
             );
             // Overlay remote like counts first, then local reaction state
             // (same id-keyed stores as post reactions).
@@ -91,21 +123,37 @@ class ForumRepository {
         }
 
         final List<ForumPost> realPosts = [];
+        final hiddenIds = await SpamGuard.loadHiddenIds();
         for (final row in (rows as List)) {
           final id = row['id']?.toString() ?? '';
           final author = (row['name'] as String? ?? '').trim();
           final message = (row['message'] as String? ?? '').trim();
           if (message.isEmpty) continue;
+          // Spam layer 3: skip heavily reported posts (server counts or
+          // locally remembered hides so offline stays hidden).
+          if ((reportCounts[id] ?? 0) >= SpamGuard.hideThreshold ||
+              hiddenIds.contains(id)) {
+            hiddenIds.add(id);
+            continue;
+          }
 
           final createdAt = row['created_at'] != null
               ? DateTime.tryParse(row['created_at'] as String) ?? DateTime.now()
               : DateTime.now();
 
-          // Merge replies (from DB or local)
+          // Merge replies (from DB or local), dropping heavily reported
+          // and locally hidden ones.
           final postReplies = [
             ...?dbReplies[id],
             ...?localReplies[id]?.where((lr) => !dbReplies.containsKey(id) || !dbReplies[id]!.any((dr) => dr.id == lr.id)),
-          ];
+          ].where((r) {
+            if ((reportCounts[r.id] ?? 0) >= SpamGuard.hideThreshold ||
+                hiddenIds.contains(r.id)) {
+              hiddenIds.add(r.id);
+              return false;
+            }
+            return true;
+          }).toList();
 
           final postReactions = remoteCounts[id] ??
               reactionCounts[id] ?? {
@@ -127,14 +175,35 @@ class ForumRepository {
 
         // Cache real posts locally
         await _saveLocalCache(prefs, realPosts);
-        return realPosts;
+        await SpamGuard.saveHiddenIds(hiddenIds);
+        // Filter the just-cached list too so hidden posts vanish now,
+        // not only on the next launch.
+        return realPosts
+            .where((p) => !hiddenIds.contains(p.id))
+            .toList();
       } catch (e) {
         debugPrint('ForumRepository Supabase fetch skipped: $e');
       }
     }
 
-    // Offline / unconfigured: return cached real posts
-    return _loadLocalCache(prefs, userReactions, reactionCounts, localReplies);
+    // Offline / unconfigured: return cached real posts (minus hidden).
+    final hiddenIds = await SpamGuard.loadHiddenIds();
+    final cached = await _loadLocalCache(
+      prefs,
+      userReactions,
+      reactionCounts,
+      localReplies,
+    );
+    return cached
+        .where((p) => !hiddenIds.contains(p.id))
+        .map(
+          (p) => p.copyWith(
+            replies: p.replies
+                .where((r) => !hiddenIds.contains(r.id))
+                .toList(),
+          ),
+        )
+        .toList();
   }
 
   /// Inserts a new message directly to Supabase and updates local cache.
@@ -145,6 +214,8 @@ class ForumRepository {
     final cleanName = authorName.trim().isEmpty ? 'Anonymous' : authorName.trim();
     final cleanMessage = message.trim();
     if (cleanMessage.isEmpty) return null;
+    // Spam layer 2: blocklist — never store or send blocked content.
+    if (SpamGuard.containsBlockedWords(cleanMessage)) return null;
 
     final tempId = 'msg-${DateTime.now().millisecondsSinceEpoch}';
     final now = DateTime.now();
@@ -193,9 +264,21 @@ class ForumRepository {
     return newPost;
   }
 
+  /// Derives "Juan Dela Cruz" from a leading "@Juan Dela Cruz hello".
+  /// Used when the remote row has no reply_to_name column so other
+  /// devices still see the thread context from the @mention prefix.
+  static String deriveReplyToFromMention(String message) {
+    if (!message.startsWith('@')) return '';
+    final m = RegExp(r'^@\S+(?:\s+\S+){0,2}').firstMatch(message.trim());
+    if (m == null) return '';
+    return m.group(0)!.substring(1).trim();
+  }
+
   /// Inserts a reply to a message. [replyToName] records who the reply
-  /// answers (shown as "Tumutugon kay X"); it is stored locally only —
-  /// the remote insert keeps the known columns so no migration is needed.
+  /// answers (shown as "Tumutugon kay X"). It is sent as reply_to_name
+  /// when the column exists, with a fallback insert without it so old
+  /// databases keep working. The @mention prefix in [message] is always
+  /// kept so context survives even without the column.
   Future<ForumReply?> addReply({
     required String postId,
     required String authorName,
@@ -205,6 +288,8 @@ class ForumRepository {
     final cleanName = authorName.trim().isEmpty ? 'Anonymous' : authorName.trim();
     final cleanMessage = message.trim();
     if (cleanMessage.isEmpty) return null;
+    // Spam layer 2: blocklist — never store or send blocked content.
+    if (SpamGuard.containsBlockedWords(cleanMessage)) return null;
 
     final tempId = 'reply-${DateTime.now().millisecondsSinceEpoch}';
     ForumReply newReply = ForumReply(
@@ -223,16 +308,33 @@ class ForumRepository {
     if (SupabaseConfig.isConfigured && !isTempParent) {
       try {
         final client = Supabase.instance.client;
-        final res = await client
-            .from(repliesTable)
-            .insert({
-              'post_id': postId,
-              'author_name': cleanName,
-              'message': cleanMessage,
-            })
-            .select('id, created_at')
-            .single()
-            .timeout(const Duration(seconds: 8));
+        final cleanReplyTo = replyToName.trim();
+        Map<String, dynamic> res;
+        try {
+          res = await client
+              .from(repliesTable)
+              .insert({
+                'post_id': postId,
+                'author_name': cleanName,
+                'message': cleanMessage,
+                if (cleanReplyTo.isNotEmpty) 'reply_to_name': cleanReplyTo,
+              })
+              .select('id, created_at')
+              .single()
+              .timeout(const Duration(seconds: 8));
+        } catch (_) {
+          // Column missing on old DBs — retry without reply_to_name.
+          res = await client
+              .from(repliesTable)
+              .insert({
+                'post_id': postId,
+                'author_name': cleanName,
+                'message': cleanMessage,
+              })
+              .select('id, created_at')
+              .single()
+              .timeout(const Duration(seconds: 8));
+        }
         final realId = res['id']?.toString();
         DateTime? realAt;
         final rawAt = res['created_at'];
@@ -432,6 +534,333 @@ class ForumRepository {
     }
   }
 
+  /// Submits a moderation report for a post or reply.
+  /// Returns true when saved, false when offline, unconfigured, temp id,
+  /// duplicate (unique target+device), or the table is missing.
+  /// Never throws — failures are logged so the UI can show a retry note.
+  Future<bool> submitReport({
+    required String targetId,
+    required String targetKind,
+    required String reason,
+    String details = '',
+    String deviceId = '',
+    String reporterName = 'Anonymous',
+  }) async {
+    if (!SupabaseConfig.isConfigured || targetId.isEmpty) return false;
+    if (targetId.startsWith('msg-') || targetId.startsWith('reply-')) {
+      return false;
+    }
+    final cleanReason = reason.trim();
+    if (cleanReason.isEmpty) return false;
+    final kind = targetKind == 'reply' ? 'reply' : 'post';
+    final trimmedDetails = details.trim();
+    final cleanDetails = trimmedDetails.length > 200
+        ? trimmedDetails.substring(0, 200)
+        : trimmedDetails;
+    final nameTrimmed = reporterName.trim();
+    final cleanName = nameTrimmed.isEmpty
+        ? 'Anonymous'
+        : (nameTrimmed.length > 50 ? nameTrimmed.substring(0, 50) : nameTrimmed);
+    try {
+      await Supabase.instance.client.from(reportsTable).insert({
+        'target_id': targetId,
+        'target_kind': kind,
+        'reason': cleanReason,
+        'details': cleanDetails,
+        'reporter_device_id': deviceId.trim(),
+        'reporter_name': cleanName,
+      }).timeout(const Duration(seconds: 8));
+      return true;
+    } catch (e) {
+      debugPrint('ForumRepository submitReport skipped: $e');
+      return false;
+    }
+  }
+
+  /// Report counts per target ({targetId: count}). Powers spam layer 3:
+  /// targets with >= [SpamGuard.hideThreshold] reports are hidden.
+  /// Empty when offline, unconfigured, or the table is not readable.
+  /// Never throws.
+  Future<Map<String, int>> fetchReportCounts() async {
+    if (!SupabaseConfig.isConfigured) return {};
+    try {
+      final rows = await Supabase.instance.client
+          .from(reportsTable)
+          .select('target_id')
+          .limit(2000)
+          .timeout(const Duration(seconds: 8));
+      final counts = <String, int>{};
+      for (final row in (rows as List)) {
+        final target = row['target_id']?.toString() ?? '';
+        if (target.isEmpty) continue;
+        counts[target] = (counts[target] ?? 0) + 1;
+      }
+      return counts;
+    } catch (e) {
+      debugPrint('ForumRepository fetchReportCounts skipped: $e');
+      return {};
+    }
+  }
+
+  /// Report count for one target. Used to hide immediately after the
+  /// threshold report lands. Returns 0 when offline or unreadable.
+  /// Never throws.
+  Future<int> fetchReportCount(String targetId) async {
+    if (!SupabaseConfig.isConfigured || targetId.isEmpty) return 0;
+    try {
+      final rows = await Supabase.instance.client
+          .from(reportsTable)
+          .select('id')
+          .eq('target_id', targetId)
+          .limit(2000)
+          .timeout(const Duration(seconds: 8));
+      return (rows as List).length;
+    } catch (e) {
+      debugPrint('ForumRepository fetchReportCount skipped: $e');
+      return 0;
+    }
+  }
+
+  /// Edits your own post's text (fix #4). Temp ids are local-only and
+  /// always succeed; remote rows need the anon UPDATE policy.
+  /// Returns true when saved. Never throws.
+  Future<bool> updatePostMessage({
+    required String postId,
+    required String message,
+  }) async {
+    final clean = message.trim();
+    if (postId.isEmpty || clean.isEmpty || clean.length > 1000) return false;
+    if (SpamGuard.containsBlockedWords(clean)) return false;
+    if (postId.startsWith('msg-')) {
+      return _updateCachedPostMessage(postId, clean);
+    }
+    if (!SupabaseConfig.isConfigured) return false;
+    try {
+      await Supabase.instance.client
+          .from(messagesTable)
+          .update({'message': clean})
+          .eq('id', postId)
+          .timeout(const Duration(seconds: 8));
+      await _updateCachedPostMessage(postId, clean);
+      return true;
+    } catch (e) {
+      debugPrint('ForumRepository updatePostMessage skipped: $e');
+      return false;
+    }
+  }
+
+  /// Edits your own reply's text (fix #4). Same rules as posts.
+  /// Returns true when saved. Never throws.
+  Future<bool> updateReplyMessage({
+    required String postId,
+    required String replyId,
+    required String message,
+  }) async {
+    final clean = message.trim();
+    if (postId.isEmpty ||
+        replyId.isEmpty ||
+        clean.isEmpty ||
+        clean.length > 1000) {
+      return false;
+    }
+    if (SpamGuard.containsBlockedWords(clean)) return false;
+    if (replyId.startsWith('reply-') || postId.startsWith('msg-')) {
+      return _updateCachedReplyMessage(postId, replyId, clean);
+    }
+    if (!SupabaseConfig.isConfigured) return false;
+    try {
+      await Supabase.instance.client
+          .from(repliesTable)
+          .update({'message': clean})
+          .eq('id', replyId)
+          .timeout(const Duration(seconds: 8));
+      await _updateCachedReplyMessage(postId, replyId, clean);
+      return true;
+    } catch (e) {
+      debugPrint('ForumRepository updateReplyMessage skipped: $e');
+      return false;
+    }
+  }
+
+  /// Deletes your own post and its replies (fix #4). Replies are removed
+  /// first so tables without ON DELETE CASCADE stay consistent.
+  /// Returns true when deleted. Never throws.
+  Future<bool> deletePost(String postId) async {
+    if (postId.isEmpty) return false;
+    if (postId.startsWith('msg-')) {
+      return _deleteCachedPost(postId);
+    }
+    if (!SupabaseConfig.isConfigured) return false;
+    try {
+      final client = Supabase.instance.client;
+      await client
+          .from(repliesTable)
+          .delete()
+          .eq('post_id', postId)
+          .timeout(const Duration(seconds: 8));
+      await client
+          .from(messagesTable)
+          .delete()
+          .eq('id', postId)
+          .timeout(const Duration(seconds: 8));
+      await _deleteCachedPost(postId);
+      return true;
+    } catch (e) {
+      debugPrint('ForumRepository deletePost skipped: $e');
+      return false;
+    }
+  }
+
+  /// Deletes your own reply (fix #4). Returns true when deleted.
+  /// Never throws.
+  Future<bool> deleteReply({
+    required String postId,
+    required String replyId,
+  }) async {
+    if (postId.isEmpty || replyId.isEmpty) return false;
+    if (replyId.startsWith('reply-') || postId.startsWith('msg-')) {
+      return _deleteCachedReply(postId, replyId);
+    }
+    if (!SupabaseConfig.isConfigured) return false;
+    try {
+      await Supabase.instance.client
+          .from(repliesTable)
+          .delete()
+          .eq('id', replyId)
+          .timeout(const Duration(seconds: 8));
+      await _deleteCachedReply(postId, replyId);
+      return true;
+    } catch (e) {
+      debugPrint('ForumRepository deleteReply skipped: $e');
+      return false;
+    }
+  }
+
+  Future<bool> _updateCachedPostMessage(String postId, String message) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userReactions = await _loadUserReactions(prefs);
+      final reactionCounts = await _loadReactionCounts(prefs);
+      final localReplies = await _loadLocalReplies(prefs);
+      final cached = await _loadLocalCache(
+        prefs,
+        userReactions,
+        reactionCounts,
+        localReplies,
+      );
+      final updated = cached
+          .map((p) => p.id == postId ? p.copyWith(message: message) : p)
+          .toList();
+      await _saveLocalCache(prefs, updated);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> _updateCachedReplyMessage(
+    String postId,
+    String replyId,
+    String message,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final localReplies = await _loadLocalReplies(prefs);
+      var changed = false;
+      for (final entry in localReplies.entries) {
+        for (var i = 0; i < entry.value.length; i++) {
+          final r = entry.value[i];
+          if (r.id == replyId && (entry.key == postId || r.postId == postId)) {
+            entry.value[i] = r.copyWith(message: message);
+            changed = true;
+          }
+        }
+      }
+      if (!changed) {
+        final cached = await _loadLocalCache(
+          prefs,
+          await _loadUserReactions(prefs),
+          await _loadReactionCounts(prefs),
+          localReplies,
+        );
+        final updated = cached.map((p) {
+          if (p.id != postId) return p;
+          return p.copyWith(
+            replies: p.replies
+                .map((r) => r.id == replyId ? r.copyWith(message: message) : r)
+                .toList(),
+          );
+        }).toList();
+        await _saveLocalCache(prefs, updated);
+        return true;
+      }
+      await _saveLocalReplies(prefs, localReplies);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> _deleteCachedPost(String postId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userReactions = await _loadUserReactions(prefs);
+      final reactionCounts = await _loadReactionCounts(prefs);
+      final localReplies = await _loadLocalReplies(prefs);
+      localReplies.remove(postId);
+      await _saveLocalReplies(prefs, localReplies);
+      final cached = await _loadLocalCache(
+        prefs,
+        userReactions,
+        reactionCounts,
+        localReplies,
+      );
+      await _saveLocalCache(
+        prefs,
+        cached.where((p) => p.id != postId).toList(),
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> _deleteCachedReply(String postId, String replyId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final localReplies = await _loadLocalReplies(prefs);
+      var changed = false;
+      for (final entry in localReplies.entries) {
+        final before = entry.value.length;
+        entry.value.removeWhere((r) => r.id == replyId);
+        if (entry.value.length != before) changed = true;
+      }
+      if (changed) await _saveLocalReplies(prefs, localReplies);
+      final cached = await _loadLocalCache(
+        prefs,
+        await _loadUserReactions(prefs),
+        await _loadReactionCounts(prefs),
+        localReplies,
+      );
+      await _saveLocalCache(
+        prefs,
+        cached
+            .map(
+              (p) => p.id == postId
+                  ? p.copyWith(
+                      replies: p.replies
+                          .where((r) => r.id != replyId)
+                          .toList(),
+                    )
+                  : p,
+            )
+            .toList(),
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
   /// Authoritative remote count for one post/reply, used to reconcile
   /// after our own write (kills echo double-counts). Null when offline
   /// or the table is missing.
@@ -485,12 +914,19 @@ class ForumRepository {
     DateTime createdAt = DateTime.now();
     final rawAt = record['created_at'];
     if (rawAt is String) createdAt = DateTime.tryParse(rawAt) ?? DateTime.now();
+    final remoteReplyTo = (record['reply_to_name'] as String? ??
+            record['replyToName'] as String? ??
+            '')
+        .trim();
     return ForumReply(
       id: id,
       postId: postId,
       authorName: author.isEmpty ? 'Anonymous' : author,
       message: message,
       createdAt: createdAt,
+      replyToName: remoteReplyTo.isNotEmpty
+          ? remoteReplyTo
+          : deriveReplyToFromMention(message),
     );
   }
 

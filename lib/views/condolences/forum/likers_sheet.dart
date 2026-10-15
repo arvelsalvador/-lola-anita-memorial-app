@@ -73,7 +73,7 @@ class LikersSheet extends StatelessWidget {
                   child: Text(
                     lang.t('forum_likers_title'),
                     style: const TextStyle(
-                      fontFamily: 'Lora',
+                      fontFamily: 'Inter',
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textDark,
@@ -112,7 +112,7 @@ class LikersSheet extends StatelessWidget {
                           lang.t('forum_likers_empty'),
                           textAlign: TextAlign.center,
                           style: const TextStyle(
-                            fontFamily: 'Lora',
+                            fontFamily: 'Inter',
                             fontSize: 13.5,
                             fontStyle: FontStyle.italic,
                             color: AppColors.warmMid,
@@ -141,7 +141,7 @@ class LikersSheet extends StatelessWidget {
                               child: Text(
                                 _initials(name),
                                 style: const TextStyle(
-                                  fontFamily: 'Lora',
+                                  fontFamily: 'Inter',
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
                                   color: AppColors.roseDeep,
@@ -156,7 +156,7 @@ class LikersSheet extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontFamily: 'Lora',
+                                fontFamily: 'Inter',
                                 fontSize: 14.5,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.textDark,

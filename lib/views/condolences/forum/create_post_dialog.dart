@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:nita/controllers/forum_controller.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
+import 'package:nita/data/forum/spam_guard.dart';
 import 'package:nita/data/visitors/visitor_repository.dart';
 
 /// Simple compose sheet for sharing a message, memory, or condolence.
@@ -27,14 +28,13 @@ class CreatePostDialog extends StatefulWidget {
 }
 
 class _CreatePostDialogState extends State<CreatePostDialog> {
-  final TextEditingController _nameController = TextEditingController();
   final TextEditingController _contentController = TextEditingController();
-  final FocusNode _nameFocus = FocusNode();
   final FocusNode _contentFocus = FocusNode();
   final VisitorRepository _visitorRepo = const VisitorRepository();
 
   bool _submitting = false;
   String? _errorMessageKey;
+  String _gateName = '';
 
   @override
   void initState() {
@@ -59,34 +59,55 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
   Future<void> _loadVisitorInfo() async {
     try {
       final name = await _visitorRepo.localName();
-      if (mounted && name != null && name.trim().isNotEmpty) {
-        setState(() {
-          _nameController.text = name.trim();
-        });
-      }
-    } catch (_) {}
+      if (!mounted) return;
+      setState(() {
+        _gateName = (name ?? '').trim();
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {});
+    }
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
     _contentController.dispose();
-    _nameFocus.dispose();
     _contentFocus.dispose();
     super.dispose();
   }
 
   Future<void> _handleSubmit() async {
     if (_submitting) return;
-    final name = _nameController.text.trim();
+    // Identity is locked to the splash-gate name — no per-post editing,
+    // so nobody can impersonate another visitor.
+    var gateName = _gateName;
+    if (gateName.isEmpty) {
+      try {
+        final fresh = await _visitorRepo.localName();
+        gateName = (fresh ?? '').trim();
+        if (mounted) setState(() => _gateName = gateName);
+      } catch (_) {}
+    }
     final content = _contentController.text.trim();
 
-    if (name.isEmpty) {
+    if (gateName.isEmpty) {
       setState(() => _errorMessageKey = 'forum_require_name');
       return;
     }
     if (content.isEmpty) {
       setState(() => _errorMessageKey = 'forum_require_content');
+      return;
+    }
+    // Spam layer 2: blocklist before anything is sent or stored.
+    if (SpamGuard.containsBlockedWords(content)) {
+      setState(() => _errorMessageKey = 'forum_blocked_message');
+      return;
+    }
+    // Spam layer 1: 1 post per minute per device.
+    final waitSeconds = await SpamGuard.secondsUntilNextPost();
+    if (!mounted) return;
+    if (waitSeconds > 0) {
+      setState(() => _errorMessageKey = 'forum_throttle_post');
       return;
     }
 
@@ -97,13 +118,29 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
 
     HapticFeedback.lightImpact().catchError((_) {});
 
-    await widget.controller.addPost(
-      authorName: name,
-      message: content,
-    );
-
-    if (mounted) {
+    try {
+      final post = await widget.controller.addPost(
+        authorName: gateName,
+        message: content,
+      );
+      if (!mounted) return;
+      // Null = save failed: stay open and keep the typed text.
+      if (post == null) {
+        setState(() {
+          _submitting = false;
+          _errorMessageKey = 'forum_send_failed';
+        });
+        return;
+      }
+      await SpamGuard.recordPost();
+      if (!mounted) return;
       Navigator.of(context).pop();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _errorMessageKey = 'forum_send_failed';
+      });
     }
   }
 
@@ -148,7 +185,7 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
                   Text(
                     lang.t('forum_dialog_title'),
                     style: const TextStyle(
-                      fontFamily: 'Lora',
+                      fontFamily: 'Inter',
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textDark,
@@ -162,42 +199,6 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
               ),
 
               const SizedBox(height: 14),
-
-              // Author Name Field
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.cream,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.gold.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: TextField(
-                  controller: _nameController,
-                  focusNode: _nameFocus,
-                  textCapitalization: TextCapitalization.words,
-                  textInputAction: TextInputAction.next,
-                  onSubmitted: (_) => _contentFocus.requestFocus(),
-                  style: const TextStyle(
-                    fontFamily: 'Lora',
-                    fontSize: 14,
-                    color: AppColors.textDark,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: lang.t('forum_name_hint'),
-                    hintStyle: const TextStyle(
-                      fontFamily: 'Lora',
-                      fontSize: 13,
-                      color: AppColors.muted,
-                    ),
-                    border: InputBorder.none,
-                    isDense: true,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 12),
 
               // Content Text Area
               Container(
@@ -217,7 +218,7 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
                   textCapitalization: TextCapitalization.sentences,
                   textInputAction: TextInputAction.newline,
                   style: const TextStyle(
-                    fontFamily: 'Lora',
+                    fontFamily: 'Inter',
                     fontSize: 14,
                     height: 1.5,
                     color: AppColors.textDark,
@@ -225,7 +226,7 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
                   decoration: InputDecoration(
                     hintText: lang.t('forum_content_hint'),
                     hintStyle: const TextStyle(
-                      fontFamily: 'Lora',
+                      fontFamily: 'Inter',
                       fontSize: 13,
                       color: AppColors.muted,
                     ),
@@ -241,7 +242,7 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
                 Text(
                   lang.t(_errorMessageKey!),
                   style: const TextStyle(
-                    fontFamily: 'Lora',
+                    fontFamily: 'Inter',
                     fontSize: 12.5,
                     fontStyle: FontStyle.italic,
                     color: AppColors.roseDeep,
@@ -284,7 +285,7 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
                       : Text(
                           lang.t('forum_post_submit'),
                           style: const TextStyle(
-                            fontFamily: 'Lora',
+                            fontFamily: 'Inter',
                             fontSize: 14.5,
                             fontWeight: FontWeight.w600,
                           ),

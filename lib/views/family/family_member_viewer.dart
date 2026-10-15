@@ -101,7 +101,7 @@ class _MemberPhotoViewer extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontFamily: 'Lora',
+                  fontFamily: 'Inter',
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
@@ -219,7 +219,7 @@ class _MemberDetailSheet extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontFamily: 'Lora',
+                  fontFamily: 'Inter',
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textDark,
@@ -247,7 +247,7 @@ class _MemberDetailSheet extends StatelessWidget {
                   child: Text(
                     ageText,
                     style: const TextStyle(
-                      fontFamily: 'Lora',
+                      fontFamily: 'Inter',
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
                       color: AppColors.warmDeep,
@@ -278,7 +278,7 @@ class _MemberDetailSheet extends StatelessWidget {
                     Text(
                       member.statusLabel!,
                       style: const TextStyle(
-                        fontFamily: 'Lora',
+                        fontFamily: 'Inter',
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
                         color: AppColors.warmDeep,
@@ -295,7 +295,7 @@ class _MemberDetailSheet extends StatelessWidget {
                     member.tagline!,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      fontFamily: 'Lora',
+                      fontFamily: 'Inter',
                       fontSize: 11.5,
                       color: AppColors.warmMid,
                     ),
@@ -319,7 +319,7 @@ class _MemberDetailSheet extends StatelessWidget {
                   Text(
                     '${member.photoCount} ${lang.t('family_photos_with')}',
                     style: const TextStyle(
-                      fontFamily: 'Lora',
+                      fontFamily: 'Inter',
                       fontSize: 11.5,
                       color: AppColors.warmMid,
                     ),
@@ -339,7 +339,7 @@ class _MemberDetailSheet extends StatelessWidget {
                     Text(
                       lang.t('family_sheet_full_story').toUpperCase(),
                       style: const TextStyle(
-                        fontFamily: 'Lora',
+                        fontFamily: 'Inter',
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1.2,
@@ -354,7 +354,7 @@ class _MemberDetailSheet extends StatelessWidget {
                         Text(
                           '\u201C',
                           style: TextStyle(
-                            fontFamily: 'Lora',
+                            fontFamily: 'Inter',
                             fontSize: 44,
                             height: 1,
                             fontWeight: FontWeight.w700,
@@ -369,7 +369,7 @@ class _MemberDetailSheet extends StatelessWidget {
                                 : lang.t(member.bioKey!),
                             textAlign: TextAlign.justify,
                             style: const TextStyle(
-                              fontFamily: 'Lora',
+                              fontFamily: 'Inter',
                               fontSize: 12.5,
                               height: 1.7,
                               color: AppColors.warmDark,
@@ -399,7 +399,7 @@ class _MemberDetailSheet extends StatelessWidget {
                     Text(
                       lang.t('family_sheet_identity').toUpperCase(),
                       style: const TextStyle(
-                        fontFamily: 'Lora',
+                        fontFamily: 'Inter',
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1.2,
@@ -449,7 +449,7 @@ class _MemberDetailSheet extends StatelessWidget {
                     Text(
                       lang.t('family_sheet_family').toUpperCase(),
                       style: const TextStyle(
-                        fontFamily: 'Lora',
+                        fontFamily: 'Inter',
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1.2,
@@ -505,7 +505,7 @@ class _MemberDetailSheet extends StatelessWidget {
                 child: Text(
                   '"${lang.t(member.quoteKey!)}"',
                   style: const TextStyle(
-                    fontFamily: 'Lora',
+                    fontFamily: 'Inter',
                     fontSize: 12.5,
                     height: 1.5,
                     color: AppColors.warmDeep,
@@ -578,7 +578,7 @@ class _SheetRow extends StatelessWidget {
             child: Text(
               label,
               style: const TextStyle(
-                fontFamily: 'Lora',
+                fontFamily: 'Inter',
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textDark,
@@ -591,7 +591,7 @@ class _SheetRow extends StatelessWidget {
               value,
               textAlign: TextAlign.right,
               style: const TextStyle(
-                fontFamily: 'Lora',
+                fontFamily: 'Inter',
                 fontSize: 11.5,
                 color: AppColors.muted,
               ),

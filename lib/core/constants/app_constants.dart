@@ -136,23 +136,23 @@ class AppAssets {
 class AppTextStyles {
   AppTextStyles._();
 
-  /// Body voice: Lora for all body copy.
+  /// Body voice: Inter (open SF Pro stand-in) for all body copy.
   static const bodyText = TextStyle(
-    fontFamily: 'Lora',
+    fontFamily: 'Inter',
     fontSize: 14,
     color: AppColors.warmMid,
     height: 1.8,
   );
 
   static const bodyQuote = TextStyle(
-    fontFamily: 'Lora',
+    fontFamily: 'Inter',
     fontSize: 16,
     color: AppColors.textDark,
     height: 1.7,
   );
 
   static const sectionLabel = TextStyle(
-    fontFamily: 'Lora',
+    fontFamily: 'Inter',
     fontSize: 10,
     fontWeight: FontWeight.w500,
     letterSpacing: 3,
@@ -160,17 +160,17 @@ class AppTextStyles {
   );
 
   static const caption = TextStyle(
-    fontFamily: 'Lora',
+    fontFamily: 'Inter',
     fontSize: 12,
     color: AppColors.muted,
     height: 1.5,
   );
 
   /// Homepage content voice: copied from the gallery filter pill
-  /// (Lahat / Mga Pagdiriwang) — Lora 13 semibold. Color is supplied
+  /// (Lahat / Mga Pagdiriwang) — Inter 13 semibold. Color is supplied
   /// per call site via copyWith so contrast is preserved.
   static const homeContent = TextStyle(
-    fontFamily: 'Lora',
+    fontFamily: 'Inter',
     fontSize: 13,
     fontWeight: FontWeight.w600,
   );

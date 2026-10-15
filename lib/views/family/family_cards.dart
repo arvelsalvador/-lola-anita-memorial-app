@@ -58,7 +58,7 @@ class FamilyRootCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.center,
                             style: const TextStyle(
-                              fontFamily: 'Lora',
+                              fontFamily: 'Inter',
                               fontSize: 18,
                               fontWeight: FontWeight.w700,
                               color: AppColors.textDark,
@@ -74,7 +74,7 @@ class FamilyRootCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.center,
                             style: const TextStyle(
-                              fontFamily: 'Lora',
+                              fontFamily: 'Inter',
                               fontSize: 12,
                               color: AppColors.rose,
                             ),
@@ -103,7 +103,7 @@ class FamilyRootCard extends StatelessWidget {
                                     Text(
                                       member.statusLabel!,
                                       style: const TextStyle(
-                                        fontFamily: 'Lora',
+                                        fontFamily: 'Inter',
                                         fontSize: 10.5,
                                         color: AppColors.warmMid,
                                       ),
@@ -115,7 +115,7 @@ class FamilyRootCard extends StatelessWidget {
                                 const Text(
                                   '·',
                                   style: TextStyle(
-                                    fontFamily: 'Lora',
+                                    fontFamily: 'Inter',
                                     fontSize: 10.5,
                                     color: AppColors.muted,
                                   ),
@@ -124,7 +124,7 @@ class FamilyRootCard extends StatelessWidget {
                                 Text(
                                   member.tagline!,
                                   style: const TextStyle(
-                                    fontFamily: 'Lora',
+                                    fontFamily: 'Inter',
                                     fontSize: 10.5,
                                     color: AppColors.muted,
                                   ),
@@ -140,7 +140,7 @@ class FamilyRootCard extends StatelessWidget {
                               member.yearsLabel!,
                               textAlign: TextAlign.center,
                               style: const TextStyle(
-                                fontFamily: 'Lora',
+                                fontFamily: 'Inter',
                                 fontSize: 10,
                                 letterSpacing: 2,
                                 fontWeight: FontWeight.w600,
@@ -220,7 +220,7 @@ class _MemberThumbnailCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontFamily: 'Lora',
+                fontFamily: 'Inter',
                 fontWeight: FontWeight.w700,
                 fontSize: 11.5,
                 color: AppColors.textDark,
@@ -400,7 +400,7 @@ class _InitialsTile extends StatelessWidget {
       child: Text(
         initials,
         style: TextStyle(
-          fontFamily: 'Lora',
+          fontFamily: 'Inter',
           fontSize: fontSize,
           fontWeight: FontWeight.w700,
           color: AppColors.roseDeep,

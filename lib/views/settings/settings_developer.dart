@@ -90,7 +90,7 @@ class _AboutDeveloperPage extends StatelessWidget {
                             child: const Text(
                               'AS',
                               style: TextStyle(
-                                fontFamily: 'Lora',
+                                fontFamily: 'Inter',
                                 fontSize: 28,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.roseDeep,
@@ -113,7 +113,7 @@ class _AboutDeveloperPage extends StatelessWidget {
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
                           color: AppColors.textDark,
-                          fontFamily: 'Lora',
+                          fontFamily: 'Inter',
                           fontFamilyFallback: ['Times New Roman', 'serif'],
                         ),
                       ),
@@ -131,7 +131,7 @@ class _AboutDeveloperPage extends StatelessWidget {
                             lang.t('settings_about_dev_role'),
                             textAlign: TextAlign.center,
                             style: const TextStyle(
-                              fontFamily: 'Lora',
+                              fontFamily: 'Inter',
                               fontSize: 13,
                               letterSpacing: 0.4,
                               color: AppColors.goldInk,
@@ -289,7 +289,7 @@ class _TechChip extends StatelessWidget {
           Text(
             label,
             style: const TextStyle(
-              fontFamily: 'Lora',
+              fontFamily: 'Inter',
               fontSize: 12,
               fontWeight: FontWeight.w600,
               color: AppColors.warmDeep,
@@ -348,7 +348,7 @@ class _FamilyButton extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontFamily: 'Lora',
+                      fontFamily: 'Inter',
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                       color: Colors.white,

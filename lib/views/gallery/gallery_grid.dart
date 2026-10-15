@@ -87,7 +87,7 @@ class _GalleryGridViewState extends State<GalleryGridView>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          // Taller than the pills themselves so Lora's descenders
+          // Taller than the pills themselves so Inter's descenders
           // (the tails of "g" in "Pagdiriwang") are never clipped by
           // the horizontal ListView's edge.
           SizedBox(

@@ -303,7 +303,7 @@ class _FamilyTreeCanvasPageState extends State<FamilyTreeCanvasPage> {
         title: Text(
           lang.t('family_name'),
           style: const TextStyle(
-            fontFamily: 'Lora',
+            fontFamily: 'Inter',
             fontWeight: FontWeight.w700,
             color: AppColors.warmDark,
           ),
@@ -491,7 +491,7 @@ class _TreeNodeCard extends StatelessWidget {
                       child: Text(
                         initials,
                         style: TextStyle(
-                          fontFamily: 'Lora',
+                          fontFamily: 'Inter',
                           fontSize: isRoot ? 18 : 14,
                           fontWeight: FontWeight.w700,
                           color: AppColors.roseDeep,
@@ -508,7 +508,7 @@ class _TreeNodeCard extends StatelessWidget {
                           child: Text(
                             initials,
                             style: TextStyle(
-                              fontFamily: 'Lora',
+                              fontFamily: 'Inter',
                               fontSize: isRoot ? 18 : 14,
                               fontWeight: FontWeight.w700,
                               color: AppColors.roseDeep,
@@ -525,7 +525,7 @@ class _TreeNodeCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontFamily: 'Lora',
+                fontFamily: 'Inter',
                 fontSize: isRoot ? 15 : 12,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textDark,
@@ -540,7 +540,7 @@ class _TreeNodeCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    fontFamily: 'Lora',
+                    fontFamily: 'Inter',
                     fontSize: 9,
                     color: AppColors.warmMid,
                   ),
@@ -576,7 +576,7 @@ class _HintBanner extends StatelessWidget {
               text,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontFamily: 'Lora',
+                fontFamily: 'Inter',
                 fontSize: 11.5,
                 color: AppColors.roseDeep,
               ),
