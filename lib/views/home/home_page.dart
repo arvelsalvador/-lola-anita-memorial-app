@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'package:provider/provider.dart';
 import 'package:nita/core/constants/app_constants.dart';
+import 'package:nita/core/constants/app_routes.dart';
 import 'package:nita/core/utils/image_decode.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/core/utils/navigation.dart';
@@ -56,10 +57,38 @@ class _HomePageState extends State<HomePage> {
   final CondolencesController _condolencesController = CondolencesController();
   final ForumController _forumController = ForumController();
 
+  // Deep-link gate guard: on the web a link/bookmark/refresh containing
+  // #/home lands directly on this route and never passes the splash
+  // screen, where the visitor gate lives. Home therefore re-checks the
+  // gate itself. Null-equivalent: the widget renders a plain warm
+  // placeholder until this local (fast) check resolves.
+  final VisitorRepository _visitorRepo = const VisitorRepository();
+  bool _gateChecked = false;
+
   @override
   void initState() {
     super.initState();
     _controller.addListener(_onTabChanged);
+    _checkVisitorGate();
+  }
+
+  /// Bounces fresh devices (deep link or refresh that skipped splash) to
+  /// the splash gate. Mirrors splash's philosophy: unreadable local prefs
+  /// count as "not remembered", so the visitor is greeted at the door —
+  /// the gate itself never blocks (the form always lets them in).
+  Future<void> _checkVisitorGate() async {
+    bool remembered = false;
+    try {
+      remembered = await _visitorRepo.hasVisitor();
+    } catch (_) {
+      remembered = false;
+    }
+    if (!mounted) return;
+    if (!remembered) {
+      Navigator.pushReplacementNamed(context, AppRoutes.splash);
+      return;
+    }
+    setState(() => _gateChecked = true);
   }
 
   void _onTabChanged() {
@@ -79,6 +108,11 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    // Same warm backdrop as the splash, so the gate bounce (or the
+    // millisecond-scale check) never flashes white or half-built content.
+    if (!_gateChecked) {
+      return const Scaffold(backgroundColor: AppColors.warmDark);
+    }
     return HomeShell(
       selectedTab: _controller.selectedTab,
       onTabChanged: _controller.selectTab,
