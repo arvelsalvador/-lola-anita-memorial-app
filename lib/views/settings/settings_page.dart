@@ -1,14 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:nita/core/constants/app_constants.dart';
+import 'package:nita/core/constants/supabase_config.dart';
 import 'package:nita/core/utils/image_decode.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/core/utils/navigation.dart';
+import 'package:nita/data/admin/admin_audit_log.dart';
+import 'package:nita/data/condolences/condolence_repository.dart';
+import 'package:nita/data/forum/admin_pin.dart';
+import 'package:nita/data/forum/forum_repository.dart';
+import 'package:nita/data/visitors/visitor_repository.dart';
+import 'package:nita/models/forum_post_model.dart';
 import 'package:nita/widgets/abuloy_touch.dart';
 import 'package:nita/widgets/ornamental_card.dart';
 
 part 'settings_about.dart';
 part 'settings_developer.dart';
+part 'settings_reports_admin.dart';
 
 /// One row in the settings menu.
 class _SettingEntry {
@@ -71,11 +81,27 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   String _query = '';
   final TextEditingController _searchController = TextEditingController();
+  int _footerTaps = 0;
+  DateTime? _lastFooterTap;
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onFooterTap() {
+    final now = DateTime.now();
+    if (_lastFooterTap != null &&
+        now.difference(_lastFooterTap!) > const Duration(seconds: 2)) {
+      _footerTaps = 0;
+    }
+    _lastFooterTap = now;
+    _footerTaps++;
+    if (_footerTaps >= 4) {
+      _footerTaps = 0;
+      showAdminPinDialog(context);
+    }
   }
 
   @override
@@ -263,13 +289,20 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                       const SizedBox(height: 32),
                       const SizedBox(height: 24),
-                      Text(
-                        'Nanay Anita · ${lang.t('settings_about_app_version')}',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 11.5,
-                          color: AppColors.muted,
+                      GestureDetector(
+                        onTap: _onFooterTap,
+                        behavior: HitTestBehavior.opaque,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Text(
+                            'Nanay Anita · ${lang.t('settings_about_app_version')}',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 11.5,
+                              color: AppColors.muted,
+                            ),
+                          ),
                         ),
                       ),
                     ],

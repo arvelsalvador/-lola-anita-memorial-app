@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
+import 'package:nita/data/forum/forum_repository.dart';
 import 'package:nita/data/forum/spam_guard.dart';
 import 'package:nita/data/visitors/visitor_repository.dart';
 import 'package:nita/models/forum_post_model.dart';
@@ -33,8 +34,9 @@ class ForumPostCard extends StatefulWidget {
   final bool isPostReported;
   /// True when the given reply id was already reported by this device.
   final bool Function(String replyId) isReplyReported;
-  /// Persists a moderation report. Returns true when saved remotely.
-  final Future<bool> Function(
+  /// Persists a moderation report. Returns saved / alreadyReported / failed
+  /// so the UI can show thanks / already / retry respectively.
+  final Future<ReportSubmitOutcome> Function(
     String targetId,
     String targetKind,
     String reason,
@@ -84,13 +86,13 @@ class ForumPostCard extends StatefulWidget {
   static bool _notReported(String _) => false;
   static bool _notOwn(String _) => false;
   static bool _cannotEdit(String _) => false;
-  static Future<bool> _noReport(
+  static Future<ReportSubmitOutcome> _noReport(
     String a,
     String b,
     String c,
     String d,
   ) async =>
-      false;
+      ReportSubmitOutcome.failed;
   static Future<bool> _noEdit(String _) async => false;
   static Future<bool> _noDelete() async => false;
   static Future<bool> _noReplyEdit(String _, String _) async => false;
@@ -166,6 +168,9 @@ class _ForumPostCardState extends State<ForumPostCard> {
     final name = authorName.trim();
     if (name.isEmpty) return;
     HapticFeedback.lightImpact().catchError((_) {});
+    // Re-read the gate name: the card may have been built before the
+    // splash gate saved it, so the cached copy can be stale/empty.
+    _loadVisitorName();
     final current = _composerController.text;
     final stripped = _stripLeadingMention(current);
     setState(() {
@@ -185,6 +190,8 @@ class _ForumPostCardState extends State<ForumPostCard> {
 
   void _toggleRepliesThread() {
     HapticFeedback.lightImpact().catchError((_) {});
+    // Same stale-name guard as _targetReply.
+    if (_visitorName.isEmpty) _loadVisitorName();
     final expanding = !_repliesExpanded;
     final current = _composerController.text;
     final stripped = _stripLeadingMention(current);
@@ -248,7 +255,16 @@ class _ForumPostCardState extends State<ForumPostCard> {
       );
       return;
     }
-    final saved = await ReportSheet.show(
+    // Temp ids don't exist on the server yet — reporting them always
+    // fails, so stop here instead of opening the sheet then failing.
+    if (targetId.startsWith('msg-') || targetId.startsWith('reply-')) {
+      final lang = context.read<LanguageProvider>();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(lang.t('forum_report_failed'))),
+      );
+      return;
+    }
+    final outcome = await ReportSheet.show(
       context,
       targetId: targetId,
       targetKind: targetKind,
@@ -260,12 +276,16 @@ class _ForumPostCardState extends State<ForumPostCard> {
         details,
       ),
     );
-    if (!mounted || saved == null) return;
+    if (!mounted || outcome == null) return;
     final lang = context.read<LanguageProvider>();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(lang.t(
-          saved ? 'forum_report_thanks' : 'forum_report_failed',
+          switch (outcome) {
+            ReportSubmitOutcome.saved => 'forum_report_thanks',
+            ReportSubmitOutcome.alreadyReported => 'forum_report_already',
+            ReportSubmitOutcome.failed => 'forum_report_failed',
+          },
         )),
       ),
     );
@@ -394,13 +414,28 @@ class _ForumPostCardState extends State<ForumPostCard> {
     setState(() => _sending = true);
     HapticFeedback.lightImpact().catchError((_) {});
     try {
-      final author = _visitorName.isEmpty ? 'Anonymous' : _visitorName;
+      var author = _visitorName;
+      // Fresh identity check: this card may have cached an empty name
+      // before the splash gate was completed (e.g. a brand-new browser
+      // or incognito session). Re-read once before giving up to keep
+      // the gate name — never silently post "Anonymous" when the name
+      // exists on this device.
+      if (author.isEmpty) {
+        try {
+          final fresh = await _visitorRepo.localName();
+          author = (fresh ?? '').trim();
+          if (mounted && author.isNotEmpty) {
+            setState(() => _visitorName = author);
+          }
+        } catch (_) {}
+      }
+      final authorName = author.isEmpty ? 'Anonymous' : author;
       final target = (_replyTarget ?? '').trim();
       final startsWithMention =
           target.isNotEmpty && body.startsWith('@$target');
       final text =
           target.isNotEmpty && !startsWithMention ? '@$target $body' : body;
-      final sent = await widget.onSendReply(author, text, target);
+      final sent = await widget.onSendReply(authorName, text, target);
       if (!mounted) return;
       // Null = save failed: keep the typed text so nothing is lost.
       if (sent == null) {
@@ -1543,7 +1578,8 @@ Color _avatarColor(String name) {
 }
 
 /// Flat 34px pastel avatar, warmDeep initial. No gradient, no ring.
-/// Shows a green presence dot at the lower-right when [isOnline].
+/// Always shows a presence dot at the lower-right: green when the author
+/// is on the page right now, faint warm gray when away.
 class _InitialAvatar extends StatelessWidget {
   final String initials;
   final bool isOnline;
@@ -1583,8 +1619,9 @@ class _InitialAvatar extends StatelessWidget {
   }
 }
 
-/// Wraps an avatar with a green presence dot pinned to its
-/// lower-right edge. Zero layout shift when offline.
+/// Wraps an avatar with a presence dot pinned to its lower-right edge:
+/// green when online, faint warm gray when away. The dot is drawn in
+/// both states so the avatar layout never shifts.
 class _OnlineAvatar extends StatelessWidget {
   final double size;
   final bool isOnline;
@@ -1598,7 +1635,6 @@ class _OnlineAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!isOnline) return child;
     final dot = size * 0.32;
     return Stack(
       clipBehavior: Clip.none,
@@ -1611,7 +1647,9 @@ class _OnlineAvatar extends StatelessWidget {
             width: dot,
             height: dot,
             decoration: BoxDecoration(
-              color: const Color(0xFF1F9D55),
+              color: isOnline
+                  ? const Color(0xFF1F9D55)
+                  : AppColors.muted.withValues(alpha: 0.45),
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white, width: 2),
             ),

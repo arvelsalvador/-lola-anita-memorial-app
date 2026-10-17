@@ -17,7 +17,8 @@ import 'package:nita/models/forum_post_model.dart';
 ///
 /// Live updates: subscribes to Supabase Realtime (`pakikiramay_messages`,
 /// `pakikiramay_replies`, `pakikiramay_reactions`) so new posts, replies,
-/// and likes appear without refresh. Falls back to one-shot fetch offline.
+/// edits, and likes appear without refresh. Falls back to one-shot fetch
+/// offline.
 class ForumController extends ChangeNotifier {
   final ForumRepository _repository;
 
@@ -182,28 +183,39 @@ class ForumController extends ChangeNotifier {
     _reportedLoaded = true;
   }
 
-  /// Sends a moderation report. Returns true when saved remotely.
-  /// Returns false when already reported, offline, or temp id.
+  /// Sends a moderation report. Returns [ReportSubmitOutcome.saved] when
+  /// stored, [ReportSubmitOutcome.alreadyReported] when this device
+  /// already reported it (locally or duplicate row remotely),
+  /// [ReportSubmitOutcome.failed] when offline or temp id.
   /// Never throws.
-  Future<bool> reportTarget({
+  Future<ReportSubmitOutcome> reportTarget({
     required String targetId,
     required String targetKind,
     required String reason,
     String details = '',
   }) async {
-    if (_disposed || targetId.isEmpty || reason.trim().isEmpty) return false;
+    if (_disposed || targetId.isEmpty || reason.trim().isEmpty) {
+      return ReportSubmitOutcome.failed;
+    }
     await _ensureReportedLoaded();
-    if (_disposed) return false;
-    if (_reportedIds.contains(targetId)) return false;
+    if (_disposed) return ReportSubmitOutcome.failed;
+    if (_reportedIds.contains(targetId)) {
+      return ReportSubmitOutcome.alreadyReported;
+    }
     try {
-      if (_deviceId.isEmpty) {
+      if (_deviceId.trim().isEmpty) {
         _deviceId = await ReactionIdentity.deviceId();
       }
     } catch (_) {}
-    if (_disposed) return false;
+    // Ephemeral fallback so an empty id never blocks or collides.
+    if (_deviceId.trim().isEmpty) {
+      _deviceId =
+          'dev-mem-${DateTime.now().millisecondsSinceEpoch.toRadixString(36)}';
+    }
+    if (_disposed) return ReportSubmitOutcome.failed;
     final reporterName = await _localDisplayName();
-    if (_disposed) return false;
-    final ok = await _repository.submitReport(
+    if (_disposed) return ReportSubmitOutcome.failed;
+    final outcome = await _repository.submitReport(
       targetId: targetId,
       targetKind: targetKind,
       reason: reason.trim(),
@@ -211,7 +223,10 @@ class ForumController extends ChangeNotifier {
       deviceId: _deviceId,
       reporterName: reporterName,
     );
-    if (!ok || _disposed) return ok;
+    if (_disposed) return outcome;
+    if (outcome == ReportSubmitOutcome.failed) return outcome;
+    // Both saved + remote-duplicate count as reported locally so the
+    // next tap shows "already reported" instead of failing again.
     _reportedIds.add(targetId);
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -219,9 +234,11 @@ class ForumController extends ChangeNotifier {
           _reportedIdsKey, jsonEncode(_reportedIds.toList()));
     } catch (_) {}
     notifyListeners();
-    // Spam layer 3: hide immediately once the threshold report lands.
-    unawaited(_hideIfThresholdReached(targetId));
-    return true;
+    if (outcome == ReportSubmitOutcome.saved) {
+      // Spam layer 3: hide immediately once the threshold report lands.
+      unawaited(_hideIfThresholdReached(targetId));
+    }
+    return outcome;
   }
 
   /// Removes [targetId] from the feed when its report count reaches the
@@ -663,6 +680,38 @@ class ForumController extends ChangeNotifier {
             callback: (payload) => _handleLiveReply(payload.newRecord),
           )
           .onPostgresChanges(
+            event: PostgresChangeEvent.update,
+            schema: 'public',
+            table: ForumRepository.messagesTable,
+            callback: (payload) =>
+                _handleLivePostUpdate(payload.newRecord),
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.update,
+            schema: 'public',
+            table: ForumRepository.repliesTable,
+            callback: (payload) =>
+                _handleLiveReplyUpdate(payload.newRecord),
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.delete,
+            schema: 'public',
+            table: ForumRepository.messagesTable,
+            callback: (payload) {
+              final id = payload.oldRecord['id']?.toString() ?? '';
+              if (id.isNotEmpty) _removeTargetLocally(id);
+            },
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.delete,
+            schema: 'public',
+            table: ForumRepository.repliesTable,
+            callback: (payload) {
+              final id = payload.oldRecord['id']?.toString() ?? '';
+              if (id.isNotEmpty) _removeTargetLocally(id);
+            },
+          )
+          .onPostgresChanges(
             event: PostgresChangeEvent.insert,
             schema: 'public',
             table: ForumRepository.reactionsTable,
@@ -851,6 +900,71 @@ class ForumController extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint('ForumController live reply skipped: $e');
+    }
+  }
+
+  void _handleLivePostUpdate(Map<String, dynamic> record) {
+    if (_disposed) return;
+    try {
+      final id = record['id']?.toString() ?? '';
+      final message = (record['message'] as String? ?? '').trim();
+      if (id.isEmpty || message.isEmpty) return;
+      final idx = _posts.indexWhere((p) => p.id == id);
+      if (idx == -1) return;
+      if (_posts[idx].message == message) return;
+      if (SpamGuard.containsBlockedWords(message)) {
+        _posts = _posts.where((p) => p.id != id).toList();
+      } else {
+        final author = (record['name'] as String? ?? '').trim();
+        _posts[idx] = _posts[idx].copyWith(
+          message: message,
+          authorName:
+              author.isEmpty ? _posts[idx].authorName : author,
+        );
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('ForumController live post update skipped: $e');
+    }
+  }
+
+  void _handleLiveReplyUpdate(Map<String, dynamic> record) {
+    if (_disposed) return;
+    try {
+      final id = record['id']?.toString() ?? '';
+      final message = (record['message'] as String? ?? '').trim();
+      if (id.isEmpty || message.isEmpty) return;
+      final postId = record['post_id']?.toString() ?? '';
+      var postIdx = _posts.indexWhere((p) => p.id == postId);
+      if (postIdx == -1) {
+        for (var i = 0; i < _posts.length; i++) {
+          if (_posts[i].replies.any((r) => r.id == id)) {
+            postIdx = i;
+            break;
+          }
+        }
+      }
+      if (postIdx == -1) return;
+      final post = _posts[postIdx];
+      final replyIdx = post.replies.indexWhere((r) => r.id == id);
+      if (replyIdx == -1) return;
+      if (post.replies[replyIdx].message == message) return;
+      final updated = List<ForumReply>.from(post.replies);
+      if (SpamGuard.containsBlockedWords(message)) {
+        updated.removeAt(replyIdx);
+      } else {
+        final author = (record['author_name'] as String? ?? '').trim();
+        updated[replyIdx] = updated[replyIdx].copyWith(
+          message: message,
+          authorName: author.isEmpty
+              ? updated[replyIdx].authorName
+              : author,
+        );
+      }
+      _posts[postIdx] = post.copyWith(replies: updated);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('ForumController live reply update skipped: $e');
     }
   }
 

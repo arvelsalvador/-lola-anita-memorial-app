@@ -55,37 +55,51 @@ class _CondolencesPageState extends State<CondolencesPage> {
     super.dispose();
   }
 
+  /// Pull-to-refresh / refresh-button path: reloads the forum feed and
+  /// re-opens realtime so elderly users can force the latest messages.
+  Future<void> _handleRefresh() async {
+    await _forumController.loadPosts();
+    try {
+      await _forumController.subscribeRealtime();
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
 
-    return CustomScrollView(
-      controller: widget.controller,
-      primary: false,
-      slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
-            child: _PakikiramayHeader(
-              title: lang.t('nav_condolences'),
-              subtitle: lang.t('condolences_subtitle'),
+    return RefreshIndicator(
+      onRefresh: _handleRefresh,
+      color: AppColors.warmDark,
+      child: CustomScrollView(
+        controller: widget.controller,
+        primary: false,
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+              child: _PakikiramayHeader(
+                title: lang.t('nav_condolences'),
+                subtitle: lang.t('condolences_subtitle'),
+              ),
             ),
           ),
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-          sliver: SliverList(
-            delegate: SliverChildListDelegate([
-              CandleSection(
-                condolencesController: widget.condolencesController,
-              ),
-              const SizedBox(height: 28),
-              CommunityForumSection(forumController: _forumController),
-              const SizedBox(height: 32),
-            ]),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                CandleSection(
+                  condolencesController: widget.condolencesController,
+                ),
+                const SizedBox(height: 28),
+                CommunityForumSection(forumController: _forumController),
+                const SizedBox(height: 32),
+              ]),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

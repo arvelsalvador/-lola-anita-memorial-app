@@ -462,6 +462,25 @@ class _ForumHeader extends StatelessWidget {
                 ),
               ),
             ),
+            // Elderly-friendly manual refresh: same reload as
+            // pull-to-refresh, 44px target with a text tooltip.
+            IconButton(
+              tooltip: lang.t('forum_refresh'),
+              onPressed: () {
+                HapticFeedback.lightImpact().catchError((_) {});
+                onRetry();
+              },
+              icon: const Icon(
+                Icons.refresh_rounded,
+                size: 20,
+                color: AppColors.warmMid,
+              ),
+              style: IconButton.styleFrom(
+                minimumSize: const Size(44, 44),
+                tapTargetSize: MaterialTapTargetSize.padded,
+                padding: EdgeInsets.zero,
+              ),
+            ),
             _LiveBadge(live: live, onRetry: onRetry),
           ],
         ),

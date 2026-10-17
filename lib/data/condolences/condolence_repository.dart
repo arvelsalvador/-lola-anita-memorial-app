@@ -2,13 +2,15 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:nita/core/constants/supabase_config.dart';
+import 'package:nita/data/forum/admin_pin.dart';
 
 /// Private mensahe saver for the candle (Field 1): name (from splash
 /// gate) + message, stored in `candle_messages`.
 ///
 /// Private by design: anon INSERT only, no public SELECT — family reads
-/// via dashboard. The public board (`pakikiramay_messages` via
-/// ForumRepository) never sees these rows.
+/// via the PIN-verified admin RPC (`pakikiramay_admin_list_candles`)
+/// after `supabase/pakikiramay_security.sql` runs. The public board
+/// (`pakikiramay_messages` via ForumRepository) never sees these rows.
 ///
 /// Local-first like [VisitorRepository]: the candle always lights, the
 /// insert runs in the background with a short timeout and never throws
@@ -61,4 +63,143 @@ class CondolenceRepository {
       return false;
     }
   }
+
+  /// Private candle rows for the family admin page, newest first.
+  /// PIN-verified RPC (`pakikiramay_admin_list_candles`) first — the
+  /// table is insert-only for the anon key after the security migration —
+  /// legacy anon SELECT fallback while the project is unmigrated.
+  /// Empty when offline/unconfigured/wrong-PIN/denied. Never throws.
+  Future<List<AdminCandleMessage>> fetchAdminMessages({int limit = 200}) async {
+    if (!SupabaseConfig.isConfigured) return [];
+    final pin = await AdminCredential.effectivePin();
+    try {
+      final rows = await Supabase.instance.client
+          .rpc('pakikiramay_admin_list_candles', params: {
+        'p_pin': pin,
+        'p_limit': limit,
+      }).timeout(const Duration(seconds: 8));
+      return _parseCandleRows(rows as List);
+    } catch (e) {
+      if (!isRpcMissing(e)) {
+        debugPrint('CondolenceRepository fetchAdminMessages skipped: $e');
+        return [];
+      }
+      debugPrint('CondolenceRepository candles RPC missing — legacy fallback.');
+    }
+    // Legacy path (unmigrated project).
+    try {
+      final rows = await Supabase.instance.client
+          .from(table)
+          .select('id, name, message, created_at')
+          .order('created_at', ascending: false)
+          .limit(limit)
+          .timeout(const Duration(seconds: 8));
+      return _parseCandleRows(rows as List);
+    } catch (e) {
+      debugPrint('CondolenceRepository fetchAdminMessages skipped: $e');
+      return [];
+    }
+  }
+
+  /// Shared row mapper for both the RPC and the legacy SELECT result.
+  List<AdminCandleMessage> _parseCandleRows(List rows) {
+    final out = <AdminCandleMessage>[];
+    for (final row in rows) {
+      final m = row as Map;
+      DateTime at = DateTime.now();
+      final rawAt = m['created_at'];
+      if (rawAt is String) at = DateTime.tryParse(rawAt) ?? at;
+      out.add(AdminCandleMessage(
+        id: m['id']?.toString() ?? '',
+        name: (m['name'] as String? ?? '').trim(),
+        message: (m['message'] as String? ?? '').trim(),
+        createdAt: at,
+      ));
+    }
+    return out.where((c) => c.id.isNotEmpty).toList();
+  }
+
+  /// Updates a private message (family admin). PIN-verified RPC first,
+  /// legacy anon UPDATE fallback while the project is unmigrated.
+  /// Returns true when saved. Never throws.
+  Future<bool> updateMessage({
+    required String id,
+    required String message,
+  }) async {
+    final clean = message.trim();
+    if (id.isEmpty || validateMessage(clean) != null) return false;
+    if (!SupabaseConfig.isConfigured) return false;
+    final pin = await AdminCredential.effectivePin();
+    try {
+      final ok = (await Supabase.instance.client.rpc(
+            'pakikiramay_admin_edit_candle',
+            params: {'p_pin': pin, 'p_id': id, 'p_message': clean},
+          ).timeout(const Duration(seconds: 8))) as bool?;
+      return ok ?? false;
+    } catch (e) {
+      if (!isRpcMissing(e)) {
+        debugPrint('CondolenceRepository updateMessage skipped: $e');
+        return false;
+      }
+      debugPrint('CondolenceRepository candle edit RPC missing — legacy fallback.');
+    }
+    try {
+      await Supabase.instance.client
+          .from(table)
+          .update({'message': clean})
+          .eq('id', id)
+          .timeout(const Duration(seconds: 8));
+      return true;
+    } catch (e) {
+      debugPrint('CondolenceRepository updateMessage skipped: $e');
+      return false;
+    }
+  }
+
+  /// Deletes a private message (family admin). PIN-verified RPC first,
+  /// legacy anon DELETE fallback while the project is unmigrated.
+  /// Returns true when deleted. Never throws.
+  Future<bool> deleteMessage(String id) async {
+    if (id.isEmpty || !SupabaseConfig.isConfigured) return false;
+    final pin = await AdminCredential.effectivePin();
+    try {
+      final ok = (await Supabase.instance.client.rpc(
+            'pakikiramay_admin_delete_candle',
+            params: {'p_pin': pin, 'p_id': id},
+          ).timeout(const Duration(seconds: 8))) as bool?;
+      return ok ?? false;
+    } catch (e) {
+      if (!isRpcMissing(e)) {
+        debugPrint('CondolenceRepository deleteMessage skipped: $e');
+        return false;
+      }
+      debugPrint('CondolenceRepository candle delete RPC missing — legacy fallback.');
+    }
+    try {
+      await Supabase.instance.client
+          .from(table)
+          .delete()
+          .eq('id', id)
+          .timeout(const Duration(seconds: 8));
+      return true;
+    } catch (e) {
+      debugPrint('CondolenceRepository deleteMessage skipped: $e');
+      return false;
+    }
+  }
+}
+
+/// One row from `candle_messages` for the family admin page.
+class AdminCandleMessage {
+  final String id;
+  final String name;
+  final String message;
+  final DateTime createdAt;
+
+  const AdminCandleMessage({
+    required this.id,
+    required this.name,
+    required this.message,
+    required this.createdAt,
+  });
 }

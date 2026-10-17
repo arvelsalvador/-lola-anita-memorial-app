@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
+import 'package:nita/data/forum/forum_repository.dart';
 
 /// Bottom sheet for reporting a post or reply.
 ///
@@ -13,7 +14,8 @@ class ReportSheet extends StatefulWidget {
   final String targetId;
   final String targetKind;
   final bool alreadyReported;
-  final Future<bool> Function(String reason, String details) onSubmit;
+  final Future<ReportSubmitOutcome> Function(String reason, String details)
+      onSubmit;
 
   const ReportSheet({
     super.key,
@@ -23,14 +25,15 @@ class ReportSheet extends StatefulWidget {
     this.alreadyReported = false,
   });
 
-  static Future<bool?> show(
+  static Future<ReportSubmitOutcome?> show(
     BuildContext context, {
     required String targetId,
     required String targetKind,
     required bool alreadyReported,
-    required Future<bool> Function(String reason, String details) onSubmit,
+    required Future<ReportSubmitOutcome> Function(String reason, String details)
+        onSubmit,
   }) {
-    return showModalBottomSheet<bool>(
+    return showModalBottomSheet<ReportSubmitOutcome>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -87,15 +90,15 @@ class _ReportSheetState extends State<ReportSheet> {
     });
     HapticFeedback.lightImpact().catchError((_) {});
     try {
-      final ok = await widget.onSubmit(
+      final outcome = await widget.onSubmit(
         _reason,
         _detailsController.text.trim(),
       );
       if (!mounted) return;
-      Navigator.of(context).pop(ok);
+      Navigator.of(context).pop(outcome);
     } catch (_) {
       if (!mounted) return;
-      Navigator.of(context).pop(false);
+      Navigator.of(context).pop(ReportSubmitOutcome.failed);
     }
   }
 

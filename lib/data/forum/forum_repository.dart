@@ -4,8 +4,36 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:nita/core/constants/supabase_config.dart';
+import 'package:nita/data/forum/admin_pin.dart';
+import 'package:nita/data/forum/reaction_identity.dart';
 import 'package:nita/data/forum/spam_guard.dart';
 import 'package:nita/models/forum_post_model.dart';
+
+/// Outcome of a moderation-report submit, so the UI can tell
+/// "already reported" apart from a real failure (e.g. duplicate
+/// unique violation after reinstall, vs offline).
+enum ReportSubmitOutcome { saved, alreadyReported, failed }
+
+/// One row from `pakikiramay_reports` for the family admin page.
+class AdminReportRow {
+  final String id;
+  final String targetId;
+  final String targetKind; // 'post' | 'reply'
+  final String reason;
+  final String details;
+  final String reporterName;
+  final DateTime createdAt;
+
+  const AdminReportRow({
+    required this.id,
+    required this.targetId,
+    required this.targetKind,
+    required this.reason,
+    required this.details,
+    required this.reporterName,
+    required this.createdAt,
+  });
+}
 
 /// Public board repository (Field 2) directly connected to Supabase.
 ///
@@ -13,6 +41,14 @@ import 'package:nita/models/forum_post_model.dart';
 /// - Private candle messages live separately in `candle_messages` and never appear here.
 /// - Real-time insertion & threaded replies.
 /// - Offline fallback via SharedPreferences caching so mourners are never blocked.
+///
+/// SECURITY (after `supabase/pakikiramay_security.sql` runs):
+/// - Tables are INSERT+SELECT only for the anon key. Every privileged
+///   action (admin edit/delete/dismiss/private reads, self edit/delete,
+///   unlike) goes through PIN- or device-id-verified security-definer RPCs.
+/// - When the project has NOT been migrated yet, the repository falls
+///   back transparently to the legacy direct-table calls (feature parity),
+///   so deploying app or SQL first both work.
 class ForumRepository {
   const ForumRepository();
 
@@ -234,7 +270,10 @@ class ForumRepository {
       try {
         final client = Supabase.instance.client;
         // Auto-public: new rows are readable instantly because the
-        // SELECT policy only allows `approved = true`.
+        // SELECT policy only allows `approved = true`. On the migrated
+        // project the columns default comes from the DB
+        // (`supabase/pakikiramay_security.sql`); on unmigrated projects
+        // the flag must still be sent explicitly, which is why it stays.
         final res = await client
             .from(messagesTable)
             .insert({
@@ -464,9 +503,11 @@ class ForumRepository {
     }
   }
 
-  /// Removes our own remote like (un-like). Scoped to this device's row
-  /// so other visitors' likes on the same post are preserved.
-  /// Returns true when a row was deleted.
+  /// Removes our own remote like (un-like). Goes through the
+  /// device-id-verified RPC `pakikiramay_unlike` (the reactions table has
+  /// no anon DELETE after the security migration); legacy direct
+  /// select+delete fallback while the project is unmigrated.
+  /// Returns true when a row was deleted. Never throws.
   Future<bool> removeReactionRemote({
     required String targetId,
     required String reactionType,
@@ -477,6 +518,23 @@ class ForumRepository {
       return false;
     }
     if (targetId.isEmpty || deviceId.isEmpty) return false;
+    try {
+      final ok = (await Supabase.instance.client.rpc(
+            'pakikiramay_unlike',
+            params: {
+              'p_target_id': targetId,
+              'p_reaction_type': reactionType,
+              'p_device_id': deviceId,
+            },
+          ).timeout(const Duration(seconds: 8))) as bool?;
+      return ok ?? false;
+    } catch (e) {
+      if (!isRpcMissing(e)) {
+        debugPrint('ForumRepository removeReactionRemote FAILED: $e');
+        return false;
+      }
+      debugPrint('ForumRepository unlike RPC missing — legacy fallback.');
+    }
     try {
       final client = Supabase.instance.client;
       final rows = await client
@@ -535,10 +593,12 @@ class ForumRepository {
   }
 
   /// Submits a moderation report for a post or reply.
-  /// Returns true when saved, false when offline, unconfigured, temp id,
-  /// duplicate (unique target+device), or the table is missing.
+  /// Returns [ReportSubmitOutcome.saved] when stored,
+  /// [ReportSubmitOutcome.alreadyReported] on duplicate
+  /// (unique target+device), [ReportSubmitOutcome.failed] when offline,
+  /// unconfigured, temp id, or the table is missing.
   /// Never throws — failures are logged so the UI can show a retry note.
-  Future<bool> submitReport({
+  Future<ReportSubmitOutcome> submitReport({
     required String targetId,
     required String targetKind,
     required String reason,
@@ -546,12 +606,14 @@ class ForumRepository {
     String deviceId = '',
     String reporterName = 'Anonymous',
   }) async {
-    if (!SupabaseConfig.isConfigured || targetId.isEmpty) return false;
+    if (!SupabaseConfig.isConfigured || targetId.isEmpty) {
+      return ReportSubmitOutcome.failed;
+    }
     if (targetId.startsWith('msg-') || targetId.startsWith('reply-')) {
-      return false;
+      return ReportSubmitOutcome.failed;
     }
     final cleanReason = reason.trim();
-    if (cleanReason.isEmpty) return false;
+    if (cleanReason.isEmpty) return ReportSubmitOutcome.failed;
     final kind = targetKind == 'reply' ? 'reply' : 'post';
     final trimmedDetails = details.trim();
     final cleanDetails = trimmedDetails.length > 200
@@ -570,19 +632,56 @@ class ForumRepository {
         'reporter_device_id': deviceId.trim(),
         'reporter_name': cleanName,
       }).timeout(const Duration(seconds: 8));
-      return true;
+      return ReportSubmitOutcome.saved;
     } catch (e) {
+      final msg = e.toString().toLowerCase();
+      // Unique violation (second report from same device, e.g. after
+      // reinstall when local dedupe was cleared) is not a failure:
+      // tell the UI to show "already reported".
+      if (msg.contains('409') ||
+          msg.contains('23505') ||
+          msg.contains('duplicate') ||
+          msg.contains('unique') ||
+          msg.contains('already exists')) {
+        debugPrint('ForumRepository submitReport duplicate: $e');
+        return ReportSubmitOutcome.alreadyReported;
+      }
       debugPrint('ForumRepository submitReport skipped: $e');
-      return false;
+      return ReportSubmitOutcome.failed;
     }
   }
 
   /// Report counts per target ({targetId: count}). Powers spam layer 3:
   /// targets with >= [SpamGuard.hideThreshold] reports are hidden.
+  /// Prefers the aggregate RPC `pakikiramay_report_counts()` (raw report
+  /// rows are private after the security migration) and falls back to the
+  /// legacy plain SELECT while the project is still unmigrated.
   /// Empty when offline, unconfigured, or the table is not readable.
   /// Never throws.
   Future<Map<String, int>> fetchReportCounts() async {
     if (!SupabaseConfig.isConfigured) return {};
+    try {
+      final rows = await Supabase.instance.client
+          .rpc('pakikiramay_report_counts')
+          .timeout(const Duration(seconds: 8));
+      final counts = <String, int>{};
+      for (final row in (rows as List)) {
+        final m = row as Map;
+        final target = m['target_id']?.toString() ?? '';
+        if (target.isEmpty) continue;
+        final raw = m['report_count'];
+        final count = raw is num ? raw.toInt() : int.tryParse('$raw') ?? 0;
+        counts[target] = count;
+      }
+      return counts;
+    } catch (e) {
+      if (!isRpcMissing(e)) {
+        debugPrint('ForumRepository fetchReportCounts skipped: $e');
+        return {};
+      }
+      debugPrint('ForumRepository report counts RPC missing — legacy fallback.');
+    }
+    // Legacy path (unmigrated project): plain SELECT on the reports table.
     try {
       final rows = await Supabase.instance.client
           .from(reportsTable)
@@ -607,23 +706,299 @@ class ForumRepository {
   /// Never throws.
   Future<int> fetchReportCount(String targetId) async {
     if (!SupabaseConfig.isConfigured || targetId.isEmpty) return 0;
+    final counts = await fetchReportCounts();
+    return counts[targetId] ?? 0;
+  }
+
+  /// Full report rows for the family admin page, newest first.
+  /// Runs through the PIN-verified RPC `pakikiramay_admin_list_reports()`
+  /// (raw report rows are private after the migration). Falls back to the
+  /// legacy plain SELECT on an unmigrated project. Empty when offline,
+  /// unconfigured, the PIN is wrong server-side, or unreadable. Never throws.
+  Future<List<AdminReportRow>> fetchAdminReports({int limit = 200}) async {
+    if (!SupabaseConfig.isConfigured) return [];
+    final pin = await AdminCredential.effectivePin();
+    try {
+      final rows = await Supabase.instance.client
+          .rpc('pakikiramay_admin_list_reports', params: {
+        'p_pin': pin,
+        'p_limit': limit,
+      }).timeout(const Duration(seconds: 8));
+      return _parseAdminReportRows(rows as List);
+    } catch (e) {
+      if (!isRpcMissing(e)) {
+        debugPrint('ForumRepository fetchAdminReports skipped: $e');
+        return [];
+      }
+      debugPrint('ForumRepository admin reports RPC missing — legacy fallback.');
+    }
+    // Legacy path (unmigrated project).
     try {
       final rows = await Supabase.instance.client
           .from(reportsTable)
-          .select('id')
-          .eq('target_id', targetId)
-          .limit(2000)
+          .select(
+            'id, target_id, target_kind, reason, details, '
+            'reporter_name, created_at',
+          )
+          .order('created_at', ascending: false)
+          .limit(limit)
           .timeout(const Duration(seconds: 8));
-      return (rows as List).length;
+      return _parseAdminReportRows(rows as List);
     } catch (e) {
-      debugPrint('ForumRepository fetchReportCount skipped: $e');
-      return 0;
+      debugPrint('ForumRepository fetchAdminReports skipped: $e');
+      return [];
+    }
+  }
+
+  /// Shared row mapper for both the RPC and the legacy SELECT result.
+  List<AdminReportRow> _parseAdminReportRows(List rows) {
+    final out = <AdminReportRow>[];
+    for (final row in rows) {
+      final m = row as Map;
+      final targetId = m['target_id']?.toString() ?? '';
+      if (targetId.isEmpty) continue;
+      DateTime at = DateTime.now();
+      final rawAt = m['created_at'];
+      if (rawAt is String) at = DateTime.tryParse(rawAt) ?? at;
+      out.add(AdminReportRow(
+        id: m['id']?.toString() ?? '',
+        targetId: targetId,
+        targetKind: (m['target_kind'] as String? ?? 'post').trim() == 'reply'
+            ? 'reply'
+            : 'post',
+        reason: (m['reason'] as String? ?? '').trim(),
+        details: (m['details'] as String? ?? '').trim(),
+        reporterName: (m['reporter_name'] as String? ?? '').trim().isEmpty
+            ? 'Anonymous'
+            : (m['reporter_name'] as String).trim(),
+        createdAt: at,
+      ));
+    }
+    return out;
+  }
+
+  /// Dismisses all reports for one target (family reviewed, kept the
+  /// message). PIN-verified RPC first, legacy anon DELETE fallback while
+  /// the project is unmigrated. Returns true when deleted. Never throws.
+  Future<bool> dismissReports(String targetId) async {
+    if (!SupabaseConfig.isConfigured || targetId.isEmpty) return false;
+    if (targetId.startsWith('msg-') || targetId.startsWith('reply-')) {
+      return true;
+    }
+    final pin = await AdminCredential.effectivePin();
+    try {
+      final ok = (await Supabase.instance.client.rpc(
+            'pakikiramay_admin_dismiss_reports',
+            params: {'p_pin': pin, 'p_target_id': targetId},
+          ).timeout(const Duration(seconds: 8))) as bool?;
+      return ok ?? false;
+    } catch (e) {
+      if (!isRpcMissing(e)) {
+        debugPrint('ForumRepository dismissReports skipped: $e');
+        return false;
+      }
+      debugPrint('ForumRepository dismissReports RPC missing — legacy fallback.');
+    }
+    try {
+      await Supabase.instance.client
+          .from(reportsTable)
+          .delete()
+          .eq('target_id', targetId)
+          .timeout(const Duration(seconds: 8));
+      return true;
+    } catch (e) {
+      debugPrint('ForumRepository dismissReports skipped: $e');
+      return false;
+    }
+  }
+
+  /// Admin edit of any post text (no own-device or time check — only
+  /// call from the PIN-gated admin page). PIN-verified RPC first, legacy
+  /// anon UPDATE fallback while the project is unmigrated. Returns true
+  /// when saved. Never throws.
+  Future<bool> adminUpdatePost({
+    required String postId,
+    required String message,
+  }) async {
+    final clean = message.trim();
+    if (postId.isEmpty || clean.isEmpty || clean.length > 1000) return false;
+    if (SpamGuard.containsBlockedWords(clean)) return false;
+    if (postId.startsWith('msg-')) {
+      return _updateCachedPostMessage(postId, clean);
+    }
+    if (!SupabaseConfig.isConfigured) return false;
+    final pin = await AdminCredential.effectivePin();
+    try {
+      final ok = (await Supabase.instance.client.rpc(
+            'pakikiramay_admin_edit_message',
+            params: {'p_pin': pin, 'p_id': postId, 'p_message': clean},
+          ).timeout(const Duration(seconds: 8))) as bool?;
+      if (ok ?? false) {
+        await _updateCachedPostMessage(postId, clean);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      if (!isRpcMissing(e)) {
+        debugPrint('ForumRepository adminUpdatePost skipped: $e');
+        return false;
+      }
+      debugPrint('ForumRepository admin edit RPC missing — legacy fallback.');
+    }
+    try {
+      await Supabase.instance.client
+          .from(messagesTable)
+          .update({'message': clean})
+          .eq('id', postId)
+          .timeout(const Duration(seconds: 8));
+      await _updateCachedPostMessage(postId, clean);
+      return true;
+    } catch (e) {
+      debugPrint('ForumRepository adminUpdatePost skipped: $e');
+      return false;
+    }
+  }
+
+  /// Admin edit of any reply text (no own-device or time check — only
+  /// call from the PIN-gated admin page). PIN-verified RPC first, legacy
+  /// anon UPDATE fallback while the project is unmigrated. Returns true
+  /// when saved. Never throws.
+  Future<bool> adminUpdateReply({
+    required String postId,
+    required String replyId,
+    required String message,
+  }) async {
+    final clean = message.trim();
+    if (postId.isEmpty ||
+        replyId.isEmpty ||
+        clean.isEmpty ||
+        clean.length > 1000) {
+      return false;
+    }
+    if (SpamGuard.containsBlockedWords(clean)) return false;
+    if (replyId.startsWith('reply-') || postId.startsWith('msg-')) {
+      return _updateCachedReplyMessage(postId, replyId, clean);
+    }
+    if (!SupabaseConfig.isConfigured) return false;
+    final pin = await AdminCredential.effectivePin();
+    try {
+      final ok = (await Supabase.instance.client.rpc(
+            'pakikiramay_admin_edit_reply',
+            params: {
+              'p_pin': pin,
+              'p_post_id': postId,
+              'p_reply_id': replyId,
+              'p_message': clean,
+            },
+          ).timeout(const Duration(seconds: 8))) as bool?;
+      if (ok ?? false) {
+        await _updateCachedReplyMessage(postId, replyId, clean);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      if (!isRpcMissing(e)) {
+        debugPrint('ForumRepository adminUpdateReply skipped: $e');
+        return false;
+      }
+      debugPrint('ForumRepository admin edit RPC missing — legacy fallback.');
+    }
+    try {
+      await Supabase.instance.client
+          .from(repliesTable)
+          .update({'message': clean})
+          .eq('id', replyId)
+          .timeout(const Duration(seconds: 8));
+      await _updateCachedReplyMessage(postId, replyId, clean);
+      return true;
+    } catch (e) {
+      debugPrint('ForumRepository adminUpdateReply skipped: $e');
+      return false;
+    }
+  }
+
+  /// Admin edit of any message + its reports (bypasses the own-device
+  /// check in the controller — only call from the PIN-gated admin page).
+  /// PIN-verified RPC first; the legacy path (unmigrated project) is the
+  /// same direct-table delete flow as before. Returns true when deleted.
+  /// Never throws.
+  Future<bool> adminDeleteTarget({
+    required String targetId,
+    required String targetKind,
+    String parentPostId = '',
+  }) async {
+    if (targetId.isEmpty) return false;
+    try {
+      if (!SupabaseConfig.isConfigured ||
+          targetId.startsWith('msg-') ||
+          targetId.startsWith('reply-')) {
+        return _adminDeleteTargetLegacy(
+          targetId: targetId,
+          targetKind: targetKind,
+          parentPostId: parentPostId,
+        );
+      }
+      final pin = await AdminCredential.effectivePin();
+      final params = <String, dynamic>{
+        'p_pin': pin,
+        'p_target_kind': targetKind,
+        'p_target_id': targetId,
+      };
+      if (parentPostId.isNotEmpty) params['p_parent_post_id'] = parentPostId;
+      final ok = (await Supabase.instance.client.rpc(
+            'pakikiramay_admin_delete_target',
+            params: params,
+          ).timeout(const Duration(seconds: 8))) as bool?;
+      if (ok ?? false) {
+        await dismissReports(targetId);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      if (!isRpcMissing(e)) {
+        debugPrint('ForumRepository adminDeleteTarget skipped: $e');
+        return false;
+      }
+      debugPrint('ForumRepository admin delete RPC missing — legacy fallback.');
+    }
+    return _adminDeleteTargetLegacy(
+      targetId: targetId,
+      targetKind: targetKind,
+      parentPostId: parentPostId,
+    );
+  }
+
+  /// Legacy direct-table admin delete (pre-migration projects).
+  Future<bool> _adminDeleteTargetLegacy({
+    required String targetId,
+    required String targetKind,
+    required String parentPostId,
+  }) async {
+    try {
+      if (targetKind == 'reply') {
+        if (parentPostId.isEmpty) return false;
+        final ok = await deleteReply(
+          postId: parentPostId,
+          replyId: targetId,
+        );
+        if (!ok) return false;
+      } else {
+        final ok = await deletePost(targetId);
+        if (!ok) return false;
+      }
+      await dismissReports(targetId);
+      return true;
+    } catch (e) {
+      debugPrint('ForumRepository adminDeleteTarget skipped: $e');
+      return false;
     }
   }
 
   /// Edits your own post's text (fix #4). Temp ids are local-only and
-  /// always succeed; remote rows need the anon UPDATE policy.
-  /// Returns true when saved. Never throws.
+  /// always succeed. Real ids go through the device-id-verified RPC
+  /// `pakikiramay_edit_message` (owner match + 15-minute edit window
+  /// enforced server-side); legacy direct-table fallback while the
+  /// project is unmigrated. Returns true when saved. Never throws.
   Future<bool> updatePostMessage({
     required String postId,
     required String message,
@@ -635,6 +1010,32 @@ class ForumRepository {
       return _updateCachedPostMessage(postId, clean);
     }
     if (!SupabaseConfig.isConfigured) return false;
+    final deviceId = await ReactionIdentity.deviceId();
+    if (deviceId.isNotEmpty) {
+      try {
+        final ok = (await Supabase.instance.client.rpc(
+              'pakikiramay_edit_message',
+              params: {
+                'p_id': postId,
+                'p_device_id': deviceId,
+                'p_message': clean,
+              },
+            ).timeout(const Duration(seconds: 8))) as bool?;
+        if (ok ?? false) {
+          await _updateCachedPostMessage(postId, clean);
+          return true;
+        }
+        // false = not this device's row, outside the edit window, or the
+        // row predates device tracking — treated as a genuine failure.
+        return false;
+      } catch (e) {
+        if (!isRpcMissing(e)) {
+          debugPrint('ForumRepository updatePostMessage skipped: $e');
+          return false;
+        }
+        debugPrint('ForumRepository self-edit RPC missing — legacy fallback.');
+      }
+    }
     try {
       await Supabase.instance.client
           .from(messagesTable)
@@ -668,6 +1069,31 @@ class ForumRepository {
       return _updateCachedReplyMessage(postId, replyId, clean);
     }
     if (!SupabaseConfig.isConfigured) return false;
+    final deviceId = await ReactionIdentity.deviceId();
+    if (deviceId.isNotEmpty) {
+      try {
+        final ok = (await Supabase.instance.client.rpc(
+              'pakikiramay_edit_reply',
+              params: {
+                'p_id': replyId,
+                'p_post_id': postId,
+                'p_device_id': deviceId,
+                'p_message': clean,
+              },
+            ).timeout(const Duration(seconds: 8))) as bool?;
+        if (ok ?? false) {
+          await _updateCachedReplyMessage(postId, replyId, clean);
+          return true;
+        }
+        return false;
+      } catch (e) {
+        if (!isRpcMissing(e)) {
+          debugPrint('ForumRepository updateReplyMessage skipped: $e');
+          return false;
+        }
+        debugPrint('ForumRepository self-edit RPC missing — legacy fallback.');
+      }
+    }
     try {
       await Supabase.instance.client
           .from(repliesTable)
@@ -682,15 +1108,36 @@ class ForumRepository {
     }
   }
 
-  /// Deletes your own post and its replies (fix #4). Replies are removed
-  /// first so tables without ON DELETE CASCADE stay consistent.
-  /// Returns true when deleted. Never throws.
+  /// Deletes your own post and its replies (fix #4). No time limit.
+  /// Device-id-verified RPC first, direct-table fallback while the
+  /// project is unmigrated. Optimistic: restores + false when the delete
+  /// fails. Never throws.
   Future<bool> deletePost(String postId) async {
     if (postId.isEmpty) return false;
     if (postId.startsWith('msg-')) {
       return _deleteCachedPost(postId);
     }
     if (!SupabaseConfig.isConfigured) return false;
+    final deviceId = await ReactionIdentity.deviceId();
+    if (deviceId.isNotEmpty) {
+      try {
+        final ok = (await Supabase.instance.client.rpc(
+              'pakikiramay_delete_message',
+              params: {'p_id': postId, 'p_device_id': deviceId},
+            ).timeout(const Duration(seconds: 8))) as bool?;
+        if (ok ?? false) {
+          await _deleteCachedPost(postId);
+          return true;
+        }
+        return false;
+      } catch (e) {
+        if (!isRpcMissing(e)) {
+          debugPrint('ForumRepository deletePost skipped: $e');
+          return false;
+        }
+        debugPrint('ForumRepository self-delete RPC missing — legacy fallback.');
+      }
+    }
     try {
       final client = Supabase.instance.client;
       await client
@@ -711,8 +1158,8 @@ class ForumRepository {
     }
   }
 
-  /// Deletes your own reply (fix #4). Returns true when deleted.
-  /// Never throws.
+  /// Deletes your own reply (fix #4). Device-id-verified RPC first,
+  /// direct-table fallback while the project is unmigrated. Never throws.
   Future<bool> deleteReply({
     required String postId,
     required String replyId,
@@ -722,6 +1169,30 @@ class ForumRepository {
       return _deleteCachedReply(postId, replyId);
     }
     if (!SupabaseConfig.isConfigured) return false;
+    final deviceId = await ReactionIdentity.deviceId();
+    if (deviceId.isNotEmpty) {
+      try {
+        final ok = (await Supabase.instance.client.rpc(
+              'pakikiramay_delete_reply',
+              params: {
+                'p_id': replyId,
+                'p_post_id': postId,
+                'p_device_id': deviceId,
+              },
+            ).timeout(const Duration(seconds: 8))) as bool?;
+        if (ok ?? false) {
+          await _deleteCachedReply(postId, replyId);
+          return true;
+        }
+        return false;
+      } catch (e) {
+        if (!isRpcMissing(e)) {
+          debugPrint('ForumRepository deleteReply skipped: $e');
+          return false;
+        }
+        debugPrint('ForumRepository self-delete RPC missing — legacy fallback.');
+      }
+    }
     try {
       await Supabase.instance.client
           .from(repliesTable)

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:nita/controllers/forum_controller.dart';
+import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/data/forum/forum_repository.dart';
 import 'package:nita/data/forum/reaction_identity.dart';
@@ -286,7 +287,7 @@ void main() {
       expect(await repo.fetchLikerNames('msg-temp'), isEmpty);
     });
 
-    testWidgets('online author shows presence dot, offline does not', (
+    testWidgets('online author shows green dot, offline a faint away dot', (
       tester,
     ) async {
       ForumPost post({required String author}) => ForumPost(
@@ -342,6 +343,17 @@ void main() {
               (w.decoration as BoxDecoration).color == const Color(0xFF1F9D55),
         ),
         findsNothing,
+      );
+      // The away dot is drawn instead — same slot, faint warm gray.
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Container &&
+              w.decoration is BoxDecoration &&
+              (w.decoration as BoxDecoration).color ==
+                  AppColors.muted.withValues(alpha: 0.45),
+        ),
+        findsOneWidget,
       );
     });
 
