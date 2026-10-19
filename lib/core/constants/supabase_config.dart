@@ -7,6 +7,9 @@
 /// 4. Copy "publishable / anon" key (sb_publishable_...) -> _defaultKey
 /// 5. Save + `flutter run -d chrome` (no extra flags).
 /// --dart-define still wins if supplied. Unconfigured = local-only.
+
+library;
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseConfig {

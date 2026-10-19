@@ -17,8 +17,10 @@ import 'package:nita/widgets/ornament_divider.dart';
 import 'package:nita/widgets/pulsing_diamond.dart';
 import 'package:nita/widgets/splash_video_backdrop.dart';
 
-/// Splash screen shown on app launch. Waits for a tap before opening
-/// [AppRoutes.home] — nothing happens on its own.
+/// Splash screen shown on app launch. Always the first screen: it waits for
+/// a tap, then shows the visitor form (name + address) for a new device, or
+/// opens [AppRoutes.home] directly for a remembered one. Nothing happens on
+/// its own.
 ///
 /// The first screen speaks the memorial's own language: the dark warm
 /// ground and brand bar, a muted looping video clip behind everything, the
@@ -57,6 +59,11 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   /// True once the splash clip's first frame is up; drives the legibility
   /// scrim so the painted fallback keeps its own look before then.
   bool _videoReady = false;
+
+  /// True once the splash has been tapped. The visitor form only appears
+  /// after that tap — the splash is always the first thing a visitor sees,
+  /// even on a brand-new device.
+  bool _gateRequested = false;
 
   /// Visitor gate state: required name + address, asked once per device.
   /// Returning visitors (saved locally) skip the form entirely.
@@ -124,9 +131,9 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     _checkVisitor();
   }
 
-  /// Remember-me: returning devices skip the gate and enter on tap; new
-  /// visitors must complete the form first. The splash never advances on
-  /// its own — it waits for a tap (or the form's submit).
+  /// Remember-me: returning devices go straight to home on tap; new
+  /// visitors get the form after the tap. The splash never advances on its
+  /// own — it waits for a tap (or the form's submit).
   Future<void> _checkVisitor() async {
     bool hasVisitor = false;
     try {
@@ -148,6 +155,10 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
       _hasVisitor = hasVisitor;
     });
     debugPrint('SplashGate: hasVisitor=$hasVisitor');
+    // A tap landed while the check was still running: now that we know
+    // which path applies, take it (home for a remembered visitor, form
+    // for a new one — the latter appears via [showGate]).
+    if (_gateRequested && hasVisitor) _navigate();
   }
 
   /// Debug-only: clears the remembered visitor so the gate can be
@@ -174,6 +185,16 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     if (!mounted || _navigated) return;
     setState(() => _hasVisitor = true);
     _navigate();
+  }
+
+  /// Splash tap: the visitor's first interaction. Remembered devices enter
+  /// straight away; everyone else gets the name/address form. If the local
+  /// prefs check is still in flight, the tap is recorded and the check
+  /// decides which path to take when it resolves.
+  void _onSplashTapped() {
+    if (!mounted || _navigated || _gateRequested) return;
+    setState(() => _gateRequested = true);
+    if (!_checkingVisitor && _hasVisitor) _navigate();
   }
 
   void _navigate() {
@@ -222,7 +243,10 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
-    final showGate = !_checkingVisitor && !_hasVisitor;
+    // The form is a second step: it only exists after the splash is tapped
+    // (and only once the local remember-me check has resolved). Returning
+    // devices go straight to home instead (see _onSplashTapped).
+    final showGate = _gateRequested && !_checkingVisitor && !_hasVisitor;
     const grandmother = HomeController.grandmother;
 
     return Scaffold(
@@ -238,7 +262,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
               button: true,
               hint: showGate ? null : lang.t('splash_tap'),
               child: GestureDetector(
-                onTap: _navigate,
+                onTap: _onSplashTapped,
                 behavior: HitTestBehavior.opaque,
                 child: Stack(
                   children: [
@@ -503,16 +527,7 @@ class _SplashContent extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                tapHint,
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 11,
-                  color: AppColors.gold.withValues(alpha: 0.75),
-                  letterSpacing: 3,
-                  fontWeight: FontWeight.w300,
-                ),
-              ),
+              _BreathingTapHint(text: tapHint),
               const SizedBox(height: 12),
               const PulsingDiamond(),
             ],
@@ -612,6 +627,100 @@ class _GateCardEntrance extends StatelessWidget {
         ),
       ),
       child: child,
+    );
+  }
+}
+
+/// The "touch to enter" hint, breathing slowly so it reads as an invitation
+/// rather than a caption over the moving clip.
+///
+/// One controller drives three properties together — gold alpha, a soft glow
+/// and a slight swell — so the whole hint pulses as a single heartbeat. The
+/// cycle is kept close to [PulsingDiamond]'s below it so the two read as one
+/// beat rather than two competing rhythms.
+///
+/// Reduced motion holds the hint at its peak glow: fully legible, still gold,
+/// just not moving.
+class _BreathingTapHint extends StatefulWidget {
+  const _BreathingTapHint({required this.text});
+
+  final String text;
+
+  /// Rest and peak values for the breath. Rest stays well above invisible so
+  /// the hint never fully disappears between beats.
+  static const _restAlpha = 0.55;
+  static const _peakAlpha = 1.0;
+
+  @override
+  State<_BreathingTapHint> createState() => _BreathingTapHintState();
+}
+
+class _BreathingTapHintState extends State<_BreathingTapHint>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1600),
+  );
+
+  /// Eased 0..1 breath, shared by alpha, glow and scale.
+  late final Animation<double> _breath = CurvedAnimation(
+    parent: _ctrl,
+    curve: Curves.easeInOut,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (animationsDisabled()) {
+      // Static peak: legible gold, no loop.
+      _ctrl.value = 1.0;
+    } else {
+      _ctrl.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Nothing to hint at while the gate form owns the screen.
+    if (widget.text.isEmpty) return const SizedBox.shrink();
+
+    return AnimatedBuilder(
+      animation: _breath,
+      builder: (context, child) {
+        final t = _breath.value;
+        final alpha = _BreathingTapHint._restAlpha +
+            (_BreathingTapHint._peakAlpha - _BreathingTapHint._restAlpha) * t;
+        final glow = 0.15 + 0.30 * t;
+        return Transform.scale(
+          scale: 1.0 + 0.06 * t,
+          child: Text(
+            widget.text,
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 11,
+              color: AppColors.gold.withValues(alpha: alpha),
+              letterSpacing: 3,
+              fontWeight: FontWeight.w300,
+              shadows: [
+                Shadow(
+                  color: AppColors.gold.withValues(alpha: glow),
+                  blurRadius: 5 + 7 * t,
+                ),
+                Shadow(
+                  color: AppColors.paleGold.withValues(alpha: glow * 0.7),
+                  blurRadius: 10 + 12 * t,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

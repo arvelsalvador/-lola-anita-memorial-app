@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -108,7 +109,10 @@ void main() {
     // the real test viewport instead of a hardcoded guess.
     final viewportHeight =
         tester.view.physicalSize.height / tester.view.devicePixelRatio;
-    final expandedHeight = (viewportHeight * 0.50).clamp(460.0, 580.0);
+    final expandedHeight = math.min(
+      (viewportHeight * 0.50).clamp(460.0, 580.0),
+      math.max(0.0, viewportHeight - 120),
+    );
 
     // The visible (Story) page's scroll offset.
     double storyPixels() {
@@ -180,4 +184,3 @@ void main() {
     expect(_heroHeight(tester), greaterThan(0));
   });
 }
-

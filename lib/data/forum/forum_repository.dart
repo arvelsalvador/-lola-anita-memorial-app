@@ -1,39 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:nita/core/constants/supabase_config.dart';
-import 'package:nita/data/forum/admin_pin.dart';
-import 'package:nita/data/forum/reaction_identity.dart';
-import 'package:nita/data/forum/spam_guard.dart';
+import 'package:nita/data/security/admin_pin.dart';
+import 'package:nita/data/security/reaction_identity.dart';
+import 'package:nita/data/security/spam_guard.dart';
+import 'package:nita/models/admin_report_model.dart';
 import 'package:nita/models/forum_post_model.dart';
-
-/// Outcome of a moderation-report submit, so the UI can tell
-/// "already reported" apart from a real failure (e.g. duplicate
-/// unique violation after reinstall, vs offline).
-enum ReportSubmitOutcome { saved, alreadyReported, failed }
-
-/// One row from `pakikiramay_reports` for the family admin page.
-class AdminReportRow {
-  final String id;
-  final String targetId;
-  final String targetKind; // 'post' | 'reply'
-  final String reason;
-  final String details;
-  final String reporterName;
-  final DateTime createdAt;
-
-  const AdminReportRow({
-    required this.id,
-    required this.targetId,
-    required this.targetKind,
-    required this.reason,
-    required this.details,
-    required this.reporterName,
-    required this.createdAt,
-  });
-}
 
 /// Public board repository (Field 2) directly connected to Supabase.
 ///
@@ -51,6 +25,16 @@ class AdminReportRow {
 ///   can never bypass PIN or device verification.
 class ForumRepository {
   const ForumRepository();
+
+  /// Temp (local-only) id sequence. Millisecond timestamps alone collide
+  /// when two messages are written in the same millisecond, and the
+  /// cache's read-modify-write then drops the earlier row — so every temp
+  /// id also carries a monotonic counter. The prefix still marks the row
+  /// as local-only (msg-/reply- checks elsewhere keep working).
+  static int _tempSeq = 0;
+
+  static String _tempId(String prefix) =>
+      '$prefix-${DateTime.now().millisecondsSinceEpoch}-${_tempSeq++}';
 
   static const String _cachedPostsKey = 'memorial_db_posts_cache_v1';
   static const String _userReactionsKey = 'memorial_user_reactions_v1';
@@ -252,7 +236,7 @@ class ForumRepository {
     // Spam layer 2: blocklist — never store or send blocked content.
     if (SpamGuard.containsBlockedWords(cleanMessage)) return null;
 
-    final tempId = 'msg-${DateTime.now().millisecondsSinceEpoch}';
+    final tempId = _tempId('msg');
     final now = DateTime.now();
 
     ForumPost newPost = ForumPost(
@@ -328,7 +312,7 @@ class ForumRepository {
     // Spam layer 2: blocklist — never store or send blocked content.
     if (SpamGuard.containsBlockedWords(cleanMessage)) return null;
 
-    final tempId = 'reply-${DateTime.now().millisecondsSinceEpoch}';
+    final tempId = _tempId('reply');
     ForumReply newReply = ForumReply(
       id: tempId,
       postId: postId,

@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:nita/core/constants/supabase_config.dart';
-import 'package:nita/data/forum/admin_pin.dart';
+import 'package:nita/data/security/admin_pin.dart';
+import 'package:nita/models/admin_visitor_model.dart';
 
 /// Visitor log for the splash gate: name + full address, required once.
 ///
@@ -254,19 +254,3 @@ class VisitorRepository {
   }
 }
 
-/// One row from `visitors` for the family admin page.
-class AdminVisitor {
-  final String id;
-  final String name;
-  final String address;
-  final String lang;
-  final DateTime createdAt;
-
-  const AdminVisitor({
-    required this.id,
-    required this.name,
-    required this.address,
-    required this.lang,
-    required this.createdAt,
-  });
-}

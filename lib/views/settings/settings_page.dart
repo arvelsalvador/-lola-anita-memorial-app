@@ -1,24 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:nita/core/constants/app_constants.dart';
-import 'package:nita/core/constants/supabase_config.dart';
 import 'package:nita/core/utils/image_decode.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/core/utils/navigation.dart';
-import 'package:nita/data/admin/admin_audit_log.dart';
-import 'package:nita/data/condolences/condolence_repository.dart';
-import 'package:nita/data/forum/admin_pin.dart';
-import 'package:nita/data/forum/forum_repository.dart';
-import 'package:nita/data/visitors/visitor_repository.dart';
-import 'package:nita/models/forum_post_model.dart';
 import 'package:nita/widgets/abuloy_touch.dart';
 import 'package:nita/widgets/ornamental_card.dart';
+import 'package:nita/views/admin/admin_page.dart';
+import 'package:nita/views/guide/guide_page.dart';
 
 part 'settings_about.dart';
 part 'settings_developer.dart';
-part 'settings_reports_admin.dart';
 
 /// One row in the settings menu.
 class _SettingEntry {
@@ -27,12 +19,18 @@ class _SettingEntry {
   final String titleKey;
   final String descKey;
   final WidgetBuilder page;
+
+  /// Whether the page needs the app to stay visible underneath. The guide
+  /// dims it with a translucent scrim instead of a solid background.
+  final bool translucent;
+
   const _SettingEntry({
     required this.icon,
     required this.iconColor,
     required this.titleKey,
     required this.descKey,
     required this.page,
+    this.translucent = false,
   });
 }
 
@@ -43,6 +41,14 @@ List<_SettingEntry> _entriesFor(
   VoidCallback? onViewFamily,
   ValueChanged<int>? onOpenTab,
 ) => [
+  _SettingEntry(
+    icon: Icons.menu_book_outlined,
+    iconColor: AppColors.roseDeep,
+    titleKey: 'guide_settings_title',
+    descKey: 'guide_settings_desc',
+    page: (_) => const GuidePage(),
+    translucent: true,
+  ),
   _SettingEntry(
     icon: Icons.person_outline_rounded,
     iconColor: AppColors.gold,
@@ -126,193 +132,202 @@ class _SettingsPageState extends State<SettingsPage> {
       body: AbuloyTouchScope(
         child: LayoutBuilder(
           builder: (context, viewport) => SingleChildScrollView(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 640),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-                child: ConstrainedBox(
-                  // Fill the viewport so the footer rests at the bottom
-                  // on tall screens, scrolling naturally when crowded.
-                  constraints: BoxConstraints(
-                    minHeight: viewport.maxHeight - 44,
-                  ),
-                  child: Column(
-                    children: [
-                      _SearchBar(
-                        controller: _searchController,
-                        hint: lang.t('settings_search_hint'),
-                        onChanged: (v) => setState(() => _query = v),
-                        onClear: () {
-                          _searchController.clear();
-                          setState(() => _query = '');
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      if (visible.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 32),
-                          child: Text(
-                            lang.t('settings_search_empty'),
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 13,
-                              color: AppColors.muted,
-                            ),
-                          ),
-                        )
-                      else
-                        OrnamentalCard(
-                          radius: 12,
-                          borderColor: AppColors.gold,
-                          borderAlpha: 0.2,
-                          borderWidth: 0.6,
-                          shadowOpacity: 0.06,
-                          clipBehavior: Clip.antiAlias,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  20,
-                                  18,
-                                  20,
-                                  6,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      lang.t('settings_menu_title'),
-                                      style: const TextStyle(
-                                        fontSize: 17,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.textDark,
-                                        fontFamily: 'Inter',
-                                        fontFamilyFallback: [
-                                          'Times New Roman',
-                                          'serif',
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Container(
-                                      width: 28,
-                                      height: 2,
-                                      decoration: BoxDecoration(
-                                        color: AppColors.gold.withValues(
-                                          alpha: 0.7,
-                                        ),
-                                        borderRadius: BorderRadius.circular(2),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 640),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                  child: ConstrainedBox(
+                    // Fill the viewport so the footer rests at the bottom
+                    // on tall screens, scrolling naturally when crowded.
+                    constraints: BoxConstraints(
+                      minHeight: viewport.maxHeight - 44,
+                    ),
+                    child: Column(
+                      children: [
+                        _SearchBar(
+                          controller: _searchController,
+                          hint: lang.t('settings_search_hint'),
+                          onChanged: (v) => setState(() => _query = v),
+                          onClear: () {
+                            _searchController.clear();
+                            setState(() => _query = '');
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        if (visible.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 32),
+                            child: Text(
+                              lang.t('settings_search_empty'),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 13,
+                                color: AppColors.muted,
                               ),
-                              ListView.separated(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemCount: visible.length,
-                                separatorBuilder: (context, _) => Divider(
-                                  height: 1,
-                                  thickness: 1,
-                                  indent: 66,
-                                  endIndent: 0,
-                                  color: AppColors.muted.withValues(
-                                    alpha: 0.15,
+                            ),
+                          )
+                        else
+                          OrnamentalCard(
+                            radius: 12,
+                            borderColor: AppColors.gold,
+                            borderAlpha: 0.2,
+                            borderWidth: 0.6,
+                            shadowOpacity: 0.06,
+                            clipBehavior: Clip.antiAlias,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    20,
+                                    18,
+                                    20,
+                                    6,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        lang.t('settings_menu_title'),
+                                        style: const TextStyle(
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.textDark,
+                                          fontFamily: 'Inter',
+                                          fontFamilyFallback: [
+                                            'Times New Roman',
+                                            'serif',
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Container(
+                                        width: 28,
+                                        height: 2,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.gold.withValues(
+                                            alpha: 0.7,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            2,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                itemBuilder: (context, i) {
-                                  final entry = visible[i];
-                                  return ListTile(
-                                    leading: Container(
-                                      width: 40,
-                                      height: 40,
-                                      decoration: BoxDecoration(
-                                        color: entry.iconColor.withValues(
-                                          alpha: 0.12,
+                                ListView.separated(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  itemCount: visible.length,
+                                  separatorBuilder: (context, _) => Divider(
+                                    height: 1,
+                                    thickness: 1,
+                                    indent: 66,
+                                    endIndent: 0,
+                                    color: AppColors.muted.withValues(
+                                      alpha: 0.15,
+                                    ),
+                                  ),
+                                  itemBuilder: (context, i) {
+                                    final entry = visible[i];
+                                    return ListTile(
+                                      leading: Container(
+                                        width: 40,
+                                        height: 40,
+                                        decoration: BoxDecoration(
+                                          color: entry.iconColor.withValues(
+                                            alpha: 0.12,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
                                         ),
-                                        borderRadius: BorderRadius.circular(12),
+                                        child: Icon(
+                                          entry.icon,
+                                          size: 20,
+                                          color: entry.iconColor,
+                                        ),
                                       ),
-                                      child: Icon(
-                                        entry.icon,
-                                        size: 20,
-                                        color: entry.iconColor,
-                                      ),
-                                    ),
-                                    title: Text(
-                                      lang.t(entry.titleKey),
-                                      style: const TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.textDark,
-                                        fontFamily: 'Inter',
-                                        fontFamilyFallback: [
-                                          'Times New Roman',
-                                          'serif',
-                                        ],
-                                      ),
-                                    ),
-                                    subtitle: Padding(
-                                      padding: const EdgeInsets.only(top: 2),
-                                      child: Text(
-                                        lang.t(entry.descKey),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
+                                      title: Text(
+                                        lang.t(entry.titleKey),
                                         style: const TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.textDark,
                                           fontFamily: 'Inter',
-                                          fontSize: 12,
-                                          color: AppColors.muted,
-                                          height: 1.4,
+                                          fontFamilyFallback: [
+                                            'Times New Roman',
+                                            'serif',
+                                          ],
                                         ),
                                       ),
-                                    ),
-                                    trailing: const Icon(
-                                      Icons.chevron_right_rounded,
-                                      size: 24,
-                                      color: AppColors.muted,
-                                    ),
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 20,
-                                      vertical: 4,
-                                    ),
-                                    horizontalTitleGap: 14,
-                                    onTap: () => Navigator.of(
-                                      context,
-                                    ).push(fadeRoute(entry.page(context))),
-                                  );
-                                },
-                              ),
-                            ],
+                                      subtitle: Padding(
+                                        padding: const EdgeInsets.only(top: 2),
+                                        child: Text(
+                                          lang.t(entry.descKey),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontFamily: 'Inter',
+                                            fontSize: 12,
+                                            color: AppColors.muted,
+                                            height: 1.4,
+                                          ),
+                                        ),
+                                      ),
+                                      trailing: const Icon(
+                                        Icons.chevron_right_rounded,
+                                        size: 24,
+                                        color: AppColors.muted,
+                                      ),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 20,
+                                            vertical: 4,
+                                          ),
+                                      horizontalTitleGap: 14,
+                                      onTap: () => Navigator.of(context).push(
+                                        fadeRoute(
+                                          entry.page(context),
+                                          opaque: !entry.translucent,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      const SizedBox(height: 32),
-                      const SizedBox(height: 24),
-                      GestureDetector(
-                        onTap: _onFooterTap,
-                        behavior: HitTestBehavior.opaque,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: Text(
-                            'Nanay Anita · ${lang.t('settings_about_app_version')}',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 11.5,
-                              color: AppColors.muted,
+                        const SizedBox(height: 32),
+                        const SizedBox(height: 24),
+                        GestureDetector(
+                          onTap: _onFooterTap,
+                          behavior: HitTestBehavior.opaque,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Text(
+                              'Nanay Anita · ${lang.t('settings_about_app_version')}',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 11.5,
+                                color: AppColors.muted,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
           ),
         ),
-      ),
       ),
     );
   }

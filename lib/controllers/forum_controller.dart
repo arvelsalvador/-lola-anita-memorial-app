@@ -7,10 +7,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:nita/core/constants/supabase_config.dart';
 import 'package:nita/data/forum/forum_repository.dart';
-import 'package:nita/data/forum/own_ids.dart';
-import 'package:nita/data/forum/reaction_identity.dart';
-import 'package:nita/data/forum/spam_guard.dart';
+import 'package:nita/data/security/own_ids.dart';
+import 'package:nita/data/security/reaction_identity.dart';
+import 'package:nita/data/security/spam_guard.dart';
 import 'package:nita/data/visitors/visitor_repository.dart';
+import 'package:nita/models/admin_report_model.dart';
 import 'package:nita/models/forum_post_model.dart';
 
 /// Controller for the community messages, memories, and condolences board.
@@ -54,6 +55,11 @@ class ForumController extends ChangeNotifier {
   Set<String> _ownPostIds = {};
   Set<String> _ownReplyIds = {};
   bool _ownLoaded = false;
+  // Completes once the persisted own-ids load has landed. Adoption waits
+  // on it: the load assigns the sets from disk, so a claim made before it
+  // finished would be silently overwritten and the post would lose its
+  // Edit/Delete rights until the next install.
+  final Completer<void> _ownIdsReady = Completer<void>();
   // Fix #3: guards so pending uploads retry once per fetch / resend tap,
   // never looping or double-inserting while a retry is in flight.
   bool _retryingPendingSync = false;
@@ -131,7 +137,12 @@ class ForumController extends ChangeNotifier {
       _ownPostIds = await OwnIds.loadPosts();
       _ownReplyIds = await OwnIds.loadReplies();
       if (!_disposed) notifyListeners();
-    } catch (_) {}
+    } catch (_) {
+      // Unreadable prefs: keep the empty sets, ownership still works for
+      // posts created in this session.
+    } finally {
+      if (!_ownIdsReady.isCompleted) _ownIdsReady.complete();
+    }
   }
 
   /// One-time backfill: claims loaded posts/replies whose author matches
@@ -140,6 +151,8 @@ class ForumController extends ChangeNotifier {
   /// gate-name change never un-claims them. Never throws.
   Future<void> _adoptOwnByGateName() async {
     try {
+      // Never claim ids before the on-disk load has replaced the sets.
+      await _ownIdsReady.future;
       final name = (await _localDisplayName()).trim();
       // _localDisplayName falls back to 'Anonymous' when the gate was
       // never completed — adopting that would claim strangers' posts.

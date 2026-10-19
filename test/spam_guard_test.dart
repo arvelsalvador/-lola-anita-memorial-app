@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:nita/data/forum/spam_guard.dart';
+import 'package:nita/data/security/spam_guard.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

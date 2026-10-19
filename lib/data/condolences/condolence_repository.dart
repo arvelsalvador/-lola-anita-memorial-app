@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:nita/core/constants/supabase_config.dart';
-import 'package:nita/data/forum/admin_pin.dart';
+import 'package:nita/data/security/admin_pin.dart';
+import 'package:nita/models/admin_candle_message_model.dart';
 
 /// Private mensahe saver for the candle (Field 1): name (from splash
 /// gate) + message, stored in `candle_messages`.
@@ -149,17 +149,3 @@ class CondolenceRepository {
   }
 }
 
-/// One row from `candle_messages` for the family admin page.
-class AdminCandleMessage {
-  final String id;
-  final String name;
-  final String message;
-  final DateTime createdAt;
-
-  const AdminCandleMessage({
-    required this.id,
-    required this.name,
-    required this.message,
-    required this.createdAt,
-  });
-}

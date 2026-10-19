@@ -32,10 +32,18 @@ import 'package:nita/widgets/ornament_divider.dart';
 import 'package:nita/widgets/ornamental_card.dart';
 import 'package:nita/widgets/section_label.dart';
 import 'package:nita/data/visitors/visitor_repository.dart';
+import 'package:nita/data/guide/guide_repository.dart';
+import 'package:nita/views/guide/guide_page.dart';
 
 part 'home_hero_header.dart';
 part 'home_story_memories.dart';
 part 'home_effects.dart';
+
+/// Room kept below the memorial hero on the non-scrolling body: the top
+/// bar plus a readable strip of the content panel. The hero may never
+/// take more than the viewport minus this, so a short landscape phone
+/// cannot push the panel off-screen.
+const double _heroReservedExtent = 120;
 
 /// The Home tab: the app shell (top bar, collapsing memorial hero, the five
 /// page tabs, floating bottom nav) plus the Story tab content (quote,
@@ -67,6 +75,11 @@ class _HomePageState extends State<HomePage> {
   bool _gateChecked = false;
   bool _redirectingToSplash = false;
 
+  // First-run guide: checked once, after the gate resolves. The flag keeps
+  // rebuilds from scheduling a second route.
+  final GuideRepository _guideRepo = const GuideRepository();
+  bool _guideCheckStarted = false;
+
   @override
   void initState() {
     super.initState();
@@ -90,14 +103,36 @@ class _HomePageState extends State<HomePage> {
       _redirectingToSplash = true;
       final currentRoute = ModalRoute.of(context)?.settings.name;
       if (currentRoute != AppRoutes.splash) {
-        if (Navigator.of(context).canPop()) {
-          Navigator.of(context).popUntil((route) => route.isFirst);
-        }
-        Navigator.pushReplacementNamed(context, AppRoutes.splash);
+        // Replace the entire stack, not just the top route: a deep link
+        // starts on '/' (splash) with '/home' pushed above it, so popping
+        // first would leave two splash routes behind the gate. One splash,
+        // nothing underneath — the splash is always the start of the flow.
+        Navigator.of(
+          context,
+        ).pushNamedAndRemoveUntil(AppRoutes.splash, (route) => false);
       }
       return;
     }
     setState(() => _gateChecked = true);
+    _maybeShowGuide();
+  }
+
+  /// Opens the illustrated guide once per device, after the gate has let the
+  /// visitor in. Runs in a post-frame callback so it never pushes a route
+  /// during build, and checks that Home is still the current route so a fast
+  /// `?` tap (or a settings push) can't stack a second guide.
+  void _maybeShowGuide() {
+    if (_guideCheckStarted) return;
+    _guideCheckStarted = true;
+    _guideRepo.hasSeen().then((seen) {
+      if (!mounted || seen) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final route = ModalRoute.of(context);
+        if (route != null && !route.isCurrent) return;
+        Navigator.of(context).push(fadeRoute(const GuidePage(), opaque: false));
+      });
+    });
   }
 
   void _onTabChanged() {
@@ -319,7 +354,16 @@ class _HomeShellState extends State<HomeShell> {
     // Taller hero = bigger portrait: home_hero_header sizes the portrait
     // from whatever height is left after its fixed text blocks, so the
     // 150px cap there is only reached once this passes ~455.
-    final expandedHeight = (screenHeight * 0.50).clamp(460.0, 580.0);
+    // The hero shares a non-scrolling Column with the top bar and the
+    // content panel, which is the only flexible child. On short viewports
+    // (landscape phones, ~360px) the 460 floor would leave the panel no
+    // room at all and overflow the Column, so the hero is also capped at
+    // [_heroReservedExtent] below the screen. Phones tall enough for the
+    // 460-580 design range are unaffected.
+    final expandedHeight = math.min(
+      (screenHeight * 0.50).clamp(460.0, 580.0),
+      math.max(0.0, screenHeight - _heroReservedExtent),
+    );
     final onStoryTab = widget.selectedTab == 0;
 
     return Scaffold(
@@ -520,6 +564,10 @@ class _TopBarState extends State<_TopBar> {
 
     return AppBrandBar(
       greeting: greeting,
+      helpTooltip: lang.t('guide_help_tooltip'),
+      onHelpTap: () {
+        Navigator.of(context).push(fadeRoute(const GuidePage(), opaque: false));
+      },
       onSettingsTap: () {
         Navigator.of(context).push(
           fadeRoute(

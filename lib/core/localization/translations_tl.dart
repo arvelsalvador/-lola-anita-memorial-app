@@ -26,7 +26,8 @@ const Map<String, String> translationsTl = {
   'visitor_address_label': 'Address',
   'visitor_enter': 'Pumasok',
   'visitor_sending': 'Pumapasok…',
-  'visitor_required': 'Pakilagay ang iyong pangalan at address upang magpatuloy.',
+  'visitor_required':
+      'Pakilagay ang iyong pangalan at address upang magpatuloy.',
   'visitor_address_required': 'Pakilagay ang iyong address upang magpatuloy.',
   'visitor_address_invalid': 'Pakilagay ang kumpletong address (min 3 letra).',
   'visitor_privacy_candle':
@@ -121,7 +122,8 @@ const Map<String, String> translationsTl = {
   'admin_report_dismissed': 'Na-dismiss ang reports.',
   'admin_report_action_failed': 'Nabigo ang aksyon. Subukan ulit.',
   'admin_delete_confirm_title': 'Burahin ang mensaheng ito?',
-  'admin_delete_confirm_body': 'Mawawala ito sa lahat. Hindi na ito maibabalik.',
+  'admin_delete_confirm_body':
+      'Mawawala ito sa lahat. Hindi na ito maibabalik.',
   'admin_dismiss_confirm_title': 'I-dismiss ang reports?',
   'admin_dismiss_confirm_body': 'Mananatili ang mensahe, mabubura ang reports.',
   'admin_confirm_delete': 'Burahin',
@@ -590,8 +592,7 @@ const Map<String, String> translationsTl = {
   'candle_message_thanks': 'Nakarating kay Nanay ang iyong mensahe 🕊️',
   'candle_message_required':
       'Pakimensahe para kay Nanay bago sindihan ang kandila.',
-  'candle_message_too_long':
-      'Pakiklihan ang mensahe sa 500 letra lang.',
+  'candle_message_too_long': 'Pakiklihan ang mensahe sa 500 letra lang.',
   'candle_name_title': 'Ano ang pangalan mo?',
   'candle_name_hint': 'Ang iyong pangalan…',
   'candle_name_required': 'Pakilagay ang iyong pangalan upang makapagsindi.',
@@ -679,19 +680,20 @@ const Map<String, String> translationsTl = {
   'forum_reply_sheet_title': 'Mga Tugon',
   'forum_like': 'React',
   'forum_likers_title': 'Mga Nag-like',
-  'forum_likers_empty': 'Wala pang nag-like — pindutin ang puso para maging una.',
+  'forum_likers_empty':
+      'Wala pang nag-like — pindutin ang puso para maging una.',
   'forum_require_content': 'Pakisulat ang mensahe bago mag-post.',
   'forum_require_name': 'Pakilagay ang iyong pangalan.',
   'forum_send_failed': 'Hindi na-send. Napanatili ang text mo, subukan ulit.',
   'forum_throttle_post': 'Sandali lang — 1 minuto bago mag-post ulit.',
   'forum_throttle_reply': 'Sandali lang — 20 segundo bago tumugon ulit.',
-  'forum_blocked_message':
-      'May hindi angkop na salita. Pakibago ang mensahe.',
+  'forum_blocked_message': 'May hindi angkop na salita. Pakibago ang mensahe.',
   'forum_show_more': 'Ipakita pa ({remaining} pa)',
   'forum_show_more_short': 'See more',
   'forum_report': 'Report',
   'forum_report_title': 'I-report ang mensahe',
-  'forum_report_subtitle': 'Sabihin sa pamilya kung bakit may problema ang mensaheng ito.',
+  'forum_report_subtitle':
+      'Sabihin sa pamilya kung bakit may problema ang mensaheng ito.',
   'forum_report_reason_profanity': 'Mura o masamang salita',
   'forum_report_reason_inappropriate': 'Hindi angkop',
   'forum_report_reason_spam': 'Spam',
@@ -712,7 +714,8 @@ const Map<String, String> translationsTl = {
       'Burahin ang mensaheng ito? Hindi na ito maibabalik.',
   'forum_delete_reply_confirm':
       'Burahin ang tugong ito? Hindi na ito maibabalik.',
-  'forum_delete_failed': 'Hindi nabura. Tingnan ang connection at subukan ulit.',
+  'forum_delete_failed':
+      'Hindi nabura. Tingnan ang connection at subukan ulit.',
   // ── Abuloy / Donasyon (Pakikiramay) ──────────────────────────────────
   'donate_title': 'Abuloy para sa Pamilya',
   'donate_subtitle':
@@ -720,10 +723,10 @@ const Map<String, String> translationsTl = {
   'donate_qr_label': 'I-scan gamit ang GCash para magpadala ng abuloy',
   'donate_number_label': 'GCash number',
   'donate_copy': 'Kopyahin',
-  'donate_copied': 'Nakopya ang number — i-paste sa GCash, tapos ilagay ang amount',
+  'donate_copied':
+      'Nakopya ang number — i-paste sa GCash, tapos ilagay ang amount',
   'donate_open_gcash': 'Buksan ang GCash',
-  'donate_note':
-      'Kusang-loob lamang — diretso sa pamilya ang bawat bigay.',
+  'donate_note': 'Kusang-loob lamang — diretso sa pamilya ang bawat bigay.',
   'donate_missing_qr': 'Parating na ang QR — puwede muna sa number sa ibaba.',
   'donate_close': 'Isara',
   'donate_web_title': 'Nasa browser ka',
@@ -733,4 +736,24 @@ const Map<String, String> translationsTl = {
   'donate_web_step2': '2. I-paste ang number o i-scan ang QR',
   'donate_web_step3': '3. Ilagay ang amount, tapos Send',
   'donate_download_gcash': 'I-download ang GCash',
+  // ── Gabay: ang bar sa itaas, abuloy, at sa ibaba ─────────────────────
+  'guide_help_tooltip': 'Paano gamitin ang app',
+  'guide_settings_title': 'Paano gamitin ang app',
+  'guide_settings_desc': 'Panoorin muli ang maikling gabay anumang oras.',
+  'guide_topbar_title': 'Kilalanin ang bar sa itaas',
+  'guide_topbar_body':
+      'Pindutin ang button ng wika (TL / BC / EN) para magpalit ng wika. '
+      'Ang gear ay nagbubukas ng Mga Setting.',
+  'guide_abuloy_title': 'Abuloy, laging abot-kamay',
+  'guide_abuloy_body':
+      'Pindutin ang gintong button para makita ang GCash details para sa '
+      'abuloy. Puwede itong i-drag kahit saan.',
+  'guide_nav_title': 'Kilalanin ang bar sa ibaba',
+  'guide_nav_body':
+      'Pindutin ang isang tab para lumipat sa Tahanan, Galeri, Pamilya, '
+      'Mga Salita, o Pakikiramay. Nandito lang ito sa ibaba.',
+  'guide_next': 'Susunod',
+  'guide_done': 'Simulan na',
+  'guide_step': 'Hakbang {current} ng {total}',
+  'guide_skip': 'Laktawan',
 };

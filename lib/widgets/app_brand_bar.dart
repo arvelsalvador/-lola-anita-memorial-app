@@ -14,7 +14,18 @@ class AppBrandBar extends StatelessWidget {
   final String? greeting;
   final VoidCallback? onSettingsTap;
 
-  const AppBrandBar({super.key, this.greeting, this.onSettingsTap});
+  /// Optional help entry (the first-run guide). Omitted on the splash, where
+  /// there is no app to explain yet.
+  final VoidCallback? onHelpTap;
+  final String? helpTooltip;
+
+  const AppBrandBar({
+    super.key,
+    this.greeting,
+    this.onSettingsTap,
+    this.onHelpTap,
+    this.helpTooltip,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -123,6 +134,30 @@ class AppBrandBar extends StatelessWidget {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        if (onHelpTap != null) ...[
+                          Tooltip(
+                            message: helpTooltip ?? '',
+                            child: Material(
+                              color: Colors.transparent,
+                              shape: const CircleBorder(),
+                              clipBehavior: Clip.antiAlias,
+                              child: InkWell(
+                                customBorder: const CircleBorder(),
+                                onTap: onHelpTap,
+                                child: const SizedBox(
+                                  width: 40,
+                                  height: 40,
+                                  child: Icon(
+                                    Icons.help_outline_rounded,
+                                    size: 20,
+                                    color: AppColors.goldLight,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 2),
+                        ],
                         const LanguageToggle(),
                         if (onSettingsTap != null) ...[
                           const SizedBox(width: 6),

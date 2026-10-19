@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:nita/controllers/forum_controller.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/data/forum/forum_repository.dart';
-import 'package:nita/data/forum/reaction_identity.dart';
+import 'package:nita/data/security/reaction_identity.dart';
 import 'package:nita/views/condolences/forum/likers_sheet.dart';
 import 'package:nita/models/forum_post_model.dart';
 import 'package:nita/views/condolences/forum/forum_post_card.dart';

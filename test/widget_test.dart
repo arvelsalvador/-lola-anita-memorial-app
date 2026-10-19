@@ -21,9 +21,11 @@ void main() {
   });
 
   // Each test starts as a first-time visitor: clear the remembered
-  // name/address so the splash gate always appears.
+  // name/address so the splash gate always appears. The guide is marked
+  // seen so these tests land directly on Home; `guide_test.dart` covers
+  // the unseen first-run flow.
   setUp(() {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({'guide_seen_v4': true});
   });
 
   // Nav taps must be scoped to the nav bar so the Family page's own title
@@ -61,9 +63,14 @@ void main() {
     expect(find.text(text), findsOneWidget);
   }
 
-  // Splash visitor gate: new devices must enter name + address once.
-  // Fills the form and taps Pumasok, ending on the home page.
+  // Splash visitor gate: the splash is always first, then a tap reveals the
+  // form. Fills name + address and taps Pumasok, ending on the home page.
   Future<void> passGate(WidgetTester tester) async {
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    // Step 1: the splash. Tapping it opens the form (or home, when the
+    // visitor is already remembered — the extra tap is then a no-op).
+    await tester.tap(find.byType(SplashPage));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     await tester.enterText(find.byType(TextField).at(0), 'Test Visitor');
@@ -105,6 +112,33 @@ void main() {
     await tester.pump(const Duration(seconds: 8));
   });
 
+  testWidgets('Splash tap hint is shown and breathes', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(const LolaApp());
+    // Past the entrance choreography (the hint fades in last).
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 2200));
+
+    final hint = find.text('Pindutin upang pumasok');
+    expect(hint, findsOneWidget);
+
+    // The breath animates: the glow/alpha at the start of the cycle must
+    // differ from the peak a half-cycle later.
+    TextStyle styleOf() => tester.widget<Text>(hint).style!;
+    final first = styleOf().color!.a;
+    await tester.pump(const Duration(milliseconds: 800));
+    expect(styleOf().color!.a, isNot(equals(first)));
+
+    // Still no navigation: the splash only advances on a tap.
+    expect(find.byType(HomePage), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Visitor gate shows for new visitors, skipped on return', (
     WidgetTester tester,
   ) async {
@@ -112,8 +146,16 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    // Fresh device: gate form + debug reset link are visible.
+    // Fresh device: the splash comes first, with no form on screen yet.
     await tester.pumpWidget(const LolaApp());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(SplashPage), findsOneWidget);
+    expect(find.byType(TextField), findsNothing);
+    expect(find.text('Reset visitor (debug)'), findsNothing);
+
+    // Tapping the splash is what reveals the gate form.
+    await tester.tap(find.byType(SplashPage));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.byType(TextField), findsNWidgets(2));
@@ -142,6 +184,7 @@ void main() {
     // Nothing happens on its own: the splash waits for a tap.
     await tester.pump(const Duration(seconds: 10));
     expect(find.byType(HomePage), findsNothing);
+    expect(find.byType(TextField), findsNothing);
 
     await tester.tap(find.byType(SplashPage));
     await tester.pump();

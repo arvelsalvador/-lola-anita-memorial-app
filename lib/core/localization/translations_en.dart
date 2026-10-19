@@ -117,7 +117,8 @@ const Map<String, String> translationsEn = {
   'admin_report_dismissed': 'Reports dismissed.',
   'admin_report_action_failed': 'Action failed. Try again.',
   'admin_delete_confirm_title': 'Delete this message?',
-  'admin_delete_confirm_body': 'It will be removed for everyone. This cannot be undone.',
+  'admin_delete_confirm_body':
+      'It will be removed for everyone. This cannot be undone.',
   'admin_dismiss_confirm_title': 'Dismiss reports?',
   'admin_dismiss_confirm_body': 'The message stays, reports are cleared.',
   'admin_confirm_delete': 'Delete',
@@ -564,8 +565,7 @@ const Map<String, String> translationsEn = {
   'candle_message_thanks': 'Your message has reached Nanay 🕊️',
   'candle_message_required':
       'Please write your message for Nanay to light a candle.',
-  'candle_message_too_long':
-      'Please keep your message under 500 characters.',
+  'candle_message_too_long': 'Please keep your message under 500 characters.',
   'candle_name_title': 'What is your name?',
   'candle_name_hint': 'Your name…',
   'candle_name_required': 'Please enter your name to light a candle.',
@@ -629,8 +629,7 @@ const Map<String, String> translationsEn = {
   'forum_dialog_title': 'Write a Message',
   'forum_name_hint': 'Your name…',
   'forum_posting_as': 'Posting as {name}',
-  'forum_content_hint':
-      'Share your message, memory, or words of comfort here…',
+  'forum_content_hint': 'Share your message, memory, or words of comfort here…',
   'forum_post_submit': 'Post Message',
   'forum_post_submitting': 'Posting…',
   'forum_filter_all': 'All',
@@ -655,10 +654,8 @@ const Map<String, String> translationsEn = {
   'forum_require_name': 'Please enter your name.',
   'forum_send_failed': 'Could not send. Keep your text and try again.',
   'forum_throttle_post': 'Slow down — wait 1 minute before posting again.',
-  'forum_throttle_reply':
-      'Slow down — wait 20 seconds before replying again.',
-  'forum_blocked_message':
-      'That message has a blocked word. Please edit it.',
+  'forum_throttle_reply': 'Slow down — wait 20 seconds before replying again.',
+  'forum_blocked_message': 'That message has a blocked word. Please edit it.',
   'forum_show_more': 'Show more ({remaining} more)',
   'forum_show_more_short': 'See more',
   'forum_report': 'Report',
@@ -680,10 +677,8 @@ const Map<String, String> translationsEn = {
   'forum_cancel': 'Cancel',
   'forum_discard': 'Discard',
   'forum_save': 'Save',
-  'forum_delete_post_confirm':
-      'Delete this message? This cannot be undone.',
-  'forum_delete_reply_confirm':
-      'Delete this reply? This cannot be undone.',
+  'forum_delete_post_confirm': 'Delete this message? This cannot be undone.',
+  'forum_delete_reply_confirm': 'Delete this reply? This cannot be undone.',
   'forum_delete_failed': 'Could not delete. Check connection and try again.',
   // ── Abuloy / Donation (Pakikiramay) ──────────────────────────────────
   'donate_title': 'Abuloy for the Family',
@@ -704,4 +699,24 @@ const Map<String, String> translationsEn = {
   'donate_web_step2': '2. Paste the number or scan the QR',
   'donate_web_step3': '3. Enter the amount, then Send',
   'donate_download_gcash': 'Download GCash',
+  // ── First-run guide: top bar, Abuloy, and bottom nav ───────────────────
+  'guide_help_tooltip': 'How to use this app',
+  'guide_settings_title': 'How to use this app',
+  'guide_settings_desc': 'See the short guide again, any time.',
+  'guide_topbar_title': 'Meet the top bar',
+  'guide_topbar_body':
+      'Tap the language button (TL / BC / EN) to switch languages. '
+      'The gear opens Settings.',
+  'guide_abuloy_title': 'Abuloy, always within reach',
+  'guide_abuloy_body':
+      'Tap the gold button anytime to see the GCash details for sending '
+      'abuloy. You can drag it anywhere.',
+  'guide_nav_title': 'Meet your navigation bar',
+  'guide_nav_body':
+      'Tap any tab to jump between Home, Gallery, Family, Words, and '
+      'Condolences. It is always here at the bottom.',
+  'guide_next': 'Next',
+  'guide_done': 'Start exploring',
+  'guide_step': 'Step {current} of {total}',
+  'guide_skip': 'Skip',
 };

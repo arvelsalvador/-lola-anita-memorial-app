@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:nita/controllers/forum_controller.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
-import 'package:nita/data/forum/spam_guard.dart';
+import 'package:nita/data/security/spam_guard.dart';
 import 'package:nita/data/visitors/visitor_repository.dart';
 
 /// Simple compose sheet for sharing a message, memory, or condolence.

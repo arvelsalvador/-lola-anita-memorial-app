@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
-import 'package:nita/data/forum/forum_repository.dart';
+import 'package:nita/models/admin_report_model.dart';
 
 /// Bottom sheet for reporting a post or reply.
 ///

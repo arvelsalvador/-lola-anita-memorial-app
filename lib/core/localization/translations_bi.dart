@@ -29,7 +29,8 @@ const Map<String, String> translationsBi = {
   'visitor_address_label': 'Address',
   'visitor_enter': 'Laog',
   'visitor_sending': 'Nagalaog…',
-  'visitor_required': 'Pakisabi an saimong pangaran asin address tanganing makalaog.',
+  'visitor_required':
+      'Pakisabi an saimong pangaran asin address tanganing makalaog.',
   'visitor_address_required': 'Pakisabi an saimong address tanganing makalaog.',
   'visitor_address_invalid': 'Pakisabi an kompletong address (min 3 letra).',
   'visitor_privacy_candle':
@@ -105,7 +106,8 @@ const Map<String, String> translationsBi = {
   'settings_search_hint': 'Maghanap nin setting...',
   'settings_search_empty': 'Mayong nahanap na setting.',
   'admin_pin_title': 'Access kan pamilya',
-  'admin_pin_subtitle': 'Ilaog an PIN kan pamilya tanganing repasuhon an reports.',
+  'admin_pin_subtitle':
+      'Ilaog an PIN kan pamilya tanganing repasuhon an reports.',
   'admin_pin_hint': 'PIN',
   'admin_pin_wrong': 'Salang PIN. Utruhon.',
   'admin_pin_open': 'Buksan',
@@ -588,11 +590,11 @@ const Map<String, String> translationsBi = {
   'candle_message_thanks': 'Nakaabot ki Nanay an saimong mensahe 🕊️',
   'candle_message_required':
       'Pakimensahe para ki Nanay bago sindihan an kandila.',
-  'candle_message_too_long':
-      'Palipotan an mensahe sa 500 letra sana.',
+  'candle_message_too_long': 'Palipotan an mensahe sa 500 letra sana.',
   'candle_name_title': 'Ano an pangaran mo?',
   'candle_name_hint': 'An saimong pangaran…',
-  'candle_name_required': 'Pakilaag an saimong pangaran tanganing makapagsindi.',
+  'candle_name_required':
+      'Pakilaag an saimong pangaran tanganing makapagsindi.',
   'candle_name_invalid': 'Mga letra, espasyo, asin gitling sana (min 2 letra).',
   'candle_lit_times': '{count} na an nagsindi nin kandila para ki Nanay Nita',
   'candle_list_title': 'Mga nagbisita na sa app ni Nanay',
@@ -678,19 +680,20 @@ const Map<String, String> translationsBi = {
   'forum_reply_sheet_title': 'Mga Simbag',
   'forum_like': 'React',
   'forum_likers_title': 'Mga Nag-like',
-  'forum_likers_empty': 'Mayo pang nag-like — pinduta an puso tanganing maging enot.',
+  'forum_likers_empty':
+      'Mayo pang nag-like — pinduta an puso tanganing maging enot.',
   'forum_require_content': 'Pakisurat an mensahe bago mag-post.',
   'forum_require_name': 'Pakilaag an saimong pangaran.',
   'forum_send_failed': 'Dai na-send. Nagdanay an text mo, utruhon.',
   'forum_throttle_post': 'Halat muna — 1 minuto bago mag-post giraray.',
   'forum_throttle_reply': 'Halat muna — 20 segundo bago magsimbag giraray.',
-  'forum_blocked_message':
-      'May dai angkop na tataramon. Pakibago an mensahe.',
+  'forum_blocked_message': 'May dai angkop na tataramon. Pakibago an mensahe.',
   'forum_show_more': 'Ipahiling pa ({remaining} pa)',
   'forum_show_more_short': 'See more',
   'forum_report': 'Report',
   'forum_report_title': 'I-report an mensahe',
-  'forum_report_subtitle': 'Sabihan an pamilya kun nata may problema an mensaheng ini.',
+  'forum_report_subtitle':
+      'Sabihan an pamilya kun nata may problema an mensaheng ini.',
   'forum_report_reason_profanity': 'Mura o maraot na tataramon',
   'forum_report_reason_inappropriate': 'Dai angkop',
   'forum_report_reason_spam': 'Spam',
@@ -718,7 +721,8 @@ const Map<String, String> translationsBi = {
   'donate_qr_label': 'I-scan gamit an GCash tanganing magpadara nin abuloy',
   'donate_number_label': 'GCash number',
   'donate_copy': 'Kopyahon',
-  'donate_copied': 'Nakopya na an number — i-paste sa GCash, dangan ilaag an amount',
+  'donate_copied':
+      'Nakopya na an number — i-paste sa GCash, dangan ilaag an amount',
   'donate_open_gcash': 'Buksan an GCash',
   'donate_note': 'Boluntaryo sana — diretso sa pamilya an kada tao.',
   'donate_missing_qr': 'Mabot pa an QR — puwede muna sa numero sa ibaba.',
@@ -730,4 +734,25 @@ const Map<String, String> translationsBi = {
   'donate_web_step2': '2. I-paste an numero o i-scan an QR',
   'donate_web_step3': '3. Ilaag an amount, dangan Send',
   'donate_download_gcash': 'I-download an GCash',
+  // ── Gabay: an bar sa itaas, abuloy, asin sa ibaba ────────────────────
+  'guide_help_tooltip': 'Paano gamiton an app',
+  'guide_settings_title': 'Paano gamiton an app',
+  'guide_settings_desc':
+      'Hilingon giraray an halipot na gabay sa ano man na oras.',
+  'guide_topbar_title': 'Bistohon an bar sa itaas',
+  'guide_topbar_body':
+      'Pindoton an button kan tataramon (TL / BC / EN) para magsalida nin '
+      'tataramon. An gear nagbubukas kan Mga Setting.',
+  'guide_abuloy_title': 'Abuloy, yaon sa kamot',
+  'guide_abuloy_body':
+      'Pindoton an bulawan na button para mahiling an GCash details para '
+      'sa abuloy. Puwede ini i-drag sa arin man.',
+  'guide_nav_title': 'Bistohon an bar sa ibaba',
+  'guide_nav_body':
+      'Pindoton an sarong tab para lumipat sa Harong, Galeriya, Pamilya, '
+      'Mga Tataramon, o Pakikiramay. Yaon sana ini sa ibaba.',
+  'guide_next': 'Sunod',
+  'guide_done': 'Pumunta na',
+  'guide_step': 'Hakbang {current} kan {total}',
+  'guide_skip': 'Laktawan',
 };

@@ -49,7 +49,7 @@ class _AbuloyTouchState extends State<AbuloyTouch>
     with
         SingleTickerProviderStateMixin,
         WidgetsBindingObserver // pauses the breathing pulse in the background
-    {
+        {
   /// Current position as a fraction (0..1) of the stack size. Null = docked
   /// default. Fractions keep the spot (e.g. the middle) stable when moving
   /// between tabs whose stacks have different sizes — absolute pixels would
@@ -205,130 +205,146 @@ class _AbuloyTouchState extends State<AbuloyTouch>
             // gestures stay untouched.
             child: AnimatedBuilder(
               animation: _pulseAnim,
-              builder: (context, _) {
+              builder: (context, _) => AbuloyTouchVisual(
                 // 0 = rest. The value freezes when the pulse stops (first
                 // open or dispose), so the halo simply goes still.
-                final p = _pulseAnim.value;
-                final lift = _dragging ? 1.0 : 0.0;
-                return Material(
-                  color: Colors.transparent,
-                  shape: const CircleBorder(),
-                  elevation: 0,
-                  child: SizedBox(
-                    width: AbuloyTouch.size,
-                    height: AbuloyTouch.size,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // Clean attention ring: noticeable while browsing,
-                        // but airy enough not to feel like an alert badge.
-                        Transform.scale(
-                          scale: 0.88 + 0.22 * p,
-                          child: Opacity(
-                            opacity: 0.34 - 0.22 * p,
-                            child: Container(
-                              width: AbuloyTouch.size,
-                              height: AbuloyTouch.size,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: AppColors.rose,
-                                  width: 2.5,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppColors.gold.withValues(
-                                      alpha: 0.14,
-                                    ),
-                                    blurRadius: 18,
-                                    spreadRadius: 2,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        Container(
-                          width: AbuloyTouch.coinSize + 8,
-                          height: AbuloyTouch.coinSize + 8,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppColors.paper.withValues(alpha: 0.92),
-                            border: Border.all(
-                              color: AppColors.gold.withValues(alpha: 0.32),
-                              width: 1,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.warmDark.withValues(
-                                  alpha: 0.14 + 0.08 * lift,
-                                ),
-                                blurRadius: 18 + 8 * lift,
-                                offset: Offset(0, 7 + 3 * lift),
-                              ),
-                              BoxShadow(
-                                color: AppColors.gold.withValues(alpha: 0.20),
-                                blurRadius: 12,
-                                offset: const Offset(0, 1),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // Warm coin with a paper ring and white glyph.
-                        Transform.scale(
-                          scale: 1.0 + 0.035 * p + 0.03 * lift,
-                          child: Container(
-                            width: AbuloyTouch.coinSize,
-                            height: AbuloyTouch.coinSize,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: AppColors.gold,
-                              gradient: const LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  AppColors.glowGold,
-                                  AppColors.gold,
-                                  AppColors.copper,
-                                ],
-                                stops: [0.0, 0.58, 1.0],
-                              ),
-                              border: Border.all(
-                                color: AppColors.paper,
-                                width: 2.5,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.white.withValues(alpha: 0.22),
-                                  blurRadius: 6,
-                                  offset: const Offset(-2, -2),
-                                ),
-                              ],
-                            ),
-                            child: InkWell(
-                              customBorder: const CircleBorder(),
-                              splashColor: Colors.white.withValues(alpha: 0.25),
-                              highlightColor: Colors.white.withValues(
-                                alpha: 0.12,
-                              ),
-                              onTap: () => _openDialog(context),
-                              child: const Center(
-                                child: Icon(
-                                  Icons.volunteer_activism_outlined,
-                                  size: 26,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
+                pulse: _pulseAnim.value,
+                dragging: _dragging,
+                onTap: () => _openDialog(context),
+              ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The Abuloy coin itself, split out of [AbuloyTouch] so the first-run guide
+/// can show the same artwork as a spotlit diagram without duplicating it.
+///
+/// [pulse] is the breathing value (0 = at rest) and [dragging] deepens the
+/// shadow while a drag is in flight. [onTap] is null in the guide, where the
+/// coin is a diagram and the bubble's Next button moves the tour along.
+class AbuloyTouchVisual extends StatelessWidget {
+  const AbuloyTouchVisual({
+    super.key,
+    this.pulse = 0,
+    this.dragging = false,
+    this.onTap,
+  });
+
+  final double pulse;
+  final bool dragging;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pulse;
+    final lift = dragging ? 1.0 : 0.0;
+    return Material(
+      color: Colors.transparent,
+      shape: const CircleBorder(),
+      elevation: 0,
+      child: SizedBox(
+        width: AbuloyTouch.size,
+        height: AbuloyTouch.size,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Clean attention ring: noticeable while browsing,
+            // but airy enough not to feel like an alert badge.
+            Transform.scale(
+              scale: 0.88 + 0.22 * p,
+              child: Opacity(
+                opacity: 0.34 - 0.22 * p,
+                child: Container(
+                  width: AbuloyTouch.size,
+                  height: AbuloyTouch.size,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.rose, width: 2.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.gold.withValues(alpha: 0.14),
+                        blurRadius: 18,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Container(
+              width: AbuloyTouch.coinSize + 8,
+              height: AbuloyTouch.coinSize + 8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.paper.withValues(alpha: 0.92),
+                border: Border.all(
+                  color: AppColors.gold.withValues(alpha: 0.32),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.warmDark.withValues(
+                      alpha: 0.14 + 0.08 * lift,
+                    ),
+                    blurRadius: 18 + 8 * lift,
+                    offset: Offset(0, 7 + 3 * lift),
+                  ),
+                  BoxShadow(
+                    color: AppColors.gold.withValues(alpha: 0.20),
+                    blurRadius: 12,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+            ),
+            // Warm coin with a paper ring and white glyph.
+            Transform.scale(
+              scale: 1.0 + 0.035 * p + 0.03 * lift,
+              child: Container(
+                width: AbuloyTouch.coinSize,
+                height: AbuloyTouch.coinSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.gold,
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.glowGold,
+                      AppColors.gold,
+                      AppColors.copper,
+                    ],
+                    stops: [0.0, 0.58, 1.0],
+                  ),
+                  border: Border.all(color: AppColors.paper, width: 2.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.white.withValues(alpha: 0.22),
+                      blurRadius: 6,
+                      offset: const Offset(-2, -2),
+                    ),
+                  ],
+                ),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  splashColor: Colors.white.withValues(alpha: 0.25),
+                  highlightColor: Colors.white.withValues(alpha: 0.12),
+                  onTap: onTap,
+                  child: const Center(
+                    child: Icon(
+                      Icons.volunteer_activism_outlined,
+                      size: 26,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

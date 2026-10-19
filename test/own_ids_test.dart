@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:nita/controllers/forum_controller.dart';
 import 'package:nita/data/forum/forum_repository.dart';
-import 'package:nita/data/forum/own_ids.dart';
+import 'package:nita/data/security/own_ids.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

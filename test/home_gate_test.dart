@@ -54,6 +54,8 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('visitor_name', 'Arvel Salvador');
     await prefs.setString('visitor_address', 'Daet, Camarines Norte');
+    // Returning devices already saw the guide; this test is about the gate.
+    await prefs.setBool('guide_seen_v4', true);
 
     await tester.pumpWidget(app(initialRoute: '/home'));
     await tester.pump(const Duration(milliseconds: 60));
