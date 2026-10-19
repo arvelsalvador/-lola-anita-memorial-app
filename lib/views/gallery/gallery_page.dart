@@ -92,7 +92,6 @@ class _GalleryPageState extends State<GalleryPage> {
 
   Future<void> _precacheFeatured() async {
     if (_didPrecache) return;
-    _didPrecache = true;
     final images = widget.galleryController.images;
     if (images == null || images.isEmpty) return;
     // Capture the context before awaiting: the page may pop mid-precache.
@@ -105,13 +104,24 @@ class _GalleryPageState extends State<GalleryPage> {
     try {
       await Future.wait([
         for (int i = 0; i < count; i++)
-          // ResizeImage decodes a grid-sized bitmap instead of the full
-          // camera JPEG — the lightbox loads a larger tier on demand.
+          // Must match the grid's own decode EXACTLY, or the cache key
+          // differs and the precached bitmap is thrown away: the grid
+          // renders Image.asset(cacheWidth: ImageDecode.width(400, ctx)),
+          // which composes ResizeImage(..., width: that, allowUpscaling:
+          // false) — the ResizeImage default — so mirror it here verbatim.
           precacheImage(
-            ResizeImage(AssetImage(images[i].path), width: 400),
+            ResizeImage(
+              AssetImage(images[i].path),
+              width: ImageDecode.width(400, ctx),
+              allowUpscaling: false,
+            ),
             ctx,
           ),
       ]);
+      // Only remember success: if this pass failed/empty, a later
+      // controller update retries instead of staying permanently
+      // precached-off.
+      if (mounted) _didPrecache = true;
     } catch (e) {
       debugPrint('[Gallery] precache skipped: $e');
     }

@@ -10,7 +10,7 @@ const Set<String> gallerySupportAssets = {
   'Frame.jpg',
   'Frame.png',
   'memorial_header_background_raw.jpg',
-  'Nanay_dp.jpg',
+  'Nanay_dp.png',
 };
 
 /// All gallery photo asset paths (sorted), excluding the support assets

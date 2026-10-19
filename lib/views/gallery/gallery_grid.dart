@@ -17,8 +17,7 @@ class GalleryGridView extends StatefulWidget {
   State<GalleryGridView> createState() => _GalleryGridViewState();
 }
 
-class _GalleryGridViewState extends State<GalleryGridView>
-    with TickerProviderStateMixin {
+class _GalleryGridViewState extends State<GalleryGridView> {
   GalleryGroup? _selectedGroup;
   // Search text the visitor typed. Empty string = no search filter.
   String _searchQuery = '';
@@ -29,8 +28,6 @@ class _GalleryGridViewState extends State<GalleryGridView>
   // permanent decoration that lingers even at the end of the list.
   final ScrollController _pillsScrollController = ScrollController();
   bool _pillsCanScrollMore = false;
-
-  final Set<GalleryGroup> _visited = {};
 
   // Featured-memory rotation lives in [HeroSlideshowCard] so its 5s timer
   // never rebuilds this grid state.
@@ -301,7 +298,6 @@ class _GalleryGridViewState extends State<GalleryGridView>
   @override
   void initState() {
     super.initState();
-    widget.activeTab?.addListener(_onTabChanged);
     _pillsScrollController.addListener(_updatePillsFade);
     // Check once after the first frame, in case there are enough pills
     // to overflow even before the user touches the row.
@@ -336,19 +332,8 @@ class _GalleryGridViewState extends State<GalleryGridView>
     return list;
   }();
 
-  void _onTabChanged() {
-    if (!mounted) return;
-    // The gallery is tab index 1 in the home shell. The hero card owns
-    // its own rotation timer (see [HeroSlideshowCard]); here we only
-    // reset entrance-visit tracking.
-    if (widget.activeTab?.value == 1) {
-      if (_visited.isNotEmpty && mounted) setState(_visited.clear);
-    }
-  }
-
   @override
   void dispose() {
-    widget.activeTab?.removeListener(_onTabChanged);
     _searchController.dispose();
     _pillsScrollController.dispose();
     super.dispose();
@@ -570,13 +555,21 @@ class _PhotoCard extends StatelessWidget {
                       tween: Tween(begin: 0, end: locked ? 10 : 0),
                       duration: const Duration(milliseconds: 500),
                       curve: Curves.easeOutCubic,
-                      builder: (context, sigma, child) => ImageFiltered(
-                        imageFilter: ImageFilter.blur(
-                          sigmaX: sigma,
-                          sigmaY: sigma,
-                        ),
-                        child: child,
-                      ),
+                      builder: (context, sigma, child) =>
+                          // ImageFiltered forcibly allocates a saveLayer
+                          // every frame — once the blur has settled at
+                          // sigma 0 there is nothing left to draw, so
+                          // drop the wrapper and render the plain image
+                          // (its natural sharp rendering) instead.
+                          sigma > 0
+                              ? ImageFiltered(
+                                  imageFilter: ImageFilter.blur(
+                                    sigmaX: sigma,
+                                    sigmaY: sigma,
+                                  ),
+                                  child: child,
+                                )
+                              : child!,
                       child: Image.asset(
                         item.path,
                         fit: BoxFit.cover,

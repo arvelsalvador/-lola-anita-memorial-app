@@ -5,6 +5,7 @@ import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/data/visitors/visitor_repository.dart';
 import 'package:nita/views/condolences/candle_section.dart';
+import 'package:nita/widgets/ornament_divider.dart';
 
 /// Required visitor gate shown over the splash: name + full address.
 ///
@@ -54,10 +55,10 @@ class _VisitorGateFormState extends State<VisitorGateForm> {
   }
 
   String _langCode(AppLanguage lang) => switch (lang) {
-        AppLanguage.english => 'en',
-        AppLanguage.tagalog => 'tl',
-        AppLanguage.bicol => 'bi',
-      };
+    AppLanguage.english => 'en',
+    AppLanguage.tagalog => 'tl',
+    AppLanguage.bicol => 'bi',
+  };
 
   /// Returns the error key to display, or null when the field is still
   /// pristine. Live feedback after typing, full errors after submit.
@@ -76,8 +77,11 @@ class _VisitorGateFormState extends State<VisitorGateForm> {
     }
     setState(() => _sending = true);
     FocusManager.instance.primaryFocus?.unfocus();
-    final langCode =
-        _langCode(context.read<LanguageProvider>().language);
+    final langCode = _langCode(context.read<LanguageProvider>().language);
+    // Remember the language choice on-device (fire-and-forget, never
+    // throws — see LanguageProvider.saveLanguageCode). The remote
+    // visitors row only feeds reports; restore must work offline too.
+    LanguageProvider.saveLanguageCode(langCode);
     // Local save always succeeds; remote sync never throws.
     await widget.repository.saveVisitor(
       name: _nameController.text,
@@ -93,20 +97,25 @@ class _VisitorGateFormState extends State<VisitorGateForm> {
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
     final nameErrorKey = validateCandleName(_nameController.text);
-    final addressErrorKey =
-        VisitorRepository.validateAddress(_addressController.text);
+    final addressErrorKey = VisitorRepository.validateAddress(
+      _addressController.text,
+    );
     final isValid = nameErrorKey == null && addressErrorKey == null;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.paper,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.gold.withValues(alpha: 0.28),
+          width: 0.8,
+        ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.warmDark.withValues(alpha: 0.25),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
+            color: AppColors.warmDark.withValues(alpha: 0.06),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -118,18 +127,22 @@ class _VisitorGateFormState extends State<VisitorGateForm> {
             lang.t('visitor_title'),
             textAlign: TextAlign.center,
             style: const TextStyle(
-              fontFamily: 'Inter',
+              fontFamily: 'PlayfairDisplay',
+              fontFamilyFallback: ['Times New Roman', 'serif'],
               fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF1A1A1A),
+              fontWeight: FontWeight.w600,
+              color: AppColors.textDark,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 10),
+          const OrnamentDivider(lineLength: 72, lineAlpha: 0.4),
+          const SizedBox(height: 10),
           Text(
             lang.t('visitor_subtitle'),
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontFamily: 'Inter',
+              fontStyle: FontStyle.italic,
               fontSize: 13.5,
               color: AppColors.muted,
               height: 1.4,
@@ -185,17 +198,14 @@ class _VisitorGateFormState extends State<VisitorGateForm> {
             child: ElevatedButton(
               onPressed: (isValid && !_sending) ? _submit : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.warmDark,
+                backgroundColor: AppColors.warmDeep,
                 foregroundColor: AppColors.linen,
-                disabledBackgroundColor:
-                    AppColors.muted.withValues(alpha: 0.3),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                disabledBackgroundColor: AppColors.muted.withValues(alpha: 0.3),
+                shape: const StadiumBorder(),
                 textStyle: const TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 16,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               child: _sending
@@ -252,7 +262,7 @@ class _GateField extends StatelessWidget {
   Widget build(BuildContext context) {
     final borderColor = error != null
         ? AppColors.terracotta
-        : const Color(0xFFE0E0E0);
+        : AppColors.stoneBorder;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -263,7 +273,7 @@ class _GateField extends StatelessWidget {
             fontFamily: 'Inter',
             fontSize: 13,
             fontWeight: FontWeight.w500,
-            color: Color(0xFF333333),
+            color: AppColors.warmMid,
           ),
         ),
         const SizedBox(height: 6),
@@ -280,26 +290,22 @@ class _GateField extends StatelessWidget {
             hintStyle: const TextStyle(
               fontFamily: 'Inter',
               fontSize: 14,
-              color: Color(0xFF9E9E9E),
+              color: AppColors.muted,
             ),
-            prefixIcon: Icon(
-              prefixIcon,
-              size: 20,
-              color: const Color(0xFF9E9E9E),
-            ),
+            prefixIcon: Icon(prefixIcon, size: 20, color: AppColors.muted),
             filled: true,
-            fillColor: Colors.white,
+            fillColor: AppColors.fieldPaper,
             isDense: true,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 14,
               vertical: 14,
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide(color: borderColor),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide(
                 color: error != null
                     ? AppColors.terracotta
@@ -308,11 +314,11 @@ class _GateField extends StatelessWidget {
               ),
             ),
             errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(14),
               borderSide: const BorderSide(color: AppColors.terracotta),
             ),
             focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(14),
               borderSide: const BorderSide(
                 color: AppColors.terracotta,
                 width: 1.5,

@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:nita/controllers/forum_controller.dart';
-import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/data/forum/forum_repository.dart';
 import 'package:nita/data/forum/reaction_identity.dart';
@@ -258,28 +257,7 @@ void main() {
     });
   });
 
-  group('Presence + likers', () {
-    test('onlineNamesFromMetas merges names, skips blanks', () {
-      final names = ForumController.onlineNamesFromMetas([
-        [
-          {'device_id': 'a', 'name': 'Arvel'},
-          {'device_id': 'b', 'name': '  '},
-        ],
-        [
-          {'device_id': 'c', 'name': 'Maria'},
-          {'device_id': 'd', 'name': 'Arvel'},
-        ],
-      ]);
-      expect(names, {'Arvel', 'Maria'});
-      expect(ForumController.onlineNamesFromMetas([]), isEmpty);
-    });
-
-    test('isOnline matches exact display names', () async {
-      final controller = ForumController();
-      expect(controller.isOnline('Nobody'), isFalse);
-      controller.dispose();
-    });
-
+  group('Likers + Avatars', () {
     test('fetchLikerNames returns empty offline without throwing', () async {
       const repo = ForumRepository();
       expect(await repo.fetchLikerNames('post-1'), isEmpty);
@@ -287,7 +265,7 @@ void main() {
       expect(await repo.fetchLikerNames('msg-temp'), isEmpty);
     });
 
-    testWidgets('online author shows green dot, offline a faint away dot', (
+    testWidgets('author avatar renders cleanly without presence dots', (
       tester,
     ) async {
       ForumPost post({required String author}) => ForumPost(
@@ -298,43 +276,29 @@ void main() {
       );
       Future<List<String>> likers(String _) async => <String>[];
 
-      Future<void> pumpCard({required bool online}) async {
-        await tester.pumpWidget(
-          ChangeNotifierProvider(
-            create: (_) => LanguageProvider(),
-            child: MaterialApp(
-              home: Scaffold(
-                body: SingleChildScrollView(
-                  child: ForumPostCard(
-                    post: post(author: 'Maria'),
-                    isPostAuthorOnline: online,
-                    onViewLikers: likers,
-                    onReactionTap: (type) {},
-                    onReplyReactionTap: (replyId, type) {},
-                    onSendReply: (a, m, r) async {
-                      return null;
-                    },
-                  ),
+      await tester.pumpWidget(
+        ChangeNotifierProvider(
+          create: (_) => LanguageProvider(),
+          child: MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: ForumPostCard(
+                  post: post(author: 'Maria'),
+                  onViewLikers: likers,
+                  onReactionTap: (type) {},
+                  onReplyReactionTap: (replyId, type) {},
+                  onSendReply: (a, m, r) async {
+                    return null;
+                  },
                 ),
               ),
             ),
           ),
-        );
-        await tester.pumpAndSettle();
-      }
-
-      await pumpCard(online: true);
-      expect(
-        find.byWidgetPredicate(
-          (w) =>
-              w is Container &&
-              w.decoration is BoxDecoration &&
-              (w.decoration as BoxDecoration).color == const Color(0xFF1F9D55),
         ),
-        findsOneWidget,
       );
+      await tester.pumpAndSettle();
 
-      await pumpCard(online: false);
+      // No green presence dot is drawn.
       expect(
         find.byWidgetPredicate(
           (w) =>
@@ -344,17 +308,7 @@ void main() {
         ),
         findsNothing,
       );
-      // The away dot is drawn instead — same slot, faint warm gray.
-      expect(
-        find.byWidgetPredicate(
-          (w) =>
-              w is Container &&
-              w.decoration is BoxDecoration &&
-              (w.decoration as BoxDecoration).color ==
-                  AppColors.muted.withValues(alpha: 0.45),
-        ),
-        findsOneWidget,
-      );
+      expect(find.text('M'), findsOneWidget);
     });
 
     testWidgets('likers sheet shows names and empty state', (tester) async {

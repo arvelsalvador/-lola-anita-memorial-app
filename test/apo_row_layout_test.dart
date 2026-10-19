@@ -6,6 +6,7 @@ import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/views/family/family_page.dart';
 import 'package:nita/models/family_model.dart';
 import 'package:nita/controllers/family_controller.dart';
+import 'package:nita/widgets/ornamental_card.dart';
 
 /// Regression tests for the Mga Apo grid layout: grandchildren must be
 /// stacked into vertical columns by their parent branch (one column per
@@ -40,6 +41,19 @@ void main() {
     final finder = find.text(name);
     if (finder.evaluate().isEmpty) return null;
     return tester.getTopLeft(finder).dy;
+  }
+
+  /// Top edge of the card (OrnamentalCard) containing `name`'s text.
+  /// Card boxes are compared instead of text boxes when checking that a
+  /// row is level: a wrapped two-line name shifts its own text top, but
+  /// the card itself must not move.
+  RenderBox? cardBoxOf(WidgetTester tester, String name) {
+    final card = find.ancestor(
+      of: find.text(name),
+      matching: find.byType(OrnamentalCard),
+    );
+    if (card.evaluate().isEmpty) return null;
+    return tester.renderObject<RenderBox>(card.first);
   }
 
   testWidgets('Mga Apo stacks each parent branch in its own column '
@@ -155,6 +169,28 @@ void main() {
       jongjong.dx,
       lessThan(arvel.dx),
       reason: 'Rodel Sr. column left of Lorie column',
+    );
+
+    // Rows stay level across columns: the r-th card of every branch
+    // shares one equal-height row, so a wrapped two-line name (e.g.
+    // "Rose-ann Lumbao") can never push its column's next row down and
+    // stagger the connector beads.
+  double? cardTop(String name) =>
+      cardBoxOf(tester, name)?.localToGlobal(Offset.zero).dy;
+    expect(cardTop('Audrey Lumbao'), isNotNull);
+    expect(cardTop('Rose-ann Lumbao'), isNotNull);
+    expect(cardTop('Aivan Salvador'), isNotNull);
+    expect(cardTop('Honey Salvador'), isNotNull);
+    final row2 = [
+      cardTop('Audrey Lumbao')!,
+      cardTop('Rose-ann Lumbao')!,
+      cardTop('Aivan Salvador')!,
+    ];
+    expect(
+      row2.reduce((a, b) => a > b ? a : b) -
+          row2.reduce((a, b) => a < b ? a : b),
+      lessThan(1.0),
+      reason: 'second-row cards must share one level top edge',
     );
 
     // No layout overflow in the grid.

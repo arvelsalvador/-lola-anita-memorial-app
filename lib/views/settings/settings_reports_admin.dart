@@ -39,6 +39,9 @@ class _AdminPinDialogState extends State<_AdminPinDialog> {
   final TextEditingController _pinController = TextEditingController();
   bool _wrong = false;
   bool _checking = false;
+  // Brute-force guard state (see [AdminPinGate]): after 5 wrong entries
+  // the gate locks for 60s, in memory only.
+  String? _lockError;
 
   @override
   void dispose() {
@@ -46,23 +49,40 @@ class _AdminPinDialogState extends State<_AdminPinDialog> {
     super.dispose();
   }
 
+  /// Human-readable lockout note for the admin dialog (English-only
+  /// page, like all admin copy).
+  static String _lockMessage() =>
+      'Too many wrong attempts — locked for ${AdminPinGate.secondsLeft}s.';
+
   void _submit() async {
     if (_checking) return;
+    if (AdminPinGate.isLocked) {
+      setState(() {
+        _wrong = false;
+        _lockError = _lockMessage();
+      });
+      return;
+    }
     setState(() {
       _checking = true;
       _wrong = false;
+      _lockError = null;
     });
     final expected = await _effectiveAdminPin();
     if (!mounted) return;
     if (_pinController.text.trim() == expected) {
+      AdminPinGate.record(failed: false);
       Navigator.of(context).pop();
       Navigator.of(context).push(fadeRoute(const _ReportsAdminPage()));
-    } else {
-      setState(() {
-        _checking = false;
-        _wrong = true;
-      });
+      return;
     }
+    AdminPinGate.record(failed: true);
+    if (!mounted) return;
+    setState(() {
+      _checking = false;
+      _wrong = true;
+      _lockError = AdminPinGate.isLocked ? _lockMessage() : null;
+    });
   }
 
   @override
@@ -111,7 +131,8 @@ class _AdminPinDialogState extends State<_AdminPinDialog> {
                   color: AppColors.gold.withValues(alpha: 0.3),
                 ),
               ),
-              errorText: _wrong ? _adminText('admin_pin_wrong') : null,
+              errorText: _lockError ??
+                  (_wrong ? _adminText('admin_pin_wrong') : null),
             ),
           ),
         ],
@@ -122,7 +143,7 @@ class _AdminPinDialogState extends State<_AdminPinDialog> {
           child: Text(_adminText('admin_pin_cancel')),
         ),
         ElevatedButton(
-          onPressed: _submit,
+          onPressed: (_checking || AdminPinGate.isLocked) ? null : _submit,
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.warmDark,
             foregroundColor: Colors.white,
@@ -200,9 +221,10 @@ class _ChangePinDialogState extends State<_ChangePinDialog> {
       });
       return;
     }
-    // Saves on-device AND re-hashes the PIN on the server so the
-    // database-side verification (`pakikiramay_admin_change_pin`) stays
-    // in sync with what this device expects.
+    // [AdminCredential.changePin] re-hashes the PIN on the server first
+    // and only saves on-device after the server accepts, so the database
+    // verification (`pakikiramay_admin_change_pin`) and this device
+    // always share one credential. A failed server call saves nothing.
     final synced = await AdminCredential.changePin(
       oldPin: _currentCtrl.text.trim(),
       newPin: _newCtrl.text.trim(),
@@ -738,9 +760,10 @@ class _ReportsAdminPageState extends State<_ReportsAdminPage> {
 
   Future<void> _subscribeAdminRealtime() async {
     if (!SupabaseConfig.isConfigured || _adminChannel != null) return;
+    final client = SupabaseConfig.safeClient();
+    if (client == null) return;
     try {
-      final channel =
-          Supabase.instance.client.channel('admin-reports-feed');
+      final channel = client.channel('admin-reports-feed');
       channel
           .onPostgresChanges(
             event: PostgresChangeEvent.update,
@@ -849,7 +872,10 @@ class _ReportsAdminPageState extends State<_ReportsAdminPage> {
     _adminChannel = null;
     if (channel == null) return;
     try {
-      await Supabase.instance.client.removeChannel(channel);
+      final client = SupabaseConfig.safeClient();
+      if (client != null) {
+        await client.removeChannel(channel);
+      }
     } catch (e) {
       debugPrint('Admin realtime unsubscribe skipped: $e');
     }

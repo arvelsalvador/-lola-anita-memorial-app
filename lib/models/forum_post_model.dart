@@ -13,6 +13,10 @@ class ForumReply {
   /// Name of the person this reply answers. Empty = replies to the post.
   /// Shown as "Tumutugon kay X" so others see the context.
   final String replyToName;
+  /// True while this reply only exists locally (its insert failed, e.g.
+  /// offline). Kept in the feed across refreshes and retried once per
+  /// fetch so the typed text is never silently lost.
+  final bool pendingSync;
 
   const ForumReply({
     required this.id,
@@ -23,6 +27,7 @@ class ForumReply {
     this.reactions = const {'heart': 0},
     this.userReactions = const {},
     this.replyToName = '',
+    this.pendingSync = false,
   });
 
   ForumReply copyWith({
@@ -34,6 +39,7 @@ class ForumReply {
     Map<String, int>? reactions,
     Set<String>? userReactions,
     String? replyToName,
+    bool? pendingSync,
   }) {
     return ForumReply(
       id: id ?? this.id,
@@ -44,6 +50,7 @@ class ForumReply {
       reactions: reactions ?? this.reactions,
       userReactions: userReactions ?? this.userReactions,
       replyToName: replyToName ?? this.replyToName,
+      pendingSync: pendingSync ?? this.pendingSync,
     );
   }
 
@@ -61,6 +68,7 @@ class ForumReply {
     'created_at': createdAt.toIso8601String(),
     'reactions': reactions,
     'reply_to_name': replyToName,
+    'pending_sync': pendingSync,
   };
 
   factory ForumReply.fromJson(Map<String, dynamic> json) {
@@ -75,6 +83,7 @@ class ForumReply {
       reactions:
           _parseReactions(json['reactions'] as Map<String, dynamic>?),
       replyToName: json['reply_to_name'] as String? ?? '',
+      pendingSync: json['pending_sync'] as bool? ?? false,
     );
   }
 }
@@ -88,6 +97,10 @@ class ForumPost {
   final Map<String, int> reactions; // {'heart': 0}
   final Set<String> userReactions;  // reaction types tapped on this device
   final List<ForumReply> replies;
+  /// True while this post only exists locally (its insert failed, e.g.
+  /// offline). Kept in the feed across refreshes and retried once per
+  /// fetch so the typed text is never silently lost.
+  final bool pendingSync;
 
   const ForumPost({
     required this.id,
@@ -97,6 +110,7 @@ class ForumPost {
     this.reactions = const {'heart': 0},
     this.userReactions = const {},
     this.replies = const [],
+    this.pendingSync = false,
   });
 
   ForumPost copyWith({
@@ -107,6 +121,7 @@ class ForumPost {
     Map<String, int>? reactions,
     Set<String>? userReactions,
     List<ForumReply>? replies,
+    bool? pendingSync,
   }) {
     return ForumPost(
       id: id ?? this.id,
@@ -116,6 +131,7 @@ class ForumPost {
       reactions: reactions ?? this.reactions,
       userReactions: userReactions ?? this.userReactions,
       replies: replies ?? this.replies,
+      pendingSync: pendingSync ?? this.pendingSync,
     );
   }
 
@@ -125,6 +141,7 @@ class ForumPost {
     'message': message,
     'created_at': createdAt.toIso8601String(),
     'reactions': reactions,
+    'pending_sync': pendingSync,
     'replies': replies.map((r) => r.toJson()).toList(),
   };
 
@@ -147,6 +164,7 @@ class ForumPost {
           ? DateTime.tryParse(json['created_at'] as String) ?? DateTime.now()
           : DateTime.now(),
       reactions: parsedReactions,
+      pendingSync: json['pending_sync'] as bool? ?? false,
       replies: parsedReplies,
     );
   }

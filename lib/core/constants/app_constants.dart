@@ -130,7 +130,11 @@ class AppColors {
 
 class AppAssets {
   AppAssets._();
-  static const String nanayPortrait = 'assets/images/Family DP/Nanay_dp.jpg';
+  static const String nanayPortrait = 'assets/images/Family DP/Nanay_dp.png';
+
+  /// Splash ground: a muted, looping clip behind the memorial content.
+  /// Lives in `assets/Video/` (already registered in pubspec).
+  static const String splashVideo = 'assets/Video/splash_vid.mp4';
 }
 
 class AppTextStyles {

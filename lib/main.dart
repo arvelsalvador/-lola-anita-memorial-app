@@ -34,13 +34,20 @@ void main() async {
         url: SupabaseConfig.url,
         publishableKey: SupabaseConfig.publishableKey,
       ).timeout(const Duration(seconds: 10));
+      SupabaseConfig.isInitialized = true;
       debugPrint(
         'Supabase init completed (${SupabaseConfig.redactedUrl})',
       );
     } catch (e) {
+      SupabaseConfig.isInitialized = false;
       debugPrint(
         'Supabase init skipped (${SupabaseConfig.redactedUrl} $e)',
       );
+      // Init failed (bad URL / network / 10s timeout): degrade cleanly
+      // to offline mode. Every repository checks SupabaseConfig.
+      // isConfigured before touching the client, so flipping it false
+      // keeps app startup going instead of throwing per call forever.
+      SupabaseConfig.isConfigured = false;
     }
   } else {
     debugPrint(

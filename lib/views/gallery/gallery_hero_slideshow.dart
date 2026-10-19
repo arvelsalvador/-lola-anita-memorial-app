@@ -21,17 +21,42 @@ class HeroSlideshowCard extends StatefulWidget {
   State<HeroSlideshowCard> createState() => _HeroSlideshowCardState();
 }
 
-class _HeroSlideshowCardState extends State<HeroSlideshowCard> {
+class _HeroSlideshowCardState extends State<HeroSlideshowCard>
+    with WidgetsBindingObserver {
   int _heroIndex = 0;
   Timer? _heroTimer;
+
+  /// Mirrors the app's foreground state so lifecycle callbacks stay
+  /// idempotent — we never restart an already-running timer or double-stop.
+  bool _appResumed = true;
 
   @override
   void initState() {
     super.initState();
+    // The 5s rotation keeps firing while the app is backgrounded on some
+    // platforms; observe the lifecycle so it pauses off-screen.
+    WidgetsBinding.instance.addObserver(this);
     widget.activeTab?.addListener(_onTabChanged);
     final tab = widget.activeTab;
     if (tab == null || tab.value == 1) {
       _startHeroTimer();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Pause while the app is backgrounded; restart on return. While a
+    // route is pushed on top (lightbox / highlights slideshow) the tick
+    // guard in [_startHeroTimer] keeps rotation quiet instead.
+    if (state == AppLifecycleState.resumed) {
+      if (_appResumed) return;
+      _appResumed = true;
+      final tab = widget.activeTab;
+      if (tab == null || tab.value == 1) _startHeroTimer();
+    } else {
+      if (!_appResumed) return;
+      _appResumed = false;
+      _heroTimer?.cancel();
     }
   }
 
@@ -49,6 +74,9 @@ class _HeroSlideshowCardState extends State<HeroSlideshowCard> {
     if (widget.images.isEmpty) return;
     _heroTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (!mounted || widget.images.isEmpty) return;
+      // Another route on top (the lightbox or the highlights slideshow):
+      // skip ticking while this card's route is not the current one.
+      if (ModalRoute.of(context)?.isCurrent != true) return;
       setState(() {
         _heroIndex = (_heroIndex + 1) % widget.images.length;
       });
@@ -67,6 +95,7 @@ class _HeroSlideshowCardState extends State<HeroSlideshowCard> {
   @override
   void dispose() {
     _heroTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     widget.activeTab?.removeListener(_onTabChanged);
     super.dispose();
   }

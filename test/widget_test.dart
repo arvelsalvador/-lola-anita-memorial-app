@@ -128,10 +128,24 @@ void main() {
     await passGate(tester);
     expect(find.byType(HomePage), findsOneWidget);
 
-    // Relaunch on the same device: remembered visitor skips the gate
-    // and auto-advances, with no form shown.
+    // Relaunch on the same device: the remembered visitor skips the gate.
+    // Tear the tree down first so the Navigator is genuinely recreated —
+    // pumpWidget alone would keep the existing route stack.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
     await tester.pumpWidget(const LolaApp());
-    await tester.pump(const Duration(seconds: 8));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(SplashPage), findsOneWidget);
+    expect(find.text('Pumasok'), findsNothing);
+
+    // Nothing happens on its own: the splash waits for a tap.
+    await tester.pump(const Duration(seconds: 10));
+    expect(find.byType(HomePage), findsNothing);
+
+    await tester.tap(find.byType(SplashPage));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
     expect(find.byType(HomePage), findsOneWidget);
     expect(find.text('Pumasok'), findsNothing);
     expect(tester.takeException(), isNull);
@@ -390,4 +404,3 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 }
-

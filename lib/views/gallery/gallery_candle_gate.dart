@@ -71,6 +71,10 @@ class _CandleGateState extends State<CandleGate> with TickerProviderStateMixin {
     if (_lit) return;
     HapticFeedback.lightImpact(); // gentle tactile confirmation the candle caught
     setState(() => _lit = true);
+    // The invitation hand goes away once lit — stop its infinite bob so
+    // the controller isn't ticking for a widget nobody can see. (Its
+    // last value simply freezes while the AnimatedSwitcher fades it out.)
+    _handBob.stop();
     _bloom.forward();
     _dismissTimer = Timer(const Duration(milliseconds: 2100), () {
       if (mounted) Navigator.of(context).pop(true);

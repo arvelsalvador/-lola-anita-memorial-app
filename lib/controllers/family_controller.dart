@@ -8,7 +8,7 @@ class FamilyController {
       roleKey: 'family_root_subtitle', // "Sentro ng aming pamilya"
       yearsLabel: Memorial.yearsLabel,
       photoCount: 12,
-      photoPath: 'assets/images/Family DP/Nanay_dp.jpg',
+      photoPath: 'assets/images/Family DP/Nanay_dp.png',
     ),
     totalMembers: Memorial.totalMembers,
     generations: Memorial.generations,
@@ -16,7 +16,6 @@ class FamilyController {
       FamilyGroup(
         labelKey: 'family_group_siblings',
         subtitleKey: 'family_group_siblings_sub', // "3 kapatid"
-        count: 3,
         members: [
           FamilyMember(
             name: 'Roberto Daiz',
@@ -61,7 +60,6 @@ class FamilyController {
       FamilyGroup(
         labelKey: 'family_group_children',
         subtitleKey: 'family_group_children_sub', // "3 anak"
-        count: 3,
         members: [
           FamilyMember(
             name: 'Gernan Lumbao',
@@ -105,7 +103,6 @@ class FamilyController {
       FamilyGroup(
         labelKey: 'family_group_grandchildren',
         subtitleKey: 'family_group_grandchildren_sub',
-        count: 8,
         members: [
           FamilyMember(
             name: 'Hanna Lumbao',
@@ -181,8 +178,11 @@ class FamilyController {
   );
 
   static const childrenCount = Memorial.childrenCount;
-  // TODO(family): reconcile with timeline — marriage_desc says 54 years,
-  // anniversary_desc honors 37 years (1998). Confirm true span.
+  // UNRESOLVED FACT — needs the family's confirmation. Do not guess a
+  // number. marriage_desc (timeline) says 54 years of marriage, and the
+  // en/tl bios ("Fifty-four years" / "Limampu't apat na taon" ng
+  // pagsasama) repeat the 54 figure. Ask the family whether this span is
+  // true before changing this value or that story.
   static const marriageYears = 54;
   static const generations = Memorial.generations;
   static const siblingsCount = Memorial.siblingsCount;

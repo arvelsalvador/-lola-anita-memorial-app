@@ -8,7 +8,7 @@ import 'package:nita/core/localization/language_provider.dart';
 ///
 /// Opened by tapping the like count. Names come from the
 /// `reactor_name` column (old rows without a name show as Anonymous).
-class LikersSheet extends StatelessWidget {
+class LikersSheet extends StatefulWidget {
   final Future<List<String>> Function() loadNames;
 
   const LikersSheet({super.key, required this.loadNames});
@@ -22,6 +22,30 @@ class LikersSheet extends StatelessWidget {
       backgroundColor: Colors.transparent,
       builder: (_) => LikersSheet(loadNames: loadNames),
     );
+  }
+
+  @override
+  State<LikersSheet> createState() => _LikersSheetState();
+}
+
+class _LikersSheetState extends State<LikersSheet> {
+  /// Held in initState: a future created inside build refires on every
+  /// rebuild (keyboard inset, theme, etc.), restarting the spinner.
+  late final Future<List<String>> _namesFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _namesFuture = _loadNames();
+  }
+
+  Future<List<String>> _loadNames() async {
+    try {
+      return await widget.loadNames();
+    } catch (e) {
+      debugPrint('LikersSheet loadNames skipped: $e');
+      return const <String>[];
+    }
   }
 
   String _initials(String name) {
@@ -90,7 +114,7 @@ class LikersSheet extends StatelessWidget {
             const SizedBox(height: 8),
             Flexible(
               child: FutureBuilder<List<String>>(
-                future: loadNames(),
+                future: _namesFuture,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(

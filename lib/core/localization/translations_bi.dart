@@ -193,15 +193,15 @@ const Map<String, String> translationsBi = {
   'timeline_marriage_title': 'An Kasal',
   'timeline_marriage_desc':
       '54 na taon na magkaibanan. Magkairibanan sindang nagpadakula nin anom na aki asin nagkamutan nin daing katapusan. '
-      'Nagadan si Lolo Salvador huli sa atake sa puso.',
-  'timeline_first_apo_title': 'Enot na Apo',
+      'Sampung taon an agwat kan saindang edad, alagad daing kasagkoran an saindang pagkamoot.',
+  'timeline_first_apo_title': 'Enot na Aki',
   'timeline_first_apo_desc':
+      'Nagin Nanay siya sa enot na pagkakataon. '
+      'Nag-abot an enot sa anom niyang aki, asin nagpoon an bagong kabanata nin pagkamoot asin pamilya.',
+  'timeline_anniversary_title': 'Enot na Apo',
+  'timeline_anniversary_desc':
       'Nagin Lola siya, sarong titulo na pinakapahalagahan niya. '
       'An saiyang mga apo an naging kaogmahan kan saiyang buhay.',
-  'timeline_anniversary_title': 'An Selebrasyon',
-  'timeline_anniversary_desc':
-      'Nagtipon an bilog na pamilya tanganing parangalan an 37 na taon nin matibay na pagkamoot. '
-      'An aldaw na idto pano nin kaogmahan, pagpasalamat, asin pamibi.',
   'timeline_passing_title': 'Huring Pahingalo',
   'timeline_passing_desc':
       'Napapalibutan kan pamilya, nagbalik siya sa Diyos pagkatapos nin buhay na pano nin biyaya. '
@@ -601,6 +601,8 @@ const Map<String, String> translationsBi = {
   'candle_list_empty': 'Ika an enot na magsindi nin kandila.',
   'candle_list_more': '+{count} pa',
   'candle_list_retry': 'Uliton',
+  'candle_save_failed':
+      'Dai na-save an saimong kandila. Sulyapan an koneksyon asin uliton.',
   'candle_condolences_button': 'Pakikiramay',
   'condolences_keepsake': 'An alaala padagos na nagliliwanag',
   'group_celebrations': 'Mga Selebrasyon',

@@ -46,9 +46,9 @@ class AdminReportRow {
 /// - Tables are INSERT+SELECT only for the anon key. Every privileged
 ///   action (admin edit/delete/dismiss/private reads, self edit/delete,
 ///   unlike) goes through PIN- or device-id-verified security-definer RPCs.
-/// - When the project has NOT been migrated yet, the repository falls
-///   back transparently to the legacy direct-table calls (feature parity),
-///   so deploying app or SQL first both work.
+/// - Fail closed: when an RPC is missing (project not yet migrated) the
+///   action fails with no legacy direct-table fallback, so the anon key
+///   can never bypass PIN or device verification.
 class ForumRepository {
   const ForumRepository();
 
@@ -70,10 +70,9 @@ class ForumRepository {
     final reactionCounts = await _loadReactionCounts(prefs);
     final localReplies = await _loadLocalReplies(prefs);
 
-    if (SupabaseConfig.isConfigured) {
+    final client = SupabaseConfig.safeClient();
+    if (client != null) {
       try {
-        final client = Supabase.instance.client;
-
         // Fetch messages from the database (newest first)
         final rows = await client
             .from(messagesTable)
@@ -266,20 +265,19 @@ class ForumRepository {
       replies: const [],
     );
 
-    if (SupabaseConfig.isConfigured) {
+    final client = SupabaseConfig.safeClient();
+    if (client != null) {
       try {
-        final client = Supabase.instance.client;
         // Auto-public: new rows are readable instantly because the
-        // SELECT policy only allows `approved = true`. On the migrated
-        // project the columns default comes from the DB
-        // (`supabase/pakikiramay_security.sql`); on unmigrated projects
-        // the flag must still be sent explicitly, which is why it stays.
+        // SELECT policy only allows `approved = true`. The flag is owned
+        // by the database — `supabase/pakikiramay_security.sql` sets
+        // `default true` on the column — so the client never sends it
+        // (a client-chosen value would let anyone approve their row).
         final res = await client
             .from(messagesTable)
             .insert({
               'name': cleanName,
               'message': cleanMessage,
-              'approved': true,
             })
             .select()
             .single()
@@ -344,9 +342,9 @@ class ForumRepository {
     // Temp parents (msg-...) don't exist remotely — local-only, no FK error.
     final isTempParent =
         postId.startsWith('msg-') || postId.startsWith('reply-');
-    if (SupabaseConfig.isConfigured && !isTempParent) {
+    final client = SupabaseConfig.safeClient();
+    if (client != null && !isTempParent) {
       try {
-        final client = Supabase.instance.client;
         final cleanReplyTo = replyToName.trim();
         Map<String, dynamic> res;
         try {
@@ -444,23 +442,34 @@ class ForumRepository {
   /// Returns {targetId: {reactionType: count}}. Empty when offline,
   /// unconfigured, or the reactions table is missing.
   Future<Map<String, Map<String, int>>> fetchReactionCounts() async {
-    if (!SupabaseConfig.isConfigured) return {};
+    final client = SupabaseConfig.safeClient();
+    if (client == null) return {};
     try {
-      final client = Supabase.instance.client;
-      final rows = await client
-          .from(reactionsTable)
-          .select('target_id, reaction_type')
-          .limit(2000)
-          .timeout(const Duration(seconds: 8));
-      final Map<String, Map<String, int>> counts = {};
-      for (final row in (rows as List)) {
-        final target = row['target_id']?.toString() ?? '';
-        final type = (row['reaction_type'] as String? ?? '').trim();
-        if (target.isEmpty || type.isEmpty) continue;
-        counts.putIfAbsent(target, () => {
-              'heart': 0,
-            });
-        counts[target]![type] = (counts[target]![type] ?? 0) + 1;
+      // Paginate over the whole table instead of a hard 2000-row cap so
+      // counts stay exact as the memorial grows (1000 is the PostgREST
+      // server-side max rows per request).
+      const pageSize = 1000;
+      var from = 0;
+      final counts = <String, Map<String, int>>{};
+      while (true) {
+        final rows = await client
+            .from(reactionsTable)
+            .select('target_id, reaction_type')
+            .order('target_id')
+            .range(from, from + pageSize - 1)
+            .timeout(const Duration(seconds: 8));
+        final list = rows as List;
+        for (final row in list) {
+          final target = row['target_id']?.toString() ?? '';
+          final type = (row['reaction_type'] as String? ?? '').trim();
+          if (target.isEmpty || type.isEmpty) continue;
+          counts.putIfAbsent(target, () => {
+                'heart': 0,
+              });
+          counts[target]![type] = (counts[target]![type] ?? 0) + 1;
+        }
+        if (list.length < pageSize) break;
+        from += pageSize;
       }
       return counts;
     } catch (e) {
@@ -481,7 +490,8 @@ class ForumRepository {
     required String deviceId,
     String reactorName = 'Anonymous',
   }) async {
-    if (!SupabaseConfig.isConfigured) return false;
+    final client = SupabaseConfig.safeClient();
+    if (client == null) return false;
     if (targetId.startsWith('msg-') || targetId.startsWith('reply-')) {
       return false;
     }
@@ -490,7 +500,7 @@ class ForumRepository {
     final cleanName =
         trimmed.isEmpty ? 'Anonymous' : trimmed.substring(0, trimmed.length > 50 ? 50 : trimmed.length);
     try {
-      await Supabase.instance.client.from(reactionsTable).insert({
+      await client.from(reactionsTable).insert({
         'target_id': targetId,
         'reaction_type': reactionType,
         'device_id': deviceId,
@@ -513,13 +523,14 @@ class ForumRepository {
     required String reactionType,
     required String deviceId,
   }) async {
-    if (!SupabaseConfig.isConfigured) return false;
+    final client = SupabaseConfig.safeClient();
+    if (client == null) return false;
     if (targetId.startsWith('msg-') || targetId.startsWith('reply-')) {
       return false;
     }
     if (targetId.isEmpty || deviceId.isEmpty) return false;
     try {
-      final ok = (await Supabase.instance.client.rpc(
+      final ok = (await client.rpc(
             'pakikiramay_unlike',
             params: {
               'p_target_id': targetId,
@@ -536,7 +547,8 @@ class ForumRepository {
       debugPrint('ForumRepository unlike RPC missing — legacy fallback.');
     }
     try {
-      final client = Supabase.instance.client;
+      final client = SupabaseConfig.safeClient();
+      if (client == null) return false;
       final rows = await client
           .from(reactionsTable)
           .select('id')
@@ -565,12 +577,13 @@ class ForumRepository {
   /// Powers the likers bottom sheet. Empty when offline, unconfigured,
   /// or nobody liked yet. Never throws.
   Future<List<String>> fetchLikerNames(String targetId) async {
-    if (!SupabaseConfig.isConfigured || targetId.isEmpty) return [];
+    final client = SupabaseConfig.safeClient();
+    if (client == null || targetId.isEmpty) return [];
     if (targetId.startsWith('msg-') || targetId.startsWith('reply-')) {
       return [];
     }
     try {
-      final rows = await Supabase.instance.client
+      final rows = await client
           .from(reactionsTable)
           .select('reactor_name, created_at')
           .eq('target_id', targetId)
@@ -606,7 +619,8 @@ class ForumRepository {
     String deviceId = '',
     String reporterName = 'Anonymous',
   }) async {
-    if (!SupabaseConfig.isConfigured || targetId.isEmpty) {
+    final client = SupabaseConfig.safeClient();
+    if (client == null || targetId.isEmpty) {
       return ReportSubmitOutcome.failed;
     }
     if (targetId.startsWith('msg-') || targetId.startsWith('reply-')) {
@@ -624,7 +638,7 @@ class ForumRepository {
         ? 'Anonymous'
         : (nameTrimmed.length > 50 ? nameTrimmed.substring(0, 50) : nameTrimmed);
     try {
-      await Supabase.instance.client.from(reportsTable).insert({
+      await client.from(reportsTable).insert({
         'target_id': targetId,
         'target_kind': kind,
         'reason': cleanReason,
@@ -653,15 +667,15 @@ class ForumRepository {
 
   /// Report counts per target ({targetId: count}). Powers spam layer 3:
   /// targets with >= [SpamGuard.hideThreshold] reports are hidden.
-  /// Prefers the aggregate RPC `pakikiramay_report_counts()` (raw report
-  /// rows are private after the security migration) and falls back to the
-  /// legacy plain SELECT while the project is still unmigrated.
-  /// Empty when offline, unconfigured, or the table is not readable.
-  /// Never throws.
+  /// Runs through the aggregate RPC `pakikiramay_report_counts()` — raw
+  /// report rows are private after the security migration, so there is
+  /// deliberately NO direct-table fallback (fail closed). Empty when
+  /// offline, unconfigured, or the RPC is missing. Never throws.
   Future<Map<String, int>> fetchReportCounts() async {
-    if (!SupabaseConfig.isConfigured) return {};
+    final client = SupabaseConfig.safeClient();
+    if (client == null) return {};
     try {
-      final rows = await Supabase.instance.client
+      final rows = await client
           .rpc('pakikiramay_report_counts')
           .timeout(const Duration(seconds: 8));
       final counts = <String, int>{};
@@ -675,27 +689,6 @@ class ForumRepository {
       }
       return counts;
     } catch (e) {
-      if (!isRpcMissing(e)) {
-        debugPrint('ForumRepository fetchReportCounts skipped: $e');
-        return {};
-      }
-      debugPrint('ForumRepository report counts RPC missing — legacy fallback.');
-    }
-    // Legacy path (unmigrated project): plain SELECT on the reports table.
-    try {
-      final rows = await Supabase.instance.client
-          .from(reportsTable)
-          .select('target_id')
-          .limit(2000)
-          .timeout(const Duration(seconds: 8));
-      final counts = <String, int>{};
-      for (final row in (rows as List)) {
-        final target = row['target_id']?.toString() ?? '';
-        if (target.isEmpty) continue;
-        counts[target] = (counts[target] ?? 0) + 1;
-      }
-      return counts;
-    } catch (e) {
       debugPrint('ForumRepository fetchReportCounts skipped: $e');
       return {};
     }
@@ -705,44 +698,29 @@ class ForumRepository {
   /// threshold report lands. Returns 0 when offline or unreadable.
   /// Never throws.
   Future<int> fetchReportCount(String targetId) async {
-    if (!SupabaseConfig.isConfigured || targetId.isEmpty) return 0;
+    if (targetId.isEmpty) return 0;
+    final client = SupabaseConfig.safeClient();
+    if (client == null) return 0;
     final counts = await fetchReportCounts();
     return counts[targetId] ?? 0;
   }
 
   /// Full report rows for the family admin page, newest first.
   /// Runs through the PIN-verified RPC `pakikiramay_admin_list_reports()`
-  /// (raw report rows are private after the migration). Falls back to the
-  /// legacy plain SELECT on an unmigrated project. Empty when offline,
-  /// unconfigured, the PIN is wrong server-side, or unreadable. Never throws.
+  /// — raw report rows are private after the migration, so there is
+  /// deliberately NO direct-table fallback (fail closed). Empty when
+  /// offline, unconfigured, the RPC is missing, or the PIN is wrong
+  /// server-side. Never throws.
   Future<List<AdminReportRow>> fetchAdminReports({int limit = 200}) async {
-    if (!SupabaseConfig.isConfigured) return [];
+    final client = SupabaseConfig.safeClient();
+    if (client == null) return [];
     final pin = await AdminCredential.effectivePin();
     try {
-      final rows = await Supabase.instance.client
+      final rows = await client
           .rpc('pakikiramay_admin_list_reports', params: {
         'p_pin': pin,
         'p_limit': limit,
       }).timeout(const Duration(seconds: 8));
-      return _parseAdminReportRows(rows as List);
-    } catch (e) {
-      if (!isRpcMissing(e)) {
-        debugPrint('ForumRepository fetchAdminReports skipped: $e');
-        return [];
-      }
-      debugPrint('ForumRepository admin reports RPC missing — legacy fallback.');
-    }
-    // Legacy path (unmigrated project).
-    try {
-      final rows = await Supabase.instance.client
-          .from(reportsTable)
-          .select(
-            'id, target_id, target_kind, reason, details, '
-            'reporter_name, created_at',
-          )
-          .order('created_at', ascending: false)
-          .limit(limit)
-          .timeout(const Duration(seconds: 8));
       return _parseAdminReportRows(rows as List);
     } catch (e) {
       debugPrint('ForumRepository fetchAdminReports skipped: $e');
@@ -750,7 +728,7 @@ class ForumRepository {
     }
   }
 
-  /// Shared row mapper for both the RPC and the legacy SELECT result.
+  /// Shared row mapper for the RPC result.
   List<AdminReportRow> _parseAdminReportRows(List rows) {
     final out = <AdminReportRow>[];
     for (final row in rows) {
@@ -778,34 +756,22 @@ class ForumRepository {
   }
 
   /// Dismisses all reports for one target (family reviewed, kept the
-  /// message). PIN-verified RPC first, legacy anon DELETE fallback while
-  /// the project is unmigrated. Returns true when deleted. Never throws.
+  /// message). PIN-verified RPC only — reports rows are private after
+  /// the security migration, so there is deliberately NO anon DELETE
+  /// fallback (fail closed). Returns true when deleted. Never throws.
   Future<bool> dismissReports(String targetId) async {
-    if (!SupabaseConfig.isConfigured || targetId.isEmpty) return false;
+    final client = SupabaseConfig.safeClient();
+    if (client == null || targetId.isEmpty) return false;
     if (targetId.startsWith('msg-') || targetId.startsWith('reply-')) {
       return true;
     }
     final pin = await AdminCredential.effectivePin();
     try {
-      final ok = (await Supabase.instance.client.rpc(
+      final ok = (await client.rpc(
             'pakikiramay_admin_dismiss_reports',
             params: {'p_pin': pin, 'p_target_id': targetId},
           ).timeout(const Duration(seconds: 8))) as bool?;
       return ok ?? false;
-    } catch (e) {
-      if (!isRpcMissing(e)) {
-        debugPrint('ForumRepository dismissReports skipped: $e');
-        return false;
-      }
-      debugPrint('ForumRepository dismissReports RPC missing — legacy fallback.');
-    }
-    try {
-      await Supabase.instance.client
-          .from(reportsTable)
-          .delete()
-          .eq('target_id', targetId)
-          .timeout(const Duration(seconds: 8));
-      return true;
     } catch (e) {
       debugPrint('ForumRepository dismissReports skipped: $e');
       return false;
@@ -813,8 +779,8 @@ class ForumRepository {
   }
 
   /// Admin edit of any post text (no own-device or time check — only
-  /// call from the PIN-gated admin page). PIN-verified RPC first, legacy
-  /// anon UPDATE fallback while the project is unmigrated. Returns true
+  /// call from the PIN-gated admin page). PIN-verified RPC only — there
+  /// is deliberately NO anon UPDATE fallback (fail closed). Returns true
   /// when saved. Never throws.
   Future<bool> adminUpdatePost({
     required String postId,
@@ -826,10 +792,11 @@ class ForumRepository {
     if (postId.startsWith('msg-')) {
       return _updateCachedPostMessage(postId, clean);
     }
-    if (!SupabaseConfig.isConfigured) return false;
+    final client = SupabaseConfig.safeClient();
+    if (client == null) return false;
     final pin = await AdminCredential.effectivePin();
     try {
-      final ok = (await Supabase.instance.client.rpc(
+      final ok = (await client.rpc(
             'pakikiramay_admin_edit_message',
             params: {'p_pin': pin, 'p_id': postId, 'p_message': clean},
           ).timeout(const Duration(seconds: 8))) as bool?;
@@ -839,29 +806,14 @@ class ForumRepository {
       }
       return false;
     } catch (e) {
-      if (!isRpcMissing(e)) {
-        debugPrint('ForumRepository adminUpdatePost skipped: $e');
-        return false;
-      }
-      debugPrint('ForumRepository admin edit RPC missing — legacy fallback.');
-    }
-    try {
-      await Supabase.instance.client
-          .from(messagesTable)
-          .update({'message': clean})
-          .eq('id', postId)
-          .timeout(const Duration(seconds: 8));
-      await _updateCachedPostMessage(postId, clean);
-      return true;
-    } catch (e) {
       debugPrint('ForumRepository adminUpdatePost skipped: $e');
       return false;
     }
   }
 
   /// Admin edit of any reply text (no own-device or time check — only
-  /// call from the PIN-gated admin page). PIN-verified RPC first, legacy
-  /// anon UPDATE fallback while the project is unmigrated. Returns true
+  /// call from the PIN-gated admin page). PIN-verified RPC only — there
+  /// is deliberately NO anon UPDATE fallback (fail closed). Returns true
   /// when saved. Never throws.
   Future<bool> adminUpdateReply({
     required String postId,
@@ -879,10 +831,11 @@ class ForumRepository {
     if (replyId.startsWith('reply-') || postId.startsWith('msg-')) {
       return _updateCachedReplyMessage(postId, replyId, clean);
     }
-    if (!SupabaseConfig.isConfigured) return false;
+    final client = SupabaseConfig.safeClient();
+    if (client == null) return false;
     final pin = await AdminCredential.effectivePin();
     try {
-      final ok = (await Supabase.instance.client.rpc(
+      final ok = (await client.rpc(
             'pakikiramay_admin_edit_reply',
             params: {
               'p_pin': pin,
@@ -897,30 +850,16 @@ class ForumRepository {
       }
       return false;
     } catch (e) {
-      if (!isRpcMissing(e)) {
-        debugPrint('ForumRepository adminUpdateReply skipped: $e');
-        return false;
-      }
-      debugPrint('ForumRepository admin edit RPC missing — legacy fallback.');
-    }
-    try {
-      await Supabase.instance.client
-          .from(repliesTable)
-          .update({'message': clean})
-          .eq('id', replyId)
-          .timeout(const Duration(seconds: 8));
-      await _updateCachedReplyMessage(postId, replyId, clean);
-      return true;
-    } catch (e) {
       debugPrint('ForumRepository adminUpdateReply skipped: $e');
       return false;
     }
   }
 
-  /// Admin edit of any message + its reports (bypasses the own-device
-  /// check in the controller — only call from the PIN-gated admin page).
-  /// PIN-verified RPC first; the legacy path (unmigrated project) is the
-  /// same direct-table delete flow as before. Returns true when deleted.
+  /// Admin delete of any message/reply + its reports (bypasses the
+  /// own-device check in the controller — only call from the PIN-gated
+  /// admin page). PIN-verified RPC only; temp ids (local-only rows) are
+  /// cleaned from the device cache. There is deliberately NO direct-table
+  /// delete fallback (fail closed). Returns true when deleted.
   /// Never throws.
   Future<bool> adminDeleteTarget({
     required String targetId,
@@ -928,24 +867,25 @@ class ForumRepository {
     String parentPostId = '',
   }) async {
     if (targetId.isEmpty) return false;
+    // Temp ids (msg-/reply-) are local-only rows — clean the device cache.
+    if (targetId.startsWith('msg-') || targetId.startsWith('reply-')) {
+      return _adminDeleteTargetCached(
+        targetId: targetId,
+        targetKind: targetKind,
+        parentPostId: parentPostId,
+      );
+    }
+    final client = SupabaseConfig.safeClient();
+    if (client == null) return false;
+    final pin = await AdminCredential.effectivePin();
     try {
-      if (!SupabaseConfig.isConfigured ||
-          targetId.startsWith('msg-') ||
-          targetId.startsWith('reply-')) {
-        return _adminDeleteTargetLegacy(
-          targetId: targetId,
-          targetKind: targetKind,
-          parentPostId: parentPostId,
-        );
-      }
-      final pin = await AdminCredential.effectivePin();
       final params = <String, dynamic>{
         'p_pin': pin,
         'p_target_kind': targetKind,
         'p_target_id': targetId,
       };
       if (parentPostId.isNotEmpty) params['p_parent_post_id'] = parentPostId;
-      final ok = (await Supabase.instance.client.rpc(
+      final ok = (await client.rpc(
             'pakikiramay_admin_delete_target',
             params: params,
           ).timeout(const Duration(seconds: 8))) as bool?;
@@ -955,21 +895,13 @@ class ForumRepository {
       }
       return false;
     } catch (e) {
-      if (!isRpcMissing(e)) {
-        debugPrint('ForumRepository adminDeleteTarget skipped: $e');
-        return false;
-      }
-      debugPrint('ForumRepository admin delete RPC missing — legacy fallback.');
+      debugPrint('ForumRepository adminDeleteTarget skipped: $e');
+      return false;
     }
-    return _adminDeleteTargetLegacy(
-      targetId: targetId,
-      targetKind: targetKind,
-      parentPostId: parentPostId,
-    );
   }
 
-  /// Legacy direct-table admin delete (pre-migration projects).
-  Future<bool> _adminDeleteTargetLegacy({
+  /// Local-cache cleanup for temp-id rows that only exist on-device.
+  Future<bool> _adminDeleteTargetCached({
     required String targetId,
     required String targetKind,
     required String parentPostId,
@@ -997,8 +929,8 @@ class ForumRepository {
   /// Edits your own post's text (fix #4). Temp ids are local-only and
   /// always succeed. Real ids go through the device-id-verified RPC
   /// `pakikiramay_edit_message` (owner match + 15-minute edit window
-  /// enforced server-side); legacy direct-table fallback while the
-  /// project is unmigrated. Returns true when saved. Never throws.
+  /// enforced server-side); there is deliberately NO direct-table
+  /// fallback (fail closed). Returns true when saved. Never throws.
   Future<bool> updatePostMessage({
     required String postId,
     required String message,
@@ -1009,41 +941,26 @@ class ForumRepository {
     if (postId.startsWith('msg-')) {
       return _updateCachedPostMessage(postId, clean);
     }
-    if (!SupabaseConfig.isConfigured) return false;
+    final client = SupabaseConfig.safeClient();
+    if (client == null) return false;
     final deviceId = await ReactionIdentity.deviceId();
-    if (deviceId.isNotEmpty) {
-      try {
-        final ok = (await Supabase.instance.client.rpc(
-              'pakikiramay_edit_message',
-              params: {
-                'p_id': postId,
-                'p_device_id': deviceId,
-                'p_message': clean,
-              },
-            ).timeout(const Duration(seconds: 8))) as bool?;
-        if (ok ?? false) {
-          await _updateCachedPostMessage(postId, clean);
-          return true;
-        }
-        // false = not this device's row, outside the edit window, or the
-        // row predates device tracking — treated as a genuine failure.
-        return false;
-      } catch (e) {
-        if (!isRpcMissing(e)) {
-          debugPrint('ForumRepository updatePostMessage skipped: $e');
-          return false;
-        }
-        debugPrint('ForumRepository self-edit RPC missing — legacy fallback.');
-      }
-    }
+    if (deviceId.isEmpty) return false;
     try {
-      await Supabase.instance.client
-          .from(messagesTable)
-          .update({'message': clean})
-          .eq('id', postId)
-          .timeout(const Duration(seconds: 8));
-      await _updateCachedPostMessage(postId, clean);
-      return true;
+      final ok = (await client.rpc(
+            'pakikiramay_edit_message',
+            params: {
+              'p_id': postId,
+              'p_device_id': deviceId,
+              'p_message': clean,
+            },
+          ).timeout(const Duration(seconds: 8))) as bool?;
+      if (ok ?? false) {
+        await _updateCachedPostMessage(postId, clean);
+        return true;
+      }
+      // false = not this device's row, outside the edit window, or the
+      // row predates device tracking — treated as a genuine failure.
+      return false;
     } catch (e) {
       debugPrint('ForumRepository updatePostMessage skipped: $e');
       return false;
@@ -1068,40 +985,25 @@ class ForumRepository {
     if (replyId.startsWith('reply-') || postId.startsWith('msg-')) {
       return _updateCachedReplyMessage(postId, replyId, clean);
     }
-    if (!SupabaseConfig.isConfigured) return false;
+    final client = SupabaseConfig.safeClient();
+    if (client == null) return false;
     final deviceId = await ReactionIdentity.deviceId();
-    if (deviceId.isNotEmpty) {
-      try {
-        final ok = (await Supabase.instance.client.rpc(
-              'pakikiramay_edit_reply',
-              params: {
-                'p_id': replyId,
-                'p_post_id': postId,
-                'p_device_id': deviceId,
-                'p_message': clean,
-              },
-            ).timeout(const Duration(seconds: 8))) as bool?;
-        if (ok ?? false) {
-          await _updateCachedReplyMessage(postId, replyId, clean);
-          return true;
-        }
-        return false;
-      } catch (e) {
-        if (!isRpcMissing(e)) {
-          debugPrint('ForumRepository updateReplyMessage skipped: $e');
-          return false;
-        }
-        debugPrint('ForumRepository self-edit RPC missing — legacy fallback.');
-      }
-    }
+    if (deviceId.isEmpty) return false;
     try {
-      await Supabase.instance.client
-          .from(repliesTable)
-          .update({'message': clean})
-          .eq('id', replyId)
-          .timeout(const Duration(seconds: 8));
-      await _updateCachedReplyMessage(postId, replyId, clean);
-      return true;
+      final ok = (await client.rpc(
+            'pakikiramay_edit_reply',
+            params: {
+              'p_id': replyId,
+              'p_post_id': postId,
+              'p_device_id': deviceId,
+              'p_message': clean,
+            },
+          ).timeout(const Duration(seconds: 8))) as bool?;
+      if (ok ?? false) {
+        await _updateCachedReplyMessage(postId, replyId, clean);
+        return true;
+      }
+      return false;
     } catch (e) {
       debugPrint('ForumRepository updateReplyMessage skipped: $e');
       return false;
@@ -1109,57 +1011,36 @@ class ForumRepository {
   }
 
   /// Deletes your own post and its replies (fix #4). No time limit.
-  /// Device-id-verified RPC first, direct-table fallback while the
-  /// project is unmigrated. Optimistic: restores + false when the delete
+  /// Device-id-verified RPC only; there is deliberately NO direct-table
+  /// fallback (fail closed). Optimistic: restores + false when the delete
   /// fails. Never throws.
   Future<bool> deletePost(String postId) async {
     if (postId.isEmpty) return false;
     if (postId.startsWith('msg-')) {
       return _deleteCachedPost(postId);
     }
-    if (!SupabaseConfig.isConfigured) return false;
+    final client = SupabaseConfig.safeClient();
+    if (client == null) return false;
     final deviceId = await ReactionIdentity.deviceId();
-    if (deviceId.isNotEmpty) {
-      try {
-        final ok = (await Supabase.instance.client.rpc(
-              'pakikiramay_delete_message',
-              params: {'p_id': postId, 'p_device_id': deviceId},
-            ).timeout(const Duration(seconds: 8))) as bool?;
-        if (ok ?? false) {
-          await _deleteCachedPost(postId);
-          return true;
-        }
-        return false;
-      } catch (e) {
-        if (!isRpcMissing(e)) {
-          debugPrint('ForumRepository deletePost skipped: $e');
-          return false;
-        }
-        debugPrint('ForumRepository self-delete RPC missing — legacy fallback.');
-      }
-    }
+    if (deviceId.isEmpty) return false;
     try {
-      final client = Supabase.instance.client;
-      await client
-          .from(repliesTable)
-          .delete()
-          .eq('post_id', postId)
-          .timeout(const Duration(seconds: 8));
-      await client
-          .from(messagesTable)
-          .delete()
-          .eq('id', postId)
-          .timeout(const Duration(seconds: 8));
-      await _deleteCachedPost(postId);
-      return true;
+      final ok = (await client.rpc(
+            'pakikiramay_delete_message',
+            params: {'p_id': postId, 'p_device_id': deviceId},
+          ).timeout(const Duration(seconds: 8))) as bool?;
+      if (ok ?? false) {
+        await _deleteCachedPost(postId);
+        return true;
+      }
+      return false;
     } catch (e) {
       debugPrint('ForumRepository deletePost skipped: $e');
       return false;
     }
   }
 
-  /// Deletes your own reply (fix #4). Device-id-verified RPC first,
-  /// direct-table fallback while the project is unmigrated. Never throws.
+  /// Deletes your own reply (fix #4). Device-id-verified RPC only; there
+  /// is deliberately NO direct-table fallback (fail closed). Never throws.
   Future<bool> deleteReply({
     required String postId,
     required String replyId,
@@ -1168,39 +1049,24 @@ class ForumRepository {
     if (replyId.startsWith('reply-') || postId.startsWith('msg-')) {
       return _deleteCachedReply(postId, replyId);
     }
-    if (!SupabaseConfig.isConfigured) return false;
+    final client = SupabaseConfig.safeClient();
+    if (client == null) return false;
     final deviceId = await ReactionIdentity.deviceId();
-    if (deviceId.isNotEmpty) {
-      try {
-        final ok = (await Supabase.instance.client.rpc(
-              'pakikiramay_delete_reply',
-              params: {
-                'p_id': replyId,
-                'p_post_id': postId,
-                'p_device_id': deviceId,
-              },
-            ).timeout(const Duration(seconds: 8))) as bool?;
-        if (ok ?? false) {
-          await _deleteCachedReply(postId, replyId);
-          return true;
-        }
-        return false;
-      } catch (e) {
-        if (!isRpcMissing(e)) {
-          debugPrint('ForumRepository deleteReply skipped: $e');
-          return false;
-        }
-        debugPrint('ForumRepository self-delete RPC missing — legacy fallback.');
-      }
-    }
+    if (deviceId.isEmpty) return false;
     try {
-      await Supabase.instance.client
-          .from(repliesTable)
-          .delete()
-          .eq('id', replyId)
-          .timeout(const Duration(seconds: 8));
-      await _deleteCachedReply(postId, replyId);
-      return true;
+      final ok = (await client.rpc(
+            'pakikiramay_delete_reply',
+            params: {
+              'p_id': replyId,
+              'p_post_id': postId,
+              'p_device_id': deviceId,
+            },
+          ).timeout(const Duration(seconds: 8))) as bool?;
+      if (ok ?? false) {
+        await _deleteCachedReply(postId, replyId);
+        return true;
+      }
+      return false;
     } catch (e) {
       debugPrint('ForumRepository deleteReply skipped: $e');
       return false;
@@ -1336,19 +1202,31 @@ class ForumRepository {
   /// after our own write (kills echo double-counts). Null when offline
   /// or the table is missing.
   Future<Map<String, int>?> fetchReactionCountFor(String targetId) async {
-    if (!SupabaseConfig.isConfigured || targetId.isEmpty) return null;
+    if (targetId.isEmpty) return null;
+    final client = SupabaseConfig.safeClient();
+    if (client == null) return null;
     try {
-      final rows = await Supabase.instance.client
-          .from(reactionsTable)
-          .select('reaction_type')
-          .eq('target_id', targetId)
-          .limit(2000)
-          .timeout(const Duration(seconds: 8));
+      // Paginate instead of a hard 2000-row cap so the count stays exact
+      // (one target only — typically a single page).
+      const pageSize = 1000;
+      var from = 0;
       final counts = {'heart': 0};
-      for (final row in (rows as List)) {
-        final type = (row['reaction_type'] as String? ?? '').trim();
-        if (type.isEmpty) continue;
-        counts[type] = (counts[type] ?? 0) + 1;
+      while (true) {
+        final rows = await client
+            .from(reactionsTable)
+            .select('reaction_type')
+            .eq('target_id', targetId)
+            .order('reaction_type')
+            .range(from, from + pageSize - 1)
+            .timeout(const Duration(seconds: 8));
+        final list = rows as List;
+        for (final row in list) {
+          final type = (row['reaction_type'] as String? ?? '').trim();
+          if (type.isEmpty) continue;
+          counts[type] = (counts[type] ?? 0) + 1;
+        }
+        if (list.length < pageSize) break;
+        from += pageSize;
       }
       return counts;
     } catch (e) {

@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:nita/core/constants/memorial.dart';
-import 'package:nita/core/utils/gallery_assets.dart';
 import 'package:nita/models/home_model.dart';
 
 class HomeController extends ChangeNotifier {
@@ -41,7 +40,7 @@ class HomeController extends ChangeNotifier {
         descriptionKey: 'timeline_birth_desc',
       ),
       LifeEvent(
-        year: '1961',
+        year: '1958',
         titleKey: 'timeline_marriage_title',
         descriptionKey: 'timeline_marriage_desc',
       ),
@@ -67,6 +66,9 @@ class HomeController extends ChangeNotifier {
   // --- Cherished memories (Home tab section) ---
   // Moved here from the old MemoriesController so everything for Home
   // lives in one place. Used by views/home/home_story_memories.dart.
+  // Note: the per-item `photoCount` values below are display-only
+  // estimates maintained by hand — they are deliberately NOT loaded
+  // from the real gallery manifest.
   static const MemoriesModel memoriesData = MemoriesModel(
     memories: [
       MemoryItem(
@@ -127,32 +129,4 @@ class HomeController extends ChangeNotifier {
       ),
     ],
   );
-
-  int? _galleryCount;
-
-  /// Real gallery photo count, loaded from the asset manifest so the stats
-  /// pill and the feature card always reflect the actual gallery. Null
-  /// while the manifest is still being read (shown as a loading placeholder).
-  /// -1 means the read failed (shown as a dash instead of pulsing forever).
-  int? get galleryCount => _galleryCount;
-
-  Future<void> loadGalleryCount() async {
-    try {
-      final paths = await loadGalleryPhotoPaths().timeout(
-        const Duration(seconds: 10),
-      );
-      if (_galleryCount != paths.length) {
-        _galleryCount = paths.length;
-        notifyListeners();
-      }
-    } catch (e) {
-      // -1 marks a failed load, distinct from null ("still loading"), so
-      // the UI can stop pulsing and show a dash instead of waiting forever.
-      debugPrint('[Home] gallery count failed: $e');
-      if (_galleryCount != -1) {
-        _galleryCount = -1;
-        notifyListeners();
-      }
-    }
-  }
 }

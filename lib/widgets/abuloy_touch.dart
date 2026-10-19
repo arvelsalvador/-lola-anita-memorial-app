@@ -46,7 +46,10 @@ class AbuloyTouch extends StatefulWidget {
 }
 
 class _AbuloyTouchState extends State<AbuloyTouch>
-    with SingleTickerProviderStateMixin {
+    with
+        SingleTickerProviderStateMixin,
+        WidgetsBindingObserver // pauses the breathing pulse in the background
+    {
   /// Current position as a fraction (0..1) of the stack size. Null = docked
   /// default. Fractions keep the spot (e.g. the middle) stable when moving
   /// between tabs whose stacks have different sizes — absolute pixels would
@@ -63,9 +66,20 @@ class _AbuloyTouchState extends State<AbuloyTouch>
   late final AnimationController _pulse;
   late final Animation<double> _pulseAnim;
 
+  /// Whether [_pulse] is currently repeating; mirrors state so lifecycle
+  /// callbacks and [_openDialog] never fight over the controller.
+  bool _pulseRunning = true;
+
+  /// True once the dialog was first opened — the pulse is then permanently
+  /// frozen and must not restart on app resume.
+  bool _pulseFrozen = false;
+
   @override
   void initState() {
     super.initState();
+    // The infinite pulse would keep ticking while backgrounded; observe
+    // the app lifecycle and pause it off-screen.
+    WidgetsBinding.instance.addObserver(this);
     _pulse = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
@@ -74,7 +88,21 @@ class _AbuloyTouchState extends State<AbuloyTouch>
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (_pulseRunning || _pulseFrozen) return;
+      _pulseRunning = true;
+      _pulse.repeat(reverse: true);
+    } else {
+      if (!_pulseRunning) return;
+      _pulseRunning = false;
+      _pulse.stop();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pulse.dispose();
     super.dispose();
   }
@@ -82,7 +110,11 @@ class _AbuloyTouchState extends State<AbuloyTouch>
   /// Freezes the pulse on first open; the frozen frame stays as a static
   /// halo. Idempotent — later taps just open the dialog.
   void _openDialog(BuildContext context) {
-    _pulse.stop();
+    if (!_pulseFrozen) {
+      _pulseFrozen = true;
+      _pulseRunning = false;
+      _pulse.stop();
+    }
     showAbuloyDialog(context);
   }
 
@@ -146,15 +178,22 @@ class _AbuloyTouchState extends State<AbuloyTouch>
         // build-captured point: several pointer events can arrive between
         // frames, and basing each on the stale build point would drop
         // movement and make the drag lag behind the finger.
-        onPanUpdate: (details) => setState(() {
-          final base = _fraction ?? _toFraction(pos, area);
-          _fraction = _clamp01(
-            Offset(
-              base.dx + details.delta.dx / area.width,
-              base.dy + details.delta.dy / area.height,
-            ),
-          );
-        }),
+        onPanUpdate: (details) {
+          // Guard the sizes the same way [_toFraction] does: a degenerate
+          // (zero-sized) area would send delta / 0 to Infinity, and after
+          // clamping that teleports the touch to a corner instead of
+          // dragging it.
+          if (area.width <= 0 || area.height <= 0) return;
+          setState(() {
+            final base = _fraction ?? _toFraction(pos, area);
+            _fraction = _clamp01(
+              Offset(
+                base.dx + details.delta.dx / area.width,
+                base.dy + details.delta.dy / area.height,
+              ),
+            );
+          });
+        },
         onPanEnd: (_) => setState(() => _dragging = false),
         onPanCancel: () => setState(() => _dragging = false),
         child: Semantics(

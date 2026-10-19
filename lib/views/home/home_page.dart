@@ -10,7 +10,6 @@ import 'package:nita/core/utils/image_decode.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/core/utils/navigation.dart';
 import 'package:nita/core/ui/responsive.dart';
-import 'package:nita/core/utils/motion.dart';
 import 'package:nita/controllers/gallery_controller.dart';
 import 'package:nita/controllers/home_controller.dart';
 
@@ -27,6 +26,8 @@ import 'package:nita/widgets/app_bottom_nav.dart';
 import 'package:nita/widgets/abuloy_touch.dart';
 
 import 'package:nita/widgets/app_brand_bar.dart';
+import 'package:nita/widgets/curved_memorial_header.dart';
+import 'package:nita/widgets/framed_memorial_portrait.dart';
 import 'package:nita/widgets/ornament_divider.dart';
 import 'package:nita/widgets/ornamental_card.dart';
 import 'package:nita/widgets/section_label.dart';
@@ -64,6 +65,7 @@ class _HomePageState extends State<HomePage> {
   // placeholder until this local (fast) check resolves.
   final VisitorRepository _visitorRepo = const VisitorRepository();
   bool _gateChecked = false;
+  bool _redirectingToSplash = false;
 
   @override
   void initState() {
@@ -83,9 +85,16 @@ class _HomePageState extends State<HomePage> {
     } catch (_) {
       remembered = false;
     }
-    if (!mounted) return;
+    if (!mounted || _redirectingToSplash) return;
     if (!remembered) {
-      Navigator.pushReplacementNamed(context, AppRoutes.splash);
+      _redirectingToSplash = true;
+      final currentRoute = ModalRoute.of(context)?.settings.name;
+      if (currentRoute != AppRoutes.splash) {
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
+        Navigator.pushReplacementNamed(context, AppRoutes.splash);
+      }
       return;
     }
     setState(() => _gateChecked = true);
@@ -307,7 +316,10 @@ class _HomeShellState extends State<HomeShell> {
   Widget build(BuildContext context) {
     final bodies = _buildBodies();
     final screenHeight = MediaQuery.sizeOf(context).height;
-    final expandedHeight = (screenHeight * 0.46).clamp(400.0, 540.0);
+    // Taller hero = bigger portrait: home_hero_header sizes the portrait
+    // from whatever height is left after its fixed text blocks, so the
+    // 150px cap there is only reached once this passes ~455.
+    final expandedHeight = (screenHeight * 0.50).clamp(460.0, 580.0);
     final onStoryTab = widget.selectedTab == 0;
 
     return Scaffold(
@@ -340,7 +352,16 @@ class _HomeShellState extends State<HomeShell> {
                     opacity: onStoryTab ? 1 : 0,
                     duration: const Duration(milliseconds: 200),
                     curve: Curves.easeOut,
-                    child: _heroChild,
+                    child: TickerMode(
+                      // The hero sits above the IndexedStack and is only
+                      // visible on the Story tab. Hidden behind opacity 0
+                      // it would still run its infinite animations (the
+                      // portrait's glow pulse in home_effects.dart and the
+                      // curved-header shimmer in home_hero_header.dart),
+                      // so mute its tickers while another tab is active.
+                      enabled: onStoryTab,
+                      child: _heroChild,
+                    ),
                   ),
                 );
                 return ClipRect(
@@ -390,7 +411,21 @@ class _HomeShellState extends State<HomeShell> {
                               index: widget.selectedTab,
                               children: [
                                 for (int i = 0; i < bodies.length; i++)
-                                  bodies[i],
+                                  // IndexedStack keeps every tab mounted, so
+                                  // hidden tabs' infinite animations (the
+                                  // story scroll-reveals, the gallery's
+                                  // animation helpers, and even the
+                                  // condolence candle's flame flicker) would
+                                  // keep burning frames forever. TickerMode
+                                  // mutes every vsync-based ticker below it
+                                  // while its tab is not the active one;
+                                  // muted tickers simply stop and resume
+                                  // when re-enabled.
+                                  TickerMode(
+                                    key: ValueKey('tab-ticker-$i'),
+                                    enabled: i == widget.selectedTab,
+                                    child: bodies[i],
+                                  ),
                               ],
                             ),
                           ),

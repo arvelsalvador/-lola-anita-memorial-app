@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:nita/core/localization/translations_en.dart';
 import 'package:nita/core/localization/translations_tl.dart';
 import 'package:nita/core/localization/translations_bi.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 enum AppLanguage { english, tagalog, bicol }
 
@@ -15,7 +16,39 @@ class LanguageProvider extends ChangeNotifier {
   static Map<String, String> get tl => translationsTl;
   static Map<String, String> get bi => translationsBi;
 
+  /// SharedPreferences key the chosen language code ('en' | 'tl' | 'bi')
+  /// is stored under. Written by the visitor gate (visitor_gate_form)
+  /// and by [setLanguage]; read back on startup so a returning visitor
+  /// no longer resets to Tagalog.
+  static const String savedLanguageKey = 'visitor_lang';
+
   AppLanguage _language = AppLanguage.tagalog;
+
+  LanguageProvider() {
+    // Fire-and-forget restore: the constructor can't await, so the
+    // saved choice applies a moment after startup and notifies
+    // listeners (missing key = keep the Tagalog default).
+    _restoreSavedLanguage();
+  }
+
+  /// Reads [savedLanguageKey] and applies it. Missing or unrecognized
+  /// value = keep the current default; a read failure never throws.
+  Future<void> _restoreSavedLanguage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final restored = switch (prefs.getString(savedLanguageKey)) {
+        'en' => AppLanguage.english,
+        'tl' => AppLanguage.tagalog,
+        'bi' => AppLanguage.bicol,
+        _ => null,
+      };
+      if (restored == null || restored == _language) return;
+      _language = restored;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('LanguageProvider: could not restore saved language ($e)');
+    }
+  }
 
   AppLanguage get language => _language;
 
@@ -23,7 +56,27 @@ class LanguageProvider extends ChangeNotifier {
     if (_language == lang) return;
     _language = lang;
     notifyListeners();
+    // Persist the choice (fire-and-forget; failures never break the UI).
+    saveLanguageCode(_codeOf(lang));
   }
+
+  /// Persists [code] ('en' | 'tl' | 'bi') under [savedLanguageKey].
+  /// Never throws — a failed write only debugPrints and the app keeps
+  /// running with the in-memory language.
+  static Future<void> saveLanguageCode(String code) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(savedLanguageKey, code);
+    } catch (e) {
+      debugPrint('LanguageProvider: could not persist language ($e)');
+    }
+  }
+
+  String _codeOf(AppLanguage lang) => switch (lang) {
+        AppLanguage.english => 'en',
+        AppLanguage.tagalog => 'tl',
+        AppLanguage.bicol => 'bi',
+      };
 
   bool get isEnglish => _language == AppLanguage.english;
   bool get isTagalog => _language == AppLanguage.tagalog;

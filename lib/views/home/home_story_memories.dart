@@ -320,39 +320,46 @@ class MemoryCard extends StatelessWidget {
     );
 
     final content = Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const _TitleAccent(),
-            const SizedBox(height: 4),
-            Text(
-              lang.t(memory.titleKey),
-              textAlign: TextAlign.center,
-              style: AppTextStyles.homeContent.copyWith(
-                color: AppColors.textDark,
+      child: MediaQuery.withClampedTextScaling(
+        // Elderly visitors run large accessibility font sizes; the card's
+        // fixed 276px height would overflow (yellow stripes) above ~1.4×.
+        // Cap the on-card text so it still grows with the OS setting but
+        // always fits — same pattern the memorial hero header uses.
+        maxScaleFactor: 1.4,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const _TitleAccent(),
+              const SizedBox(height: 4),
+              Text(
+                lang.t(memory.titleKey),
+                textAlign: TextAlign.center,
+                style: AppTextStyles.homeContent.copyWith(
+                  color: AppColors.textDark,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 6),
-            // The body is summarized to fit ~7 lines on the card's text
-            // column (homepage content voice, 1.5 line height) at typical
-            // phone widths — no trailing ellipsis. The no-ellipsis probe
-            // test in test/memory_card_overflow_test.dart enforces this.
-            Text(
-              lang.t(memory.bodyKey),
-              textAlign: TextAlign.justify,
-              style: AppTextStyles.homeContent.copyWith(
-                color: AppColors.muted,
-                height: 1.5,
+              const SizedBox(height: 6),
+              // The body is summarized to fit ~7 lines on the card's text
+              // column (homepage content voice, 1.5 line height) at typical
+              // phone widths — no trailing ellipsis. The no-ellipsis probe
+              // test in test/memory_card_overflow_test.dart enforces this.
+              Text(
+                lang.t(memory.bodyKey),
+                textAlign: TextAlign.justify,
+                style: AppTextStyles.homeContent.copyWith(
+                  color: AppColors.muted,
+                  height: 1.5,
+                ),
+                maxLines: 7,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 7,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

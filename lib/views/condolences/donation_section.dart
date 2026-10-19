@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -173,7 +175,10 @@ class _QrImage extends StatelessWidget {
               qrAssetPath,
               width: 190,
               height: 190,
-              fit: BoxFit.cover,
+              // Contain, not cover: a non-square source JPG must keep its
+              // full quiet zone or the QR stops scanning. The card
+              // background is already white, so letterboxing is invisible.
+              fit: BoxFit.contain,
               errorBuilder: (context, _, _) => _QrPlaceholder(label: qrLabel),
             ),
           ),
@@ -433,16 +438,36 @@ class _OpenGcashButton extends StatelessWidget {
       );
       return;
     }
-    for (final uri in [
-      Uri.parse('gcash://'),
-      Uri.parse(
-        'https://play.google.com/store/apps/details?id=com.globe.gcash.android',
-      ),
-      Uri.parse('https://apps.apple.com/ph/app/gcash/id520020791'),
-    ]) {
+    // Platform-dependent fallback order: on iOS the old fixed order
+    // opened the Play Store URL in the browser and never reached the
+    // App Store link. Try the GCash app first, then this platform's
+    // store; elsewhere (desktop) go straight to the store page.
+    // Safe to touch Platform here — the kIsWeb branch returned above.
+    final List<Uri> links;
+    if (Platform.isIOS) {
+      links = [
+        Uri.parse('gcash://'),
+        Uri.parse('https://apps.apple.com/ph/app/gcash/id520020791'),
+      ];
+    } else if (Platform.isAndroid) {
+      links = [
+        Uri.parse('gcash://'),
+        Uri.parse(
+          'https://play.google.com/store/apps/details?id=com.globe.gcash.android',
+        ),
+      ];
+    } else {
+      links = [
+        Uri.parse(
+          'https://play.google.com/store/apps/details?id=com.globe.gcash.android',
+        ),
+      ];
+    }
+    for (final uri in links) {
       try {
         if (await launchUrl(uri, mode: LaunchMode.externalApplication)) return;
-      } catch (_) {
+      } catch (e) {
+        debugPrint('DonationSection: could not launch $uri ($e)');
         continue;
       }
     }

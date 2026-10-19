@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -41,9 +41,6 @@ class ForumController extends ChangeNotifier {
   String _deviceId = '';
   // Display name from the visitor gate (loaded lazily).
   String _visitorName = '';
-  // Names currently on the Pakikiramay page (Supabase Presence).
-  Set<String> _onlineNames = {};
-  bool _presenceTracked = false;
   // Per-post/reply write queue: taps run instantly on screen, but their
   // server writes run one-after-another per target so an Unlike can
   // never overtake its Like and leak a row.
@@ -57,6 +54,9 @@ class ForumController extends ChangeNotifier {
   Set<String> _ownPostIds = {};
   Set<String> _ownReplyIds = {};
   bool _ownLoaded = false;
+  // Fix #3: guards so pending uploads retry once per fetch / resend tap,
+  // never looping or double-inserting while a retry is in flight.
+  bool _retryingPendingSync = false;
 
   /// Edit window for your own posts/replies (fix #4).
   static const editWindow = Duration(minutes: 15);
@@ -70,12 +70,6 @@ class ForumController extends ChangeNotifier {
   bool get loading => _loading;
   bool get loadError => _loadError;
   bool get realtimeConnected => _realtimeConnected;
-  Set<String> get onlineNames => Set.unmodifiable(_onlineNames);
-  int get onlineCount => _onlineNames.length;
-
-  /// True when [authorName] is currently on the Pakikiramay page.
-  bool isOnline(String authorName) =>
-      _onlineNames.contains(authorName.trim());
 
   /// Display names of who liked [targetId] (post or reply id).
   /// Merges remote names with this device's local like so the sheet never
@@ -279,21 +273,6 @@ class ForumController extends ChangeNotifier {
     if (changed && !_disposed) notifyListeners();
   }
 
-  /// Pure merge of presence states into online names — unit-testable
-  /// without sockets. Shapes: [{name}, ...] metas per presence key.
-  static Set<String> onlineNamesFromMetas(
-    List<List<Map<String, dynamic>>> allMetas,
-  ) {
-    final names = <String>{};
-    for (final metas in allMetas) {
-      for (final meta in metas) {
-        final name = (meta['name'] as String? ?? '').trim();
-        if (name.isNotEmpty) names.add(name);
-      }
-    }
-    return names;
-  }
-
   /// Loads real posts from the database / local cache.
   Future<void> loadPosts() async {
     if (_loading || _disposed) return;
@@ -304,12 +283,16 @@ class ForumController extends ChangeNotifier {
     try {
       final fetched = await _repository.fetchPosts();
       if (_disposed) return;
-      _posts = fetched;
+      // Fix #3: merge unsent (pendingSync) posts/replies back in — a
+      // successful fetch alone would wipe them silently.
+      _posts = _keepPendingSync(_posts, fetched);
       _loadError = false;
       // Fix #4 backfill: posts made before ownership tracking (or on a
       // previous install) are claimed when they match this device's
       // gate name. Skipped for empty/Anonymous names.
       unawaited(_adoptOwnByGateName());
+      // Fix #3: one best-effort upload retry per successful fetch.
+      unawaited(_retryPendingSyncUploads());
     } catch (e) {
       debugPrint('ForumController.loadPosts error: $e');
       if (!_disposed && _posts.isEmpty) {
@@ -336,6 +319,11 @@ class ForumController extends ChangeNotifier {
       );
       if (post != null && !_disposed) {
         _posts = [post, ..._posts.where((p) => p.id != post.id)];
+        // Fix #3: a surviving temp id means the insert failed — mark it
+        // unsent so refreshes keep it and retry the upload.
+        if (post.id.startsWith('msg-')) {
+          _posts[0] = post.copyWith(pendingSync: true);
+        }
         _ownPostIds.add(post.id);
         unawaited(OwnIds.addPost(post.id));
         notifyListeners();
@@ -368,7 +356,14 @@ class ForumController extends ChangeNotifier {
         final idx = _posts.indexWhere((p) => p.id == postId);
         if (idx != -1) {
           final target = _posts[idx];
-          _posts[idx] = target.copyWith(replies: [...target.replies, reply]);
+          // Fix #3: a surviving temp id means the insert failed — mark
+          // it unsent so refreshes keep it and retry the upload.
+          final marked = reply.id.startsWith('reply-')
+              ? reply.copyWith(pendingSync: true)
+              : reply;
+          _posts[idx] = target.copyWith(
+            replies: [...target.replies, marked],
+          );
           _ownReplyIds.add(reply.id);
           unawaited(OwnIds.addReply(reply.id));
           notifyListeners();
@@ -403,8 +398,14 @@ class ForumController extends ChangeNotifier {
         message: clean,
       );
       if (!ok && !_disposed) {
-        _posts[idx] = _posts[idx].copyWith(message: previous);
-        notifyListeners();
+        // Re-find by id at revert time: the feed may have changed during
+        // the save (realtime insert/delete), so a captured list index
+        // could write the old message onto the WRONG post.
+        final i = _posts.indexWhere((p) => p.id == postId);
+        if (i != -1) {
+          _posts[i] = _posts[i].copyWith(message: previous);
+          notifyListeners();
+        }
       }
       return ok;
     } catch (_) {
@@ -554,6 +555,224 @@ class ForumController extends ChangeNotifier {
     }
   }
 
+  /// Fix #3: keeps unsent (pendingSync) posts and replies from the
+  /// previous feed inside the freshly fetched list, so a successful
+  /// refresh never silently deletes the user's text. A temp post whose
+  /// exact content already landed as a real row is dropped instead
+  /// (the live echo swapped it in). Pure list shaping — no writes.
+  List<ForumPost> _keepPendingSync(
+    List<ForumPost> previous,
+    List<ForumPost> fetched,
+  ) {
+    if (previous.isEmpty) return fetched;
+    final kept = List<ForumPost>.from(fetched);
+    final pendingPosts = <ForumPost>[];
+    for (final old in previous) {
+      if (!old.pendingSync) continue;
+      final landed = fetched.any(
+        (p) =>
+            !p.id.startsWith('msg-') &&
+            p.authorName == old.authorName &&
+            p.message == old.message,
+      );
+      if (landed) continue;
+      pendingPosts.add(old);
+    }
+    if (pendingPosts.isNotEmpty) {
+      kept.removeWhere((p) => pendingPosts.any((pp) => pp.id == p.id));
+      kept.insertAll(0, pendingPosts);
+    }
+    // Unsent replies: re-attach the ones the fetch dropped, and restore
+    // the unsent mark when the repository cache re-materialized the same
+    // temp reply without it.
+    final oldById = <String, ForumPost>{
+      for (final p in previous) p.id: p,
+    };
+    return kept.map((p) {
+      final oldPost = oldById[p.id];
+      if (oldPost == null) return p;
+      var changed = false;
+      final replies = <ForumReply>[];
+      for (final r in p.replies) {
+        ForumReply? oldReply;
+        for (final o in oldPost.replies) {
+          if (o.id == r.id) {
+            oldReply = o;
+            break;
+          }
+        }
+        if (oldReply != null && oldReply.pendingSync && !r.pendingSync) {
+          replies.add(r.copyWith(pendingSync: true));
+          changed = true;
+        } else {
+          replies.add(r);
+        }
+      }
+      for (final r in oldPost.replies) {
+        if (!r.pendingSync) continue;
+        final exists = replies.any(
+          (nr) =>
+              nr.id == r.id ||
+              (!nr.id.startsWith('reply-') &&
+                  nr.authorName == r.authorName &&
+                  nr.message == r.message),
+        );
+        if (exists) continue;
+        replies.add(r);
+        changed = true;
+      }
+      if (!changed) return p;
+      replies.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      return p.copyWith(replies: replies);
+    }).toList();
+  }
+
+  /// Fix #3: one best-effort upload retry for every unsent post and
+  /// reply, run after each successful fetch. Never loops — a failed
+  /// retry keeps its pendingSync mark and waits for the next fetch.
+  /// Never throws.
+  Future<void> _retryPendingSyncUploads() async {
+    if (_retryingPendingSync || _disposed) return;
+    _retryingPendingSync = true;
+    try {
+      // Posts first: their replies can only upload once the parent has
+      // a real id (temp parents are skipped by the repository).
+      for (final post in List<ForumPost>.from(_posts)) {
+        if (_disposed) return;
+        if (!post.pendingSync) continue;
+        await _retryPendingPost(post);
+      }
+      // Replies under real (non-temp) parents.
+      for (final post in List<ForumPost>.from(_posts)) {
+        if (_disposed) return;
+        if (post.id.startsWith('msg-')) continue;
+        for (final reply in List<ForumReply>.from(post.replies)) {
+          if (_disposed) return;
+          if (!reply.pendingSync) continue;
+          await _retryPendingReply(post.id, reply);
+        }
+      }
+    } catch (e) {
+      debugPrint('ForumController pending retry skipped: $e');
+    } finally {
+      _retryingPendingSync = false;
+    }
+  }
+
+  /// Manual retry for an unsent post or reply (the "Unsent · Tap to
+  /// retry" cue). When the reply's parent post is itself still unsent,
+  /// the parent is retried first — the reply needs a real parent id.
+  /// Best-effort: keeps the pendingSync mark when the write fails again.
+  /// Never throws.
+  Future<void> resendPending(String targetId) async {
+    if (_disposed || targetId.isEmpty || _retryingPendingSync) return;
+    final postIdx = _posts.indexWhere((p) => p.id == targetId);
+    if (postIdx != -1) {
+      if (!_posts[postIdx].pendingSync) return;
+      _retryingPendingSync = true;
+      try {
+        await _retryPendingPost(_posts[postIdx]);
+      } finally {
+        _retryingPendingSync = false;
+      }
+      return;
+    }
+    for (var i = 0; i < _posts.length; i++) {
+      final replyIdx =
+          _posts[i].replies.indexWhere((r) => r.id == targetId);
+      if (replyIdx == -1) continue;
+      final post = _posts[i];
+      final reply = post.replies[replyIdx];
+      if (!reply.pendingSync) return;
+      _retryingPendingSync = true;
+      try {
+        if (post.pendingSync) {
+          await _retryPendingPost(post);
+        } else {
+          await _retryPendingReply(post.id, reply);
+        }
+      } finally {
+        _retryingPendingSync = false;
+      }
+      return;
+    }
+  }
+
+  /// Re-uploads one unsent post. On success swaps the temp id → real id
+  /// exactly like the live-echo path does (reactions, replies, and
+  /// ownership travel across). Keeps pendingSync on failure. Never
+  /// throws.
+  Future<void> _retryPendingPost(ForumPost post) async {
+    try {
+      final saved = await _repository.createPost(
+        authorName: post.authorName,
+        message: post.message,
+      );
+      if (_disposed || saved == null) return;
+      if (saved.id.startsWith('msg-')) {
+        debugPrint(
+          'ForumController pending post still unsent (${post.id}).',
+        );
+        return;
+      }
+      final idx = _posts.indexWhere((p) => p.id == post.id);
+      if (idx == -1) return; // live echo already swapped it in
+      final tempId = _posts[idx].id;
+      _posts[idx] = saved.copyWith(
+        reactions: _posts[idx].reactions,
+        userReactions: _posts[idx].userReactions,
+        replies: _posts[idx].replies,
+      );
+      if (_ownPostIds.remove(tempId)) {
+        _ownPostIds.add(saved.id);
+        unawaited(OwnIds.migratePost(tempId, saved.id));
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('ForumController pending post retry skipped: $e');
+    }
+  }
+
+  /// Re-uploads one unsent reply under the real [postId]. Same swap
+  /// semantics as [_retryPendingPost]. Never throws.
+  Future<void> _retryPendingReply(String postId, ForumReply reply) async {
+    try {
+      final saved = await _repository.addReply(
+        postId: postId,
+        authorName: reply.authorName,
+        message: reply.message,
+        replyToName: reply.replyToName,
+      );
+      if (_disposed || saved == null) return;
+      if (saved.id.startsWith('reply-')) {
+        debugPrint(
+          'ForumController pending reply still unsent (${reply.id}).',
+        );
+        return;
+      }
+      final postIdx = _posts.indexWhere((p) => p.id == postId);
+      if (postIdx == -1) return;
+      final parent = _posts[postIdx];
+      final replyIdx = parent.replies.indexWhere((r) => r.id == reply.id);
+      if (replyIdx == -1) return; // live echo already swapped it in
+      final updated = List<ForumReply>.from(parent.replies);
+      final tempId = updated[replyIdx].id;
+      updated[replyIdx] = saved.copyWith(
+        replyToName: updated[replyIdx].replyToName,
+        reactions: updated[replyIdx].reactions,
+        userReactions: updated[replyIdx].userReactions,
+      );
+      _posts[postIdx] = parent.copyWith(replies: updated);
+      if (_ownReplyIds.remove(tempId)) {
+        _ownReplyIds.add(saved.id);
+        unawaited(OwnIds.migrateReply(tempId, saved.id));
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('ForumController pending reply retry skipped: $e');
+    }
+  }
+
   /// Toggles the heart Like with optimistic UI update.
   Future<void> toggleReaction(String postId, String reactionType) async {
     if (_disposed) return;
@@ -561,6 +780,10 @@ class ForumController extends ChangeNotifier {
     if (idx == -1) return;
 
     final post = _posts[idx];
+    // Failure-rollback snapshot (see _revertReactionOptimistic).
+    final previousUserReactions = Set<String>.from(post.userReactions);
+    final previousCount = post.reactions[reactionType] ?? 0;
+
     final userReactions = Set<String>.from(post.userReactions);
     final hasReacted = userReactions.contains(reactionType);
 
@@ -589,8 +812,17 @@ class ForumController extends ChangeNotifier {
     });
     // Shared counts so other devices see the like live. Queued per
     // target: rapid Like->Unlike->Like runs in tap order, and the
-    // authoritative server count reconciles afterwards.
-    _enqueueReactionSync(postId, reactionType, liked: !hasReacted);
+    // authoritative server count reconciles afterwards. A definitive
+    // remote write failure rolls the optimistic tap back.
+    _enqueueReactionSync(
+      postId,
+      reactionType,
+      liked: !hasReacted,
+      previousUserReactions: previousUserReactions,
+      previousCount: previousCount,
+      optimisticUserReactions: Set<String>.from(userReactions),
+      optimisticCount: newReactions[reactionType] ?? 0,
+    );
   }
 
   /// This phone's display name for presence + liker stamps.
@@ -620,6 +852,10 @@ class ForumController extends ChangeNotifier {
     if (replyIdx == -1) return;
 
     final reply = post.replies[replyIdx];
+    // Failure-rollback snapshot (see _revertReactionOptimistic).
+    final previousUserReactions = Set<String>.from(reply.userReactions);
+    final previousCount = reply.reactions[reactionType] ?? 0;
+
     final userReactions = Set<String>.from(reply.userReactions);
     final hasReacted = userReactions.contains(reactionType);
 
@@ -648,7 +884,15 @@ class ForumController extends ChangeNotifier {
     ).catchError((err) {
       debugPrint('Reply reaction error: $err');
     });
-    _enqueueReactionSync(replyId, reactionType, liked: !hasReacted);
+    _enqueueReactionSync(
+      replyId,
+      reactionType,
+      liked: !hasReacted,
+      previousUserReactions: previousUserReactions,
+      previousCount: previousCount,
+      optimisticUserReactions: Set<String>.from(userReactions),
+      optimisticCount: newReactions[reactionType] ?? 0,
+    );
   }
 
   /// Opens the shared Realtime feed. Safe to call twice; subsequent
@@ -657,16 +901,14 @@ class ForumController extends ChangeNotifier {
   Future<void> subscribeRealtime() async {
     if (_disposed || _channel != null || _subscribing) return;
     if (!SupabaseConfig.isConfigured) return;
+    final client = SupabaseConfig.safeClient();
+    if (client == null) return;
     _subscribing = true;
     try {
       _deviceId = await ReactionIdentity.deviceId();
       if (_disposed) return;
-      final client = Supabase.instance.client;
       final channel = client.channel('pakikiramay-feed');
       channel
-          .onPresenceSync((_) => _refreshPresence())
-          .onPresenceJoin((_) => _refreshPresence())
-          .onPresenceLeave((_) => _refreshPresence())
           .onPostgresChanges(
             event: PostgresChangeEvent.insert,
             schema: 'public',
@@ -754,7 +996,6 @@ class ForumController extends ChangeNotifier {
           debugPrint('ForumController realtime status error: $error');
         }
         notifyListeners();
-        if (_realtimeConnected) unawaited(_trackPresence());
       });
       _channel = channel;
     } catch (e) {
@@ -771,61 +1012,16 @@ class ForumController extends ChangeNotifier {
     final channel = _channel;
     _channel = null;
     _realtimeConnected = false;
-    _presenceTracked = false;
-    _onlineNames = {};
     if (channel == null) return;
     try {
-      await channel.untrack();
-      await Supabase.instance.client.removeChannel(channel);
+      final client = SupabaseConfig.safeClient();
+      if (client != null) {
+        await client.removeChannel(channel);
+      }
     } catch (e) {
       debugPrint('ForumController.unsubscribeRealtime skipped: $e');
     }
     if (!_disposed) notifyListeners();
-  }
-
-  /// Announces this visitor on the presence channel so others see
-  /// their green dot. Ephemeral — vanishes on disconnect.
-  Future<void> _trackPresence() async {
-    final channel = _channel;
-    if (_disposed || channel == null || _presenceTracked) return;
-    try {
-      if (_deviceId.isEmpty) _deviceId = await ReactionIdentity.deviceId();
-      final name = await _localDisplayName();
-      if (_disposed || _channel == null) return;
-      await channel.track({'device_id': _deviceId, 'name': name});
-      _presenceTracked = true;
-    } catch (e) {
-      debugPrint('ForumController track presence skipped: $e');
-    }
-  }
-
-  /// Rebuilds the online-name set from the channel presence state.
-  /// Skips our own device so you never see yourself as online, and two
-  /// visitors sharing the name "Anonymous" don't both light each other
-  /// misleadingly — only *other* devices count.
-  void _refreshPresence() {
-    if (_disposed) return;
-    try {
-      final channel = _channel;
-      if (channel == null) return;
-      final states = channel.presenceState();
-      final allMetas = states
-          .map((s) => s.presences.map((p) => p.payload).toList())
-          .toList();
-      final names = <String>{};
-      for (final metas in allMetas) {
-        for (final meta in metas) {
-          final device = (meta['device_id'] as String? ?? '').trim();
-          if (device.isNotEmpty && device == _deviceId) continue;
-          final name = (meta['name'] as String? ?? '').trim();
-          if (name.isNotEmpty) names.add(name);
-        }
-      }
-      _onlineNames = names;
-      notifyListeners();
-    } catch (e) {
-      debugPrint('ForumController presence refresh skipped: $e');
-    }
   }
 
   void _handleLivePost(Map<String, dynamic> record) {
@@ -970,66 +1166,142 @@ class ForumController extends ChangeNotifier {
 
   /// Queues a server write behind any in-flight write for the same
   /// post/reply, so rapid Like->Unlike->Like runs in tap order and an
-  /// Unlike can never overtake its Like and leak a row.
+  /// Unlike can never overtake its Like and leak a row. When the write
+  /// definitively fails, the optimistic tap is rolled back.
   void _enqueueReactionSync(
     String targetId,
     String type, {
     required bool liked,
+    required Set<String> previousUserReactions,
+    required int previousCount,
+    required Set<String> optimisticUserReactions,
+    required int optimisticCount,
   }) {
     final prev = _reactionQueues[targetId] ?? Future.value();
     final next = prev.then(
       (_) => _syncReactionRemote(targetId, type, liked: liked),
     );
     _reactionQueues[targetId] = next;
-    unawaited(next.then((_) {
+    unawaited(next.then((synced) {
+      if (!synced) {
+        _revertReactionOptimistic(
+          targetId,
+          type,
+          previousUserReactions: previousUserReactions,
+          previousCount: previousCount,
+          optimisticUserReactions: optimisticUserReactions,
+          optimisticCount: optimisticCount,
+        );
+      }
       if (_reactionQueues[targetId] == next) {
         _reactionQueues.remove(targetId);
       }
     }));
   }
 
+  /// Rolls back an optimistic like whose remote write failed. Re-finds
+  /// the post/reply by id at revert time (the feed may have changed
+  /// during the write), and only reverts when the target still shows
+  /// this tap's optimistic state — a newer tap's state is never
+  /// clobbered.
+  void _revertReactionOptimistic(
+    String targetId,
+    String type, {
+    required Set<String> previousUserReactions,
+    required int previousCount,
+    required Set<String> optimisticUserReactions,
+    required int optimisticCount,
+  }) {
+    if (_disposed || targetId.isEmpty) return;
+    final postIdx = _posts.indexWhere((p) => p.id == targetId);
+    if (postIdx != -1) {
+      final post = _posts[postIdx];
+      if (setEquals(post.userReactions, optimisticUserReactions) &&
+          (post.reactions[type] ?? 0) == optimisticCount) {
+        final next = Map<String, int>.from(post.reactions);
+        next[type] = previousCount.clamp(0, 99999);
+        _posts[postIdx] = post.copyWith(
+          reactions: next,
+          userReactions: previousUserReactions,
+        );
+        notifyListeners();
+      }
+      return;
+    }
+    for (var i = 0; i < _posts.length; i++) {
+      final post = _posts[i];
+      final replyIdx = post.replies.indexWhere((r) => r.id == targetId);
+      if (replyIdx == -1) continue;
+      final reply = post.replies[replyIdx];
+      if (setEquals(reply.userReactions, optimisticUserReactions) &&
+          (reply.reactions[type] ?? 0) == optimisticCount) {
+        final updated = List<ForumReply>.from(post.replies);
+        final next = Map<String, int>.from(reply.reactions);
+        next[type] = previousCount.clamp(0, 99999);
+        updated[replyIdx] = reply.copyWith(
+          reactions: next,
+          userReactions: previousUserReactions,
+        );
+        _posts[i] = post.copyWith(replies: updated);
+        notifyListeners();
+      }
+      return;
+    }
+  }
+
   /// Writes our own tap to Supabase, then reconciles with the
-  /// authoritative server count. Local-first: the optimistic heart always
-  /// sticks (even offline or on temp ids) so taps never flicker away.
-  /// Remote failures are only logged — the local SharedPreferences state
-  /// already saved by toggleReaction() is the source of truth offline.
-  Future<void> _syncReactionRemote(
+  /// authoritative server count. Returns true when the tap was synced
+  /// (or nothing remote was needed: temp ids, unconfigured, no device
+  /// id — those keep the local heart so taps never flicker away).
+  /// Returns false when a real (non-temp) remote write definitively
+  /// failed, so the caller rolls the optimistic tap back. Never throws.
+  Future<bool> _syncReactionRemote(
     String targetId,
     String type, {
     required bool liked,
   }) async {
-    if (_disposed) return;
-    if (_deviceId.isEmpty) {
-      try {
-        _deviceId = await ReactionIdentity.deviceId();
-      } catch (e) {
-        debugPrint('ForumController device id skipped, keeping local like: $e');
-        return;
+    try {
+      if (_disposed) return true;
+      if (_deviceId.isEmpty) {
+        try {
+          _deviceId = await ReactionIdentity.deviceId();
+        } catch (e) {
+          debugPrint(
+            'ForumController device id skipped, keeping local like: $e',
+          );
+          return true;
+        }
+        if (_disposed) return true;
       }
-      if (_disposed) return;
+      // Temp ids don't exist remotely yet — keep the local heart.
+      if (targetId.startsWith('msg-') || targetId.startsWith('reply-')) {
+        return true;
+      }
+      if (!SupabaseConfig.isConfigured) return true;
+      final reactorName = await _localDisplayName();
+      if (_disposed) return true;
+      final ok = liked
+          ? await _repository.addReactionRemote(
+              targetId: targetId,
+              reactionType: type,
+              deviceId: _deviceId,
+              reactorName: reactorName)
+          : await _repository.removeReactionRemote(
+              targetId: targetId, reactionType: type, deviceId: _deviceId);
+      if (_disposed) return true;
+      if (!ok) {
+        debugPrint(
+          'ForumController reaction write failed '
+          '(target=$targetId type=$type liked=$liked) — reverting.',
+        );
+        return false;
+      }
+      await _reconcileReaction(targetId, type);
+      return true;
+    } catch (e) {
+      debugPrint('ForumController reaction sync skipped: $e');
+      return false;
     }
-    // Temp ids don't exist remotely yet — keep the local heart.
-    if (targetId.startsWith('msg-') || targetId.startsWith('reply-')) return;
-    if (!SupabaseConfig.isConfigured) return;
-    final reactorName = await _localDisplayName();
-    if (_disposed) return;
-    final ok = liked
-        ? await _repository.addReactionRemote(
-            targetId: targetId,
-            reactionType: type,
-            deviceId: _deviceId,
-            reactorName: reactorName)
-        : await _repository.removeReactionRemote(
-            targetId: targetId, reactionType: type, deviceId: _deviceId);
-    if (_disposed) return;
-    if (!ok) {
-      debugPrint(
-        'ForumController reaction kept locally, remote sync deferred '
-        '(target=$targetId type=$type liked=$liked).',
-      );
-      return;
-    }
-    await _reconcileReaction(targetId, type);
   }
 
   /// True when a realtime reaction echo carries our own device id —
@@ -1109,10 +1381,8 @@ class ForumController extends ChangeNotifier {
     _disposed = true;
     final channel = _channel;
     _channel = null;
-    _onlineNames = {};
     if (channel != null) {
       try {
-        unawaited(channel.untrack());
         Supabase.instance.client.removeChannel(channel);
       } catch (_) {}
     }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -24,10 +26,6 @@ class ForumPostCard extends StatefulWidget {
     String message,
     String replyToName,
   ) onSendReply;
-  /// True when the post author is currently online (green dot).
-  final bool isPostAuthorOnline;
-  /// True when the named reply author is currently online.
-  final bool Function(String authorName) isReplyAuthorOnline;
   /// Loads liker display names for a post id or reply id.
   final Future<List<String>> Function(String targetId) onViewLikers;
   /// True when the post was already reported by this device.
@@ -59,6 +57,10 @@ class ForumPostCard extends StatefulWidget {
   final Future<bool> Function(String replyId, String message) onEditReply;
   /// Deletes your own reply. Returns true when deleted.
   final Future<bool> Function(String replyId) onDeleteReply;
+  /// Re-uploads an unsent (pendingSync) post. Best-effort.
+  final VoidCallback onRetrySend;
+  /// Re-uploads an unsent (pendingSync) reply. Best-effort.
+  final void Function(String replyId) onRetryReplySend;
 
   const ForumPostCard({
     super.key,
@@ -66,8 +68,6 @@ class ForumPostCard extends StatefulWidget {
     required this.onReactionTap,
     required this.onReplyReactionTap,
     required this.onSendReply,
-    this.isPostAuthorOnline = false,
-    this.isReplyAuthorOnline = _offline,
     required this.onViewLikers,
     this.isPostReported = false,
     this.isReplyReported = _notReported,
@@ -80,9 +80,13 @@ class ForumPostCard extends StatefulWidget {
     this.onDeletePost = _noDelete,
     this.onEditReply = _noReplyEdit,
     this.onDeleteReply = _noReplyDelete,
+    this.onRetrySend = _noRetrySend,
+    this.onRetryReplySend = _noRetryReplySend,
   });
 
-  static bool _offline(String _) => false;
+  static void _noRetrySend() {}
+  static void _noRetryReplySend(String _) {}
+
   static bool _notReported(String _) => false;
   static bool _notOwn(String _) => false;
   static bool _cannotEdit(String _) => false;
@@ -114,11 +118,18 @@ class _ForumPostCardState extends State<ForumPostCard> {
   final VisitorRepository _visitorRepo = const VisitorRepository();
   String _visitorName = '';
   bool _sending = false;
+  // Relative timestamps ("3 hours ago") are computed from DateTime.now()
+  // at build time — a slow 60s tick keeps them honest. Bounded cost: one
+  // timer per visible card, one setState per minute.
+  Timer? _clockTimer;
 
   @override
   void initState() {
     super.initState();
     _loadVisitorName();
+    _clockTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
     // Desktop/web: plain Enter sends, Shift+Enter inserts a newline.
     _composerFocus.onKeyEvent = (node, event) {
       if (event is! KeyDownEvent) return KeyEventResult.ignored;
@@ -144,6 +155,7 @@ class _ForumPostCardState extends State<ForumPostCard> {
 
   @override
   void dispose() {
+    _clockTimer?.cancel();
     _composerController.dispose();
     _composerFocus.dispose();
     super.dispose();
@@ -401,19 +413,22 @@ class _ForumPostCardState extends State<ForumPostCard> {
       );
       return;
     }
-    // Spam layer 1: 1 reply per 20 seconds per device.
-    final waitSeconds = await SpamGuard.secondsUntilNextReply();
-    if (!mounted) return;
-    if (waitSeconds > 0) {
-      final lang = context.read<LanguageProvider>();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(lang.t('forum_throttle_reply'))),
-      );
-      return;
-    }
+    // Lock the send BEFORE the first await so a second quick tap (or
+    // Enter) can't slip past the guard while the throttle check runs
+    // and double-post.
     setState(() => _sending = true);
     HapticFeedback.lightImpact().catchError((_) {});
     try {
+      // Spam layer 1: 1 reply per 20 seconds per device.
+      final waitSeconds = await SpamGuard.secondsUntilNextReply();
+      if (!mounted) return;
+      if (waitSeconds > 0) {
+        final lang = context.read<LanguageProvider>();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(lang.t('forum_throttle_reply'))),
+        );
+        return;
+      }
       var author = _visitorName;
       // Fresh identity check: this card may have cached an empty name
       // before the splash gate was completed (e.g. a brand-new browser
@@ -589,7 +604,6 @@ class _ForumPostCardState extends State<ForumPostCard> {
               children: [
                 _InitialAvatar(
                   initials: _getInitials(post.authorName),
-                  isOnline: widget.isPostAuthorOnline,
                   color: _avatarColor(post.authorName),
                 ),
                 const SizedBox(width: 10),
@@ -754,6 +768,46 @@ class _ForumPostCardState extends State<ForumPostCard> {
                 color: AppColors.textDark,
               ),
             ),
+
+            // Fix #3: this post failed to upload — keep it visible and
+            // let the visitor retry instead of silently losing it.
+            if (post.pendingSync) ...[
+              const SizedBox(height: 6),
+              InkWell(
+                onTap: () {
+                  HapticFeedback.lightImpact().catchError((_) {});
+                  widget.onRetrySend();
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.cloud_off_outlined,
+                        size: 12,
+                        color: AppColors.muted,
+                      ),
+                      SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          'Unsent · Tap to retry',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 11.5,
+                            fontStyle: FontStyle.italic,
+                            color: AppColors.muted,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
 
             const SizedBox(height: 10),
 
@@ -933,10 +987,6 @@ class _ForumPostCardState extends State<ForumPostCard> {
                                     context,
                                     visibleReplies[i].createdAt,
                                   ),
-                                  isOnline:
-                                      widget.isReplyAuthorOnline(
-                                    visibleReplies[i].authorName,
-                                  ),
                                   onReactionTap: (type) => widget
                                       .onReplyReactionTap(
                                     visibleReplies[i].id,
@@ -979,6 +1029,9 @@ class _ForumPostCardState extends State<ForumPostCard> {
                                   onDeleteTap: () => _confirmDelete(
                                     isReply: true,
                                     replyId: visibleReplies[i].id,
+                                  ),
+                                  onRetrySend: () => widget.onRetryReplySend(
+                                    visibleReplies[i].id,
                                   ),
                                 ),
                               ),
@@ -1170,7 +1223,6 @@ class _InlineReply extends StatelessWidget {
   final ForumReply reply;
   final String initials;
   final String shortDate;
-  final bool isOnline;
   final void Function(String reactionType) onReactionTap;
   final VoidCallback onViewLikers;
   final VoidCallback onReplyTap;
@@ -1183,12 +1235,13 @@ class _InlineReply extends StatelessWidget {
   final bool canEdit;
   final VoidCallback onEditTap;
   final VoidCallback onDeleteTap;
+  /// Re-uploads this unsent (pendingSync) reply. Best-effort.
+  final VoidCallback onRetrySend;
 
   const _InlineReply({
     required this.reply,
     required this.initials,
     required this.shortDate,
-    this.isOnline = false,
     required this.onReactionTap,
     required this.onViewLikers,
     required this.onReplyTap,
@@ -1199,6 +1252,7 @@ class _InlineReply extends StatelessWidget {
     this.canEdit = false,
     this.onEditTap = _noop,
     this.onDeleteTap = _noop,
+    this.onRetrySend = _noop,
   });
 
   static void _noop() {}
@@ -1212,25 +1266,21 @@ class _InlineReply extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _OnlineAvatar(
-          size: 28,
-          isOnline: isOnline,
-          child: Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: _avatarColor(reply.authorName),
-            ),
-            child: Center(
-              child: Text(
-                initials,
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.warmDeep,
-                ),
+        Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: _avatarColor(reply.authorName),
+          ),
+          child: Center(
+            child: Text(
+              initials,
+              style: const TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.warmDeep,
               ),
             ),
           ),
@@ -1459,6 +1509,32 @@ class _InlineReply extends StatelessWidget {
                       ),
                     ),
                   ),
+                  // Fix #3: this reply failed to upload — keep it visible
+                  // and let the visitor retry instead of silently
+                  // losing it.
+                  if (reply.pendingSync)
+                    InkWell(
+                      onTap: () {
+                        HapticFeedback.lightImpact().catchError((_) {});
+                        onRetrySend();
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 2,
+                          vertical: 6,
+                        ),
+                        child: Text(
+                          'Unsent · retry',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 11.5,
+                            fontStyle: FontStyle.italic,
+                            color: AppColors.muted,
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ],
@@ -1578,84 +1654,35 @@ Color _avatarColor(String name) {
 }
 
 /// Flat 34px pastel avatar, warmDeep initial. No gradient, no ring.
-/// Always shows a presence dot at the lower-right: green when the author
-/// is on the page right now, faint warm gray when away.
 class _InitialAvatar extends StatelessWidget {
   final String initials;
-  final bool isOnline;
   final Color color;
 
   const _InitialAvatar({
     required this.initials,
-    this.isOnline = false,
     this.color = const Color(0xFFF3E3C2),
   });
 
   @override
   Widget build(BuildContext context) {
-    return _OnlineAvatar(
-      size: 34,
-      isOnline: isOnline,
-      child: Container(
-        width: 34,
-        height: 34,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: color,
-        ),
-        child: Center(
-          child: Text(
-            initials,
-            style: const TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: AppColors.warmDeep,
-            ),
+    return Container(
+      width: 34,
+      height: 34,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color,
+      ),
+      child: Center(
+        child: Text(
+          initials,
+          style: const TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: AppColors.warmDeep,
           ),
         ),
       ),
-    );
-  }
-}
-
-/// Wraps an avatar with a presence dot pinned to its lower-right edge:
-/// green when online, faint warm gray when away. The dot is drawn in
-/// both states so the avatar layout never shifts.
-class _OnlineAvatar extends StatelessWidget {
-  final double size;
-  final bool isOnline;
-  final Widget child;
-
-  const _OnlineAvatar({
-    required this.size,
-    required this.isOnline,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final dot = size * 0.32;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        child,
-        Positioned(
-          right: -1,
-          bottom: -1,
-          child: Container(
-            width: dot,
-            height: dot,
-            decoration: BoxDecoration(
-              color: isOnline
-                  ? const Color(0xFF1F9D55)
-                  : AppColors.muted.withValues(alpha: 0.45),
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2),
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

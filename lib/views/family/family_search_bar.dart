@@ -39,7 +39,11 @@ class _FamilySearchBarState extends State<FamilySearchBar> {
           people.add(
             FamilyMember(
               name: spouse,
-              roleKey: member.roleKey,
+              // Synthetic in-law: do NOT inherit the partner's roleKey
+              // (it would label e.g. an asawa as "Anak" in the detail
+              // sheet). 'family_sheet_spouse' already exists in all
+              // three languages as the gender-neutral "Spouse" label.
+              roleKey: 'family_sheet_spouse',
               spouseOf: member.name,
             ),
           );

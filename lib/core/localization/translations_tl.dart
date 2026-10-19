@@ -191,15 +191,15 @@ const Map<String, String> translationsTl = {
   'timeline_marriage_title': 'Ang Kasal',
   'timeline_marriage_desc':
       '54 na taon ng pagsasama. Magkasama nilang pinalaki ang anim na anak at nagmahalan ng walang hanggan. '
-      'Pumanaw si Lolo Salvador dahil sa atake sa puso.',
-  'timeline_first_apo_title': 'Unang Apo',
+      'Sampung taon ang agwat ng kanilang edad, ngunit walang hangganan ang kanilang pagmamahal.',
+  'timeline_first_apo_title': 'Unang Anak',
   'timeline_first_apo_desc':
+      'Naging Nanay siya sa unang pagkakataon. '
+      'Dumating ang una sa anim niyang anak, at nagsimula ang bagong kabanata ng pagmamahal at pamilya.',
+  'timeline_anniversary_title': 'Unang Apo',
+  'timeline_anniversary_desc':
       'Naging Lola siya, isang titulong pinahahalagahan niya nang higit sa lahat. '
       'Ang mga apo niya ang naging ligaya ng araw-araw niyang buhay.',
-  'timeline_anniversary_title': 'Ang Pagdiriwang',
-  'timeline_anniversary_desc':
-      'Nagtipon ang buong pamilya upang parangalan ang 37 taon ng tapat na pagmamahalan. '
-      'Punong-puno ang araw na iyon ng tawanan, pasasalamat, at panalangin.',
   'timeline_passing_title': 'Huling Pahinga',
   'timeline_passing_desc':
       'Pinalibutan ng pamilya, siya ay nagbalik sa Diyos matapos ang isang buhay na puno ng biyaya. '
@@ -603,6 +603,8 @@ const Map<String, String> translationsTl = {
   'candle_list_empty': 'Ikaw ang unang magsindi ng kandila.',
   'candle_list_more': '+{count} pa',
   'candle_list_retry': 'Subukan ulit',
+  'candle_save_failed':
+      'Hindi na-save ang iyong kandila. Tingnan ang koneksyon at subukan ulit.',
   'candle_condolences_button': 'Pakikiramay',
   'condolences_keepsake': 'Ang alaala ay patuloy na nagliliwanag',
   'group_celebrations': 'Mga Pagdiriwang',

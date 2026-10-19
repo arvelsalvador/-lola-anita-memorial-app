@@ -28,6 +28,15 @@ void main() {
     expect(validateCandleName("D'Angelo"), isNull);
     expect(validateCandleName('Sy'), isNull);
     expect(validateCandleName('Rose-ann'), isNull);
+    // Repeated syllables are normal in Filipino nicknames.
+    expect(validateCandleName('Chichi'), isNull);
+    expect(validateCandleName('Hanna'), isNull);
+    expect(validateCandleName('Audrey'), isNull);
+    expect(validateCandleName('Rodel'), isNull);
+    expect(validateCandleName('Arvel'), isNull);
+    expect(validateCandleName('Aivan'), isNull);
+    expect(validateCandleName('Honey'), isNull);
+    expect(validateCandleName('Mama'), isNull);
     expect(validateCandleName('lyca13'), 'candle_name_invalid');
     expect(validateCandleName('Marc123'), 'candle_name_invalid');
     expect(validateCandleName('!!!'), 'candle_name_invalid');
@@ -41,6 +50,12 @@ void main() {
     expect(validateCandleName('qqqqqq'), 'candle_name_invalid');
     expect(validateCandleName('bcdfgh'), 'candle_name_invalid');
     expect(validateCandleName('Ab Ab Ab'), 'candle_name_invalid');
+    // Repeated-chunk mash: only 3+ consecutive repeats of a chunk (or
+    // the whole name being one chunk repeated) is blocked — the extra
+    // letters here keep letter diversity high, so the chunk rule is
+    // what catches it.
+    expect(validateCandleName('qweabcabcabcz'), 'candle_name_invalid');
+    expect(validateCandleName('ababab'), 'candle_name_invalid');
   });
 
   Widget wrap(Widget child) => ChangeNotifierProvider(
@@ -74,12 +89,14 @@ void main() {
     // Title + the single full-width light button. The video asset can't
     // initialize in widget tests, so the fallback medallion shows.
     expect(find.text('Light a candle'), findsNWidgets(2));
-    expect(find.text('124 candles lit'), findsOneWidget);
+    expect(find.text('124 have lit a candle for Nanay Nita'), findsOneWidget);
     // Message field is shown before lighting; no name field, no Send.
+    // (The old "What would you like to say…" title row was removed in the
+    // message-first redesign — the field til itself carries the hint.)
     expect(find.byType(TextField), findsOneWidget);
     expect(
       find.text('What would you like to say to Nanay?'),
-      findsOneWidget,
+      findsNothing,
     );
     expect(find.text('Your message for Nanay…'), findsOneWidget);
     expect(find.text('Your name…'), findsNothing);
@@ -129,7 +146,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(tester.takeException(), isNull);
-    expect(find.text('125 candles lit'), findsOneWidget);
+    expect(
+      find.text('125 have lit a candle for Nanay Nita'),
+      findsOneWidget,
+    );
     // The lit title is a thank-you with a condolences subtitle.
     expect(find.text('Thank You Very Much'), findsOneWidget);
     expect(
@@ -161,7 +181,7 @@ void main() {
     expect(tester.takeException(), isNull);
     // Supabase is uninitialized in tests = offline: list hides,
     // go-online note + retry show, message text never leaks into list.
-    expect(find.text('Who remembers Nanay'), findsOneWidget);
+    expect(find.text("Visitors of Nanay's app"), findsOneWidget);
     expect(
       find.text('Go online to see who remembers Nanay.'),
       findsOneWidget,
@@ -189,7 +209,10 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.byType(TextField), findsNothing);
     expect(find.text('With every flame, a memory.'), findsNothing);
-    expect(find.text('125 candles lit'), findsOneWidget);
+    expect(
+      find.text('125 have lit a candle for Nanay Nita'),
+      findsOneWidget,
+    );
     expect(find.text('Thank You Very Much'), findsOneWidget);
   });
 }

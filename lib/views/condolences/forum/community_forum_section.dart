@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:nita/controllers/forum_controller.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
+import 'package:nita/models/forum_post_model.dart';
 import 'package:nita/views/condolences/forum/create_post_dialog.dart';
 import 'package:nita/views/condolences/forum/forum_post_card.dart';
 
@@ -26,24 +27,178 @@ class _CommunityForumSectionState extends State<CommunityForumSection> {
   int _visibleCount = _pageSize;
   final Set<String> _seenIds = {};
   int? _prevTotal;
+  bool _disposed = false;
+  // Ids that arrived live since the last pass — only these animate in.
+  Set<String> _newArrivals = {};
+
+  // Identity memoization: one built ForumPostCard per post id. A card
+  // widget is rebuilt only when its post instance changed (the
+  // controller replaces post objects whenever their content changes) or
+  // a controller-derived flag feeding the card changed (reported / own /
+  // editable, post- or reply-level). Keeps one Like tap from rebuilding
+  // every visible card. New / deleted / reordered posts still rebuild —
+  // cards are always emitted in the current visible order.
+  final Map<String, _CachedCard> _cardCache = {};
 
   @override
   void initState() {
     super.initState();
     // Fire-and-forget: no-op when offline or already subscribed.
     widget.forumController.subscribeRealtime().catchError((_) {});
+    // Pagination window / seen-id bookkeeping runs here, outside build
+    // (fix: these were mutated during build without setState).
+    widget.forumController.addListener(_onControllerChanged);
+  }
+
+  @override
+  void didUpdateWidget(CommunityForumSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(widget.forumController, oldWidget.forumController)) {
+      oldWidget.forumController.removeListener(_onControllerChanged);
+      widget.forumController.addListener(_onControllerChanged);
+      _cardCache.clear();
+      _newArrivals = const <String>{};
+      _prevTotal = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    widget.forumController.removeListener(_onControllerChanged);
+    super.dispose();
+  }
+
+  void _onControllerChanged() {
+    if (_disposed || !mounted) return;
+    final posts = widget.forumController.posts;
+    // Keep what the user already sees when live posts arrive at the
+    // top: grow the window by the delta so the bottom card isn't
+    // pushed out.
+    final prevTotal = _prevTotal;
+    if (prevTotal != null && posts.length > prevTotal) {
+      _visibleCount += posts.length - prevTotal;
+    }
+    _prevTotal = posts.length;
+    if (_visibleCount > posts.length) {
+      _visibleCount = posts.length;
+    }
+    // Animate only live arrivals, never the initial load: the first
+    // pass marks everything seen with no animation, so 100 cached posts
+    // cost zero AnimationControllers. Deleted ids are pruned so both
+    // stay bounded.
+    final bool wasFirstBuild = _seenIds.isEmpty;
+    final currentIds = posts.map((p) => p.id).toSet();
+    _newArrivals =
+        wasFirstBuild ? <String>{} : currentIds.difference(_seenIds);
+    _seenIds.retainAll(currentIds);
+    _seenIds.addAll(currentIds);
+    _cardCache.removeWhere((id, _) => !currentIds.contains(id));
+    setState(() {});
+  }
+
+  /// Returns the memoized card for [post], rebuilding it only when the
+  /// post instance or a controller-derived flag changed.
+  Widget _cardFor(ForumController controller, ForumPost post) {
+    final reported = controller.isReported(post.id);
+    final own = controller.isOwnPost(post.id);
+    final canEdit = controller.canEditPost(post.id);
+    // Reply-level flags are closures inside the card — fold them into
+    // the signature so a reply report / own / edit-window change still
+    // rebuilds that card.
+    final replySig = StringBuffer();
+    for (final r in post.replies) {
+      replySig
+        ..write(controller.isReported(r.id) ? '1' : '0')
+        ..write(controller.isOwnReply(r.id) ? '1' : '0')
+        ..write(controller.canEditReply(post.id, r.id) ? '1' : '0');
+    }
+    final cached = _cardCache[post.id];
+    if (cached != null &&
+        identical(cached.post, post) &&
+        cached.reported == reported &&
+        cached.own == own &&
+        cached.canEdit == canEdit &&
+        cached.replySig == replySig.toString()) {
+      return _wrapIfNew(cached.widget, post.id);
+    }
+    final card = RepaintBoundary(
+      child: ForumPostCard(
+        key: ValueKey(post.id),
+        post: post,
+        onViewLikers: controller.likerNames,
+        onReactionTap: (reactionType) =>
+            controller.toggleReaction(post.id, reactionType),
+        onReplyReactionTap: (replyId, reactionType) =>
+            controller.toggleReplyReaction(
+          post.id,
+          replyId,
+          reactionType,
+        ),
+        onSendReply: (authorName, message, replyToName) =>
+            controller.addReply(
+          postId: post.id,
+          authorName: authorName,
+          message: message,
+          replyToName: replyToName,
+        ),
+        isPostReported: reported,
+        isReplyReported: controller.isReported,
+        onSubmitReport: (targetId, targetKind, reason, details) =>
+            controller.reportTarget(
+          targetId: targetId,
+          targetKind: targetKind,
+          reason: reason,
+          details: details,
+        ),
+        isPostOwn: own,
+        canEditPost: canEdit,
+        isReplyOwn: controller.isOwnReply,
+        canEditReply: (replyId) =>
+            controller.canEditReply(post.id, replyId),
+        onEditPost: (message) =>
+            controller.editPost(postId: post.id, message: message),
+        onDeletePost: () => controller.deletePost(post.id),
+        onEditReply: (replyId, message) => controller.editReply(
+          postId: post.id,
+          replyId: replyId,
+          message: message,
+        ),
+        onDeleteReply: (replyId) =>
+            controller.deleteReply(postId: post.id, replyId: replyId),
+        onRetrySend: () => controller.resendPending(post.id),
+        onRetryReplySend: (replyId) =>
+            controller.resendPending(replyId),
+      ),
+    );
+    _cardCache[post.id] = _CachedCard(
+      post: post,
+      widget: card,
+      reported: reported,
+      own: own,
+      canEdit: canEdit,
+      replySig: replySig.toString(),
+    );
+    return _wrapIfNew(card, post.id);
+  }
+
+  Widget _wrapIfNew(Widget card, String id) {
+    if (!_newArrivals.contains(id)) return card;
+    return _LiveInsertWrapper(
+      key: ValueKey('anim-$id'),
+      child: card,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
+    final controller = widget.forumController;
+    final posts = controller.posts;
 
     return ListenableBuilder(
-      listenable: widget.forumController,
+      listenable: controller,
       builder: (context, _) {
-        final controller = widget.forumController;
-        final posts = controller.posts;
-
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -144,162 +299,69 @@ class _CommunityForumSectionState extends State<CommunityForumSection> {
                 ),
               )
             else ...[
-              ...() {
-                // Keep what the user already sees when live posts arrive
-                // at the top: grow the window by the delta so the bottom
-                // card isn't pushed out.
-                if (_prevTotal != null && posts.length > _prevTotal!) {
-                  _visibleCount += posts.length - _prevTotal!;
-                }
-                _prevTotal = posts.length;
-                if (_visibleCount > posts.length) {
-                  _visibleCount = posts.length;
-                }
-                // Paginate: first paint builds max 20 cards, not 100.
-                final visible =
-                    posts.take(_visibleCount).toList();
-                // Animate only live arrivals, never the initial load.
-                // First build marks everything seen with no animation,
-                // so 100 cached posts cost zero AnimationControllers.
-                final bool wasFirstBuild = _seenIds.isEmpty;
-                final currentIds =
-                    posts.map((p) => p.id).toSet();
-                final Set<String> newIds = wasFirstBuild
-                    ? <String>{}
-                    : currentIds.difference(_seenIds);
-                // Prune deleted ids so the set stays bounded.
-                _seenIds.retainAll(currentIds);
-                _seenIds.addAll(currentIds);
-                final bool isInitialLoad = wasFirstBuild;
-
-                Widget buildCard(post) {
-                  final card = RepaintBoundary(
-                    child: ForumPostCard(
-                      key: ValueKey(post.id),
-                      post: post,
-                      isPostAuthorOnline:
-                          controller.isOnline(post.authorName),
-                      isReplyAuthorOnline: (name) =>
-                          controller.isOnline(name),
-                      onViewLikers: (targetId) =>
-                          controller.likerNames(targetId),
-                      onReactionTap: (reactionType) {
-                        controller.toggleReaction(post.id, reactionType);
-                      },
-                      onReplyReactionTap: (replyId, reactionType) {
-                        controller.toggleReplyReaction(
-                          post.id,
-                          replyId,
-                          reactionType,
-                        );
-                      },
-                      onSendReply: (authorName, message, replyToName) {
-                        return controller.addReply(
-                          postId: post.id,
-                          authorName: authorName,
-                          message: message,
-                          replyToName: replyToName,
-                        );
-                      },
-                      isPostReported: controller.isReported(post.id),
-                      isReplyReported: (replyId) =>
-                          controller.isReported(replyId),
-                      onSubmitReport:
-                          (targetId, targetKind, reason, details) {
-                        return controller.reportTarget(
-                          targetId: targetId,
-                          targetKind: targetKind,
-                          reason: reason,
-                          details: details,
-                        );
-                      },
-                      isPostOwn: controller.isOwnPost(post.id),
-                      canEditPost: controller.canEditPost(post.id),
-                      isReplyOwn: (replyId) =>
-                          controller.isOwnReply(replyId),
-                      canEditReply: (replyId) => controller.canEditReply(
-                        post.id,
-                        replyId,
-                      ),
-                      onEditPost: (message) => controller.editPost(
-                        postId: post.id,
-                        message: message,
-                      ),
-                      onDeletePost: () =>
-                          controller.deletePost(post.id),
-                      onEditReply: (replyId, message) =>
-                          controller.editReply(
-                        postId: post.id,
-                        replyId: replyId,
-                        message: message,
-                      ),
-                      onDeleteReply: (replyId) => controller.deleteReply(
-                        postId: post.id,
-                        replyId: replyId,
+              // Paginate: first paint builds max 20 cards, not 100.
+              for (final post in posts.take(_visibleCount))
+                _cardFor(controller, post),
+              if (_visibleCount < posts.length)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      HapticFeedback.lightImpact().catchError((_) {});
+                      setState(() {
+                        _visibleCount += _pageSize;
+                      });
+                    },
+                    icon: const Icon(Icons.expand_more_rounded, size: 16),
+                    label: Text(
+                      lang.t('forum_show_more',
+                          {'remaining': '${posts.length - _visibleCount}'}),
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  );
-                  if (isInitialLoad || !newIds.contains(post.id)) {
-                    return card;
-                  }
-                  return _LiveInsertWrapper(
-                    key: ValueKey('anim-${post.id}'),
-                    child: card,
-                  );
-                }
-
-                final widgets =
-                    visible.map(buildCard).toList();
-                if (_visibleCount < posts.length) {
-                  final remaining = posts.length - _visibleCount;
-                  widgets.add(
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          HapticFeedback.lightImpact()
-                              .catchError((_) {});
-                          setState(() {
-                            _visibleCount += _pageSize;
-                          });
-                        },
-                        icon: const Icon(
-                            Icons.expand_more_rounded,
-                            size: 16),
-                        label: Text(
-                          lang.t('forum_show_more',
-                              {'remaining': '$remaining'}),
-                          style: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.textDark,
-                          backgroundColor: Colors.white,
-                          side: const BorderSide(
-                              color: AppColors.stoneBorder),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 12,
-                          ),
-                        ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.textDark,
+                      backgroundColor: Colors.white,
+                      side: const BorderSide(color: AppColors.stoneBorder),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
                       ),
                     ),
-                  );
-                }
-                return widgets;
-              }(),
+                  ),
+                ),
             ],
           ],
         );
       },
     );
   }
+}
+
+/// Memoization entry: the last built card widget for a post id plus the
+/// inputs that decided it, so unchanged cards are reused as-is.
+class _CachedCard {
+  final ForumPost post;
+  final Widget widget;
+  final bool reported;
+  final bool own;
+  final bool canEdit;
+  final String replySig;
+
+  const _CachedCard({
+    required this.post,
+    required this.widget,
+    required this.reported,
+    required this.own,
+    required this.canEdit,
+    required this.replySig,
+  });
 }
 
 /// Fades + slides a newly inserted card in so live arrivals don't jolt.

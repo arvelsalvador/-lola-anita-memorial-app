@@ -74,12 +74,14 @@ String? validateCandleName(String input) {
       return 'candle_name_invalid';
     }
   }
-  // Repeated 3-letter chunk (`awd…awd`) — rare in real names.
-  for (var i = 0; i <= compact.length - 3; i++) {
-    final tri = compact.substring(i, i + 3);
-    if (compact.indexOf(tri, i + 1) != -1) {
-      return 'candle_name_invalid';
-    }
+  // Repeated-chunk mash (`awdawdawd`, `abababab`): block only clear
+  // spam — a 3-letter chunk repeated 3+ times in a row (always ≥9
+  // letters), or the whole name being one 1–2 letter chunk repeated
+  // 3+ times. Repeated syllables are normal in Filipino nicknames
+  // (`Chichi`, `Mama`) and must still pass.
+  if (RegExp(r'(.{3})\1\1').hasMatch(compact) ||
+      RegExp(r'^(.{1,2})\1\1$').hasMatch(compact)) {
+    return 'candle_name_invalid';
   }
   return null;
 }
@@ -106,19 +108,45 @@ class _CandleSectionState extends State<CandleSection> {
   /// A null snapshot means offline: the list hides and an offline note
   /// shows instead. Never throws. [afterSave] clears the pending
   /// own-candle overlay because the server snapshot now includes us.
+  ///
+  /// One fetch at a time: a retry tap landing mid-refresh used to race
+  /// the post-save refresh and let a slower older response overwrite
+  /// newer data. Concurrent calls queue a single trailing pass that
+  /// still carries the [afterSave] flag, so the pending overlay is
+  /// never left uncleared.
+  bool _remoteLoadInFlight = false;
+  bool _reloadQueuedAfterSave = false;
+
   Future<void> _loadRemote({bool afterSave = false}) async {
-    final controller = widget.condolencesController;
-    controller.setListLoading(true);
-    final results = await Future.wait([
-      _visitorRepo.fetchVisitorCount(),
-      _visitorRepo.fetchVisitorNames(),
-    ]);
-    if (!mounted) return;
-    controller.applyRemote(
-      count: results[0] as int?,
-      names: (results[1] as List<String>?),
-      markSynced: afterSave,
-    );
+    if (_remoteLoadInFlight) {
+      _reloadQueuedAfterSave = _reloadQueuedAfterSave || afterSave;
+      return;
+    }
+    _remoteLoadInFlight = true;
+    try {
+      var markSynced = afterSave;
+      while (true) {
+        final controller = widget.condolencesController;
+        controller.setListLoading(true);
+        final results = await Future.wait([
+          _visitorRepo.fetchVisitorCount(),
+          _visitorRepo.fetchVisitorNames(),
+        ]);
+        if (!mounted) return;
+        controller.applyRemote(
+          count: results[0] as int?,
+          names: (results[1] as List<String>?),
+          markSynced: markSynced,
+        );
+        if (!_reloadQueuedAfterSave) return;
+        // A call arrived while fetching — one trailing pass, and it
+        // inherits the sync flag so the pending overlay still clears.
+        _reloadQueuedAfterSave = false;
+        markSynced = true;
+      }
+    } finally {
+      _remoteLoadInFlight = false;
+    }
   }
 
   Future<void> _loadVisitor() async {
@@ -158,9 +186,26 @@ class _CandleSectionState extends State<CandleSection> {
     final controller = widget.condolencesController;
     if (controller.lit || controller.loading) return;
     // Mandatory message: the video-circle tap must respect the same gate
-    // as the button, otherwise it would bypass validation.
+    // as the button, otherwise it would bypass validation — but instead
+    // of failing silently, say WHY (same hint the button shows).
     final draft = _messageController.text;
-    if (CondolenceRepository.validateMessage(draft) != null) return;
+    final messageErrorKey = CondolenceRepository.validateMessage(draft);
+    if (messageErrorKey != null) {
+      try {
+        HapticFeedback.selectionClick().catchError((_) {});
+      } catch (_) {
+        // Haptics unavailable on desktop — the hint still shows.
+      }
+      if (mounted) {
+        final lang = context.read<LanguageProvider>();
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(content: Text(lang.t(messageErrorKey))),
+          );
+      }
+      return;
+    }
     try {
       HapticFeedback.lightImpact().catchError((_) {});
     } catch (_) {
@@ -174,8 +219,23 @@ class _CandleSectionState extends State<CandleSection> {
     controller.noteOwnLight(name);
     // ignore: discarded_futures — background sync, UI already lit.
     _condolenceRepo.saveMessage(name: name, message: draft).then((ok) {
-      // Refresh the shared list once our candle is stored.
-      if (ok && mounted) _loadRemote(afterSave: true);
+      if (!mounted) return;
+      if (ok) {
+        // Refresh the shared list once our candle is stored.
+        _loadRemote(afterSave: true);
+      } else {
+        // The server never got this candle — drop the fake pending
+        // overlay (count +1 and pinned name) and say so, in the same
+        // tone as the forum's failure snacks.
+        debugPrint('CandleSection: candle save failed for "$name"');
+        controller.clearPendingLight();
+        final lang = context.read<LanguageProvider>();
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(content: Text(lang.t('candle_save_failed'))),
+          );
+      }
     });
   }
 

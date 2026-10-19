@@ -187,6 +187,12 @@ class _FilterChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Container(
+          // Elderly visitors tap these by hand — the former ~36px height
+          // was under the 44–48dp minimum the rest of the app enforces
+          // (see AppBottomNav). A minimum height constraint keeps the
+          // chip's visual look while guaranteeing the tap target.
+          constraints: const BoxConstraints(minHeight: 44),
+          alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),

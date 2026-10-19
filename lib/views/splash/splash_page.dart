@@ -1,21 +1,36 @@
-import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:nita/core/constants/app_constants.dart';
-import 'package:nita/core/utils/image_decode.dart';
 import 'package:nita/core/constants/app_routes.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/core/utils/motion.dart';
+import 'package:nita/controllers/home_controller.dart';
 import 'package:nita/data/visitors/visitor_repository.dart';
 import 'package:nita/views/splash/visitor_gate_form.dart';
 import 'package:nita/widgets/app_brand_bar.dart';
-import 'package:nita/widgets/pulsing_dot.dart';
+import 'package:nita/widgets/curved_memorial_header.dart';
+import 'package:nita/widgets/framed_memorial_portrait.dart';
+import 'package:nita/widgets/ornament_divider.dart';
+import 'package:nita/widgets/pulsing_diamond.dart';
+import 'package:nita/widgets/splash_video_backdrop.dart';
 
-/// Splash screen shown on app launch. Auto-advances to [AppRoutes.home]
-/// after [_autoAdvanceDelay], or immediately on tap.
+/// Splash screen shown on app launch. Waits for a tap before opening
+/// [AppRoutes.home] — nothing happens on its own.
+///
+/// The first screen speaks the memorial's own language: the dark warm
+/// ground and brand bar, a muted looping video clip behind everything, the
+/// arched "In Loving Memory" header over the framed portrait, her name in
+/// Playfair Display, the years in tracked gold, the quote in Playfair
+/// italic, and a lone gold diamond as the "touch to enter" hint — all
+/// ornament drawn from the design system (glow, hairlines, diamonds), never
+/// petals or stars.
+///
+/// The clip is a convenience, never a dependency: if it can't decode (or
+/// the OS asks for reduced motion, in which case it rests on its first
+/// frame), the painted night-vigil backdrop shows instead.
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
 
@@ -24,14 +39,12 @@ class SplashPage extends StatefulWidget {
 }
 
 class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
-  static const _autoAdvanceDelay = Duration(seconds: 7);
   static const _sequenceDuration = Duration(milliseconds: 2000);
-  static const _petalCycleDuration = Duration(seconds: 8);
-  static const _petalCount = 12;
-  static const _portraitSize = 110.0;
+  static const _ambienceCycleDuration = Duration(seconds: 12);
+  static const _portraitSize = 104.0;
 
   late final AnimationController _sequenceCtrl;
-  late final AnimationController _petalCtrl;
+  late final AnimationController _ambienceCtrl;
 
   late final Animation<double> _photoScale;
   late final Animation<double> _photoOpacity;
@@ -39,16 +52,18 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   late final Animation<double> _quoteOpacity;
   late final Animation<double> _tapOpacity;
 
-  late final List<_PetalSeed> _petalSeeds;
-
-  Timer? _autoAdvanceTimer;
   bool _navigated = false;
+
+  /// True once the splash clip's first frame is up; drives the legibility
+  /// scrim so the painted fallback keeps its own look before then.
+  bool _videoReady = false;
 
   /// Visitor gate state: required name + address, asked once per device.
   /// Returning visitors (saved locally) skip the form entirely.
-  /// Testing switch: when true, debug builds always show the form every
-  /// run. Release builds always keep remember-me regardless of this flag.
-  static const _alwaysAskInDebugForTesting = true;
+  /// Keep the debug experience consistent with release builds: the gate is
+  /// only a test aid when explicitly enabled, not a default behavior that
+  /// forces new visitors to re-enter every debug run.
+  static const _alwaysAskInDebugForTesting = false;
   final VisitorRepository _visitorRepo = const VisitorRepository();
   bool _checkingVisitor = true;
   bool _hasVisitor = false;
@@ -57,21 +72,19 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   void initState() {
     super.initState();
 
-    _petalSeeds = _generatePetalSeeds(_petalCount, seed: 42);
-
     _sequenceCtrl = AnimationController(
       vsync: this,
       duration: _sequenceDuration,
     );
 
-    _petalCtrl = AnimationController(
+    _ambienceCtrl = AnimationController(
       vsync: this,
-      duration: _petalCycleDuration,
+      duration: _ambienceCycleDuration,
     );
-    // Reduced motion: static petals instead of the falling loop.
-    if (!animationsDisabled()) _petalCtrl.repeat();
+    // Reduced motion: static ornaments instead of the drifting loop.
+    if (!animationsDisabled()) _ambienceCtrl.repeat();
 
-    _photoScale = Tween<double>(begin: 0.8, end: 1.0).animate(
+    _photoScale = Tween<double>(begin: 0.88, end: 1.0).animate(
       CurvedAnimation(
         parent: _sequenceCtrl,
         curve: const Interval(0.0, 0.6, curve: Curves.easeOutBack),
@@ -80,7 +93,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     _photoOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _sequenceCtrl,
-        curve: const Interval(0.0, 0.3, curve: Curves.easeIn),
+        curve: const Interval(0.0, 0.35, curve: Curves.easeIn),
       ),
     );
     _textOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -95,7 +108,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
         curve: const Interval(0.5, 1.0, curve: Curves.easeIn),
       ),
     );
-    _tapOpacity = Tween<double>(begin: 0.0, end: 0.8).animate(
+    _tapOpacity = Tween<double>(begin: 0.0, end: 0.85).animate(
       CurvedAnimation(
         parent: _sequenceCtrl,
         curve: const Interval(0.8, 1.0, curve: Curves.easeIn),
@@ -111,14 +124,15 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     _checkVisitor();
   }
 
-  /// Remember-me: returning devices skip the gate and keep the old
-  /// auto-advance; new visitors must complete the form (no auto-enter).
+  /// Remember-me: returning devices skip the gate and enter on tap; new
+  /// visitors must complete the form first. The splash never advances on
+  /// its own — it waits for a tap (or the form's submit).
   Future<void> _checkVisitor() async {
     bool hasVisitor = false;
     try {
-      hasVisitor = await _visitorRepo
-          .hasVisitor()
-          .timeout(const Duration(seconds: 5));
+      hasVisitor = await _visitorRepo.hasVisitor().timeout(
+        const Duration(seconds: 5),
+      );
     } catch (_) {
       // Local prefs unreadable — treat as new visitor, still enterable
       // via the form. Never blocks.
@@ -134,9 +148,6 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
       _hasVisitor = hasVisitor;
     });
     debugPrint('SplashGate: hasVisitor=$hasVisitor');
-    if (hasVisitor) {
-      _autoAdvanceTimer = Timer(_autoAdvanceDelay, _navigate);
-    }
   }
 
   /// Debug-only: clears the remembered visitor so the gate can be
@@ -153,23 +164,16 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     setState(() => _hasVisitor = false);
   }
 
-  void _onGateEntered() {
-    if (!mounted) return;
-    setState(() => _hasVisitor = true);
-    _navigate();
+  /// Called by [SplashVideoBackdrop] once the clip's first frame is ready.
+  void _onVideoReady() {
+    if (!mounted || _videoReady) return;
+    setState(() => _videoReady = true);
   }
 
-  List<_PetalSeed> _generatePetalSeeds(int count, {required int seed}) {
-    final random = math.Random(seed);
-    return List.generate(
-      count,
-      (_) => _PetalSeed(
-        x: random.nextDouble(),
-        phase: random.nextDouble(),
-        opacity: 0.08 + random.nextDouble() * 0.12,
-        size: 4.0 + random.nextDouble() * 4,
-      ),
-    );
+  void _onGateEntered() {
+    if (!mounted || _navigated) return;
+    setState(() => _hasVisitor = true);
+    _navigate();
   }
 
   void _navigate() {
@@ -177,22 +181,49 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     // Gate: new visitors cannot proceed until the form is submitted.
     // _onGateEntered flips _hasVisitor then calls here.
     if (_checkingVisitor || !_hasVisitor) return;
+
+    final currentRoute = ModalRoute.of(context)?.settings.name;
+    if (currentRoute == AppRoutes.home) {
+      _navigated = true;
+      return;
+    }
+
     _navigated = true;
     Navigator.pushReplacementNamed(context, AppRoutes.home);
   }
 
   @override
   void dispose() {
-    _autoAdvanceTimer?.cancel();
     _sequenceCtrl.dispose();
-    _petalCtrl.dispose();
+    _ambienceCtrl.dispose();
     super.dispose();
+  }
+
+  /// The drifting-ornament background, shared by the splash and the gate so
+  /// the gate rises out of the same night-vigil world.
+  Widget _ambience() {
+    return Positioned.fill(
+      child: ExcludeSemantics(
+        child: RepaintBoundary(
+          child: AnimatedBuilder(
+            animation: _ambienceCtrl,
+            builder: (context, _) => CustomPaint(
+              painter: _NightVigilBackgroundPainter(
+                progress: animationsDisabled() ? 0.0 : _ambienceCtrl.value,
+              ),
+              size: Size.infinite,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
     final showGate = !_checkingVisitor && !_hasVisitor;
+    const grandmother = HomeController.grandmother;
 
     return Scaffold(
       backgroundColor: AppColors.warmDark,
@@ -205,42 +236,77 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
             child: Semantics(
               label: lang.t('app_title'),
               button: true,
-              hint: lang.t('splash_tap'),
+              hint: showGate ? null : lang.t('splash_tap'),
               child: GestureDetector(
                 onTap: _navigate,
                 behavior: HitTestBehavior.opaque,
                 child: Stack(
                   children: [
-                    ExcludeSemantics(
-                      child: RepaintBoundary(
-                        child: AnimatedBuilder(
-                          animation: _petalCtrl,
-                          builder: (context, _) => CustomPaint(
-                            painter: _PetalPainter(
-                              progress: _petalCtrl.value,
-                              seeds: _petalSeeds,
-                              color: AppColors.roseLight,
+                    // Painted night-vigil backdrop — the ground, and the
+                    // fallback whenever the clip is unavailable.
+                    _ambience(),
+                    // Video ground: fades in over the painter once its first
+                    // frame is ready.
+                    Positioned.fill(
+                      child: SplashVideoBackdrop(
+                        asset: AppAssets.splashVideo,
+                        onReady: _onVideoReady,
+                      ),
+                    ),
+                    // Legibility scrim, faded in with the video so the painted
+                    // fallback keeps its own look before then. Keeps her name,
+                    // years and quote crisp over the moving clip.
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: AnimatedOpacity(
+                          opacity: _videoReady ? 1 : 0,
+                          duration: const Duration(milliseconds: 600),
+                          curve: Curves.easeOut,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  AppColors.heroScrim.withValues(alpha: 0.55),
+                                  AppColors.warmDark.withValues(alpha: 0.40),
+                                  AppColors.heroScrim.withValues(alpha: 0.66),
+                                ],
+                              ),
                             ),
-                            size: Size.infinite,
                           ),
                         ),
                       ),
                     ),
-                    Center(
-                      child: _SplashContent(
-                        sequenceCtrl: _sequenceCtrl,
-                        photoScale: _photoScale,
-                        photoOpacity: _photoOpacity,
-                        textOpacity: _textOpacity,
-                        quoteOpacity: _quoteOpacity,
-                        tapOpacity: _tapOpacity,
-                        portraitSize: _portraitSize,
-                        appTitle: lang.t('app_title'),
-                        subtitle: lang.t('splash_subtitle'),
-                        quote: lang.t('splash_quote'),
-                        // While the gate is up, tapping does nothing —
-                        // the form is the only way in.
-                        tapHint: showGate ? '' : lang.t('splash_tap'),
+                    Positioned.fill(
+                      child: SafeArea(
+                        child: Center(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: _SplashContent(
+                                sequenceCtrl: _sequenceCtrl,
+                                photoScale: _photoScale,
+                                photoOpacity: _photoOpacity,
+                                textOpacity: _textOpacity,
+                                quoteOpacity: _quoteOpacity,
+                                tapOpacity: _tapOpacity,
+                                portraitSize: _portraitSize,
+                                lovingMemory: lang.t(
+                                  'tribute_in_loving_memory',
+                                ),
+                                name: grandmother.name,
+                                years:
+                                    '${grandmother.birthYear}  •  ${grandmother.passingYear}',
+                                quote: lang.t('splash_quote'),
+                                // While the gate is up, tapping does nothing —
+                                // the form is the only way in.
+                                tapHint: showGate ? '' : lang.t('splash_tap'),
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                     if (showGate)
@@ -252,35 +318,15 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
                               end: Alignment.bottomCenter,
                               colors: [
                                 AppColors.darkSoot.withValues(alpha: 0.94),
-                                AppColors.darkEmber.withValues(alpha: 0.82),
-                                AppColors.warmDark.withValues(alpha: 0.68),
+                                AppColors.darkEmber.withValues(alpha: 0.84),
+                                AppColors.warmDark.withValues(alpha: 0.70),
                               ],
                             ),
                           ),
                           child: Stack(
                             children: [
-                              // Night-vigil ambience: twinkling star-filled
-                              // sky over a soft ground mist. Painted
-                              // above the scrim so it stays visible
-                              // behind the card.
-                              Positioned.fill(
-                                child: ExcludeSemantics(
-                                  child: RepaintBoundary(
-                                    child: AnimatedBuilder(
-                                      animation: _petalCtrl,
-                                      builder: (context, _) => CustomPaint(
-                                        painter: _GateAmbiencePainter(
-                                          progress: animationsDisabled()
-                                              ? 0.0
-                                              : _petalCtrl.value,
-                                          seeds: _petalSeeds,
-                                        ),
-                                        size: Size.infinite,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
+                              // The gate sits directly on the video ground;
+                              // its own dark gradient above is the only scrim.
                               SafeArea(
                                 child: Center(
                                   child: SingleChildScrollView(
@@ -302,11 +348,10 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
                                           if (kDebugMode) ...[
                                             const SizedBox(height: 8),
                                             TextButton(
-                                              onPressed:
-                                                  _resetVisitorForDebug,
+                                              onPressed: _resetVisitorForDebug,
                                               style: TextButton.styleFrom(
                                                 foregroundColor:
-                                                    AppColors.petalBlush,
+                                                    AppColors.paleGold,
                                                 textStyle: const TextStyle(
                                                   fontFamily: 'Inter',
                                                   fontSize: 11,
@@ -347,8 +392,9 @@ class _SplashContent extends StatelessWidget {
     required this.quoteOpacity,
     required this.tapOpacity,
     required this.portraitSize,
-    required this.appTitle,
-    required this.subtitle,
+    required this.lovingMemory,
+    required this.name,
+    required this.years,
     required this.quote,
     required this.tapHint,
   });
@@ -360,92 +406,115 @@ class _SplashContent extends StatelessWidget {
   final Animation<double> quoteOpacity;
   final Animation<double> tapOpacity;
   final double portraitSize;
-  final String appTitle;
-  final String subtitle;
+  final String lovingMemory;
+  final String name;
+  final String years;
   final String quote;
   final String tapHint;
+
+  // Playfair Display is the display voice; the serif fallback keeps the
+  // words visible on platforms without the bundled face.
+  static const _serifFallback = ['Times New Roman', 'serif'];
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       children: [
+        // Arched "In Loving Memory" riding the top of the framed portrait.
         AnimatedBuilder(
           animation: sequenceCtrl,
           builder: (context, child) => Opacity(
             opacity: photoOpacity.value,
             child: Transform.scale(scale: photoScale.value, child: child),
           ),
-          child: _PortraitPhoto(size: portraitSize),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CurvedMemorialHeader(text: lovingMemory),
+              const SizedBox(height: 12),
+              FramedMemorialPortrait(size: portraitSize),
+            ],
+          ),
         ),
-        const SizedBox(height: 28),
+        const SizedBox(height: 26),
         AnimatedBuilder(
           animation: sequenceCtrl,
           builder: (context, child) =>
               Opacity(opacity: textOpacity.value, child: child),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                appTitle,
+                name,
+                textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 24,
-                  color: AppColors.linen,
-                  fontWeight: FontWeight.w300,
-                  letterSpacing: 2,
+                  fontFamily: 'PlayfairDisplay',
+                  fontFamilyFallback: _serifFallback,
+                  fontSize: 30,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.cream,
+                  height: 1.1,
+                  letterSpacing: 0.5,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
-                subtitle,
+                years,
                 style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.gold,
-                  letterSpacing: 5,
+                  fontFamily: 'Inter',
+                  fontSize: 14,
+                  color: AppColors.goldLight,
+                  letterSpacing: 3,
                   fontWeight: FontWeight.w300,
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 40),
+        const SizedBox(height: 20),
+        const OrnamentDivider(lineLength: 96, lineAlpha: 0.4),
+        const SizedBox(height: 20),
         AnimatedBuilder(
           animation: sequenceCtrl,
           builder: (context, child) =>
               Opacity(opacity: quoteOpacity.value, child: child),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 48),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 300),
             child: Text(
               quote,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 13,
+                fontFamily: 'PlayfairDisplay',
+                fontFamilyFallback: _serifFallback,
+                fontStyle: FontStyle.italic,
+                fontSize: 15,
                 color: AppColors.petalBlush,
                 height: 1.6,
-                letterSpacing: 0.5,
               ),
             ),
           ),
         ),
-        const SizedBox(height: 48),
+        const SizedBox(height: 40),
         AnimatedBuilder(
           animation: sequenceCtrl,
           builder: (context, child) =>
               Opacity(opacity: tapOpacity.value, child: child),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 tapHint,
                 style: TextStyle(
+                  fontFamily: 'Inter',
                   fontSize: 11,
-                  color: AppColors.gold.withValues(alpha: 0.7),
+                  color: AppColors.gold.withValues(alpha: 0.75),
                   letterSpacing: 3,
                   fontWeight: FontWeight.w300,
                 ),
               ),
               const SizedBox(height: 12),
-              const PulsingDot(),
+              const PulsingDiamond(),
             ],
           ),
         ),
@@ -454,176 +523,70 @@ class _SplashContent extends StatelessWidget {
   }
 }
 
-class _PortraitPhoto extends StatelessWidget {
-  const _PortraitPhoto({required this.size});
-
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: const LinearGradient(
-          colors: [AppColors.gold, AppColors.rose],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.gold.withValues(alpha: 0.3),
-            blurRadius: 40,
-            spreadRadius: 5,
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(3),
-      child: Container(
-        decoration: const BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: LinearGradient(
-            colors: [AppColors.dawnRose, AppColors.duskBrown],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Center(
-          child: ClipOval(
-            child: Image.asset(
-              'assets/images/Family DP/Nanay_dp.jpg',
-              width: size - 20,
-              height: size - 20,
-              fit: BoxFit.cover,
-              filterQuality: FilterQuality.high,
-              // Height-axis budget: Nanay_dp is landscape (1000x550) in
-              // a circular slot, so height is the cover-limiting axis.
-              cacheHeight: ImageDecode.height(size - 20, context),
-              errorBuilder: (context, error, stackTrace) => const Center(
-                child: Text(
-                  'A',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 40,
-                    color: AppColors.linen,
-                    fontWeight: FontWeight.w300,
-                    letterSpacing: 2,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PetalSeed {
-  const _PetalSeed({
-    required this.x,
-    required this.phase,
-    required this.opacity,
-    required this.size,
-  });
-
-  final double x;
-  final double phase;
-  final double opacity;
-  final double size;
-}
-
-class _PetalPainter extends CustomPainter {
-  _PetalPainter({
-    required this.progress,
-    required this.seeds,
-    required this.color,
-  });
+/// Night-vigil ambience: a soft gold glow behind the portrait, a few gold
+/// diamonds drifting slowly down the screen (the system's ornament, standing
+/// in for falling petals), and a quiet ground mist. All motion is a pure
+/// function of [progress]; pass 0 for a fully static backdrop.
+class _NightVigilBackgroundPainter extends CustomPainter {
+  _NightVigilBackgroundPainter({required this.progress});
 
   final double progress;
-  final List<_PetalSeed> seeds;
-  final Color color;
+
+  static const _diamondCount = 16;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..style = PaintingStyle.fill;
-
-    for (final seed in seeds) {
-      final x = seed.x * size.width;
-      final yOffset = ((progress + seed.phase * 3) % 4) / 4;
-      final y = yOffset * size.height;
-
-      paint.color = color.withValues(alpha: seed.opacity);
-
-      final petalPath = Path()
-        ..moveTo(x, y)
-        ..quadraticBezierTo(x - seed.size, y - seed.size, x, y - seed.size * 2)
-        ..quadraticBezierTo(x + seed.size, y - seed.size, x, y);
-      canvas.drawPath(petalPath, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _PetalPainter oldDelegate) =>
-      oldDelegate.progress != progress;
-}
-
-/// Night-vigil ambience painted behind the visitor-gate card: a star-filled
-/// upper sky with lively twinkling stars over a soft ground mist. Driven
-/// by the existing petal loop, so no extra ticker. All motion is a pure
-/// function of [progress].
-class _GateAmbiencePainter extends CustomPainter {
-  _GateAmbiencePainter({required this.progress, required this.seeds});
-
-  final double progress;
-  final List<_PetalSeed> seeds;
-
-  static const _starCount = 80;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..style = PaintingStyle.fill;
     final minSide = math.min(size.width, size.height);
 
-    // Star-filled upper sky (deterministic from seeds). Each star
-    // twinkles at its own rate, fading and swelling for a lively sky.
-    for (var i = 0; i < _starCount; i++) {
-      final seed = seeds[i % seeds.length];
-      final sx = (seed.x + i * 0.173) % 1.0 * size.width;
-      final sy = (seed.phase + i * 0.311) % 1.0 * size.height * 0.80;
-      final speed = 1.0 + (i % 5) * 0.6;
-      final twinkle =
-          0.5 +
-          0.5 * math.sin((progress * speed + seed.phase + i * 0.13) * 6.28);
-      final baseRadius = i % 9 == 0 ? 2.0 : i % 3 == 0 ? 1.4 : 0.9;
-      paint.color = AppColors.linen.withValues(
-        alpha: 0.05 + 0.60 * twinkle,
+    // Soft gold warmth behind the portrait — the candle glow of the vigil.
+    final glowCenter = Offset(size.width * 0.5, size.height * 0.34);
+    final glowRadius = minSide * 0.62;
+    final glowPaint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          AppColors.paleGold.withValues(alpha: 0.10),
+          AppColors.paleGold.withValues(alpha: 0),
+        ],
+      ).createShader(Rect.fromCircle(center: glowCenter, radius: glowRadius));
+    canvas.drawCircle(glowCenter, glowRadius, glowPaint);
+
+    // Gold diamonds drifting down, deterministic from the index so no seed
+    // list is needed. Kept very faint — ornament, not decoration.
+    final diamondPaint = Paint()..style = PaintingStyle.fill;
+    for (var i = 0; i < _diamondCount; i++) {
+      final x = ((i * 0.61803398875) % 1.0) * size.width;
+      final speed = 0.5 + (i % 4) * 0.3;
+      final y = ((i * 0.3571 + progress * speed) % 1.0) * size.height;
+      final side = 3.0 + (i % 3) * 1.5;
+      final alpha = 0.05 + (i % 5) * 0.02;
+      diamondPaint.color = AppColors.gold.withValues(alpha: alpha);
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate(math.pi / 4);
+      canvas.drawRect(
+        Rect.fromCenter(center: Offset.zero, width: side, height: side),
+        diamondPaint,
       );
-      canvas.drawCircle(
-        Offset(sx, sy),
-        baseRadius + twinkle * 0.9,
-        paint,
-      );
+      canvas.restore();
     }
 
     // Soft ground mist along the bottom.
-    paint.color = AppColors.petalBlush.withValues(alpha: 0.05);
+    diamondPaint.color = AppColors.petalBlush.withValues(alpha: 0.05);
     canvas.drawCircle(
       Offset(size.width * 0.5, size.height * 1.02),
       minSide * 0.55,
-      paint,
+      diamondPaint,
     );
-    paint.color = AppColors.rose.withValues(alpha: 0.05);
+    diamondPaint.color = AppColors.rose.withValues(alpha: 0.05);
     canvas.drawCircle(
       Offset(size.width * 0.15, size.height * 1.0),
       minSide * 0.35,
-      paint,
+      diamondPaint,
     );
   }
 
   @override
-  bool shouldRepaint(covariant _GateAmbiencePainter oldDelegate) =>
+  bool shouldRepaint(covariant _NightVigilBackgroundPainter oldDelegate) =>
       oldDelegate.progress != progress;
 }
 

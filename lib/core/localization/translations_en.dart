@@ -187,15 +187,15 @@ const Map<String, String> translationsEn = {
   'timeline_marriage_title': 'The Wedding',
   'timeline_marriage_desc':
       '54 years together. They raised six children and loved each other endlessly. '
-      'Lolo Salvador passed away from a heart attack.',
-  'timeline_first_apo_title': 'First Grandchild',
+      'Ten years apart in age, their love bridged the years.',
+  'timeline_first_apo_title': 'First Child',
   'timeline_first_apo_desc':
+      'She became a mother for the first time. '
+      'The first of her six children arrived, opening a new chapter of love and family.',
+  'timeline_anniversary_title': 'First Grandchild',
+  'timeline_anniversary_desc':
       'She became a Lola, a title she treasured above all. '
       'Her grandchildren became the joy of her everyday life.',
-  'timeline_anniversary_title': 'The Anniversary',
-  'timeline_anniversary_desc':
-      'The whole family gathered to honor 37 years of faithful love. '
-      'It was a day full of laughter, gratitude, and prayer.',
   'timeline_passing_title': 'Final Rest',
   'timeline_passing_desc':
       'Surrounded by family, she returned to God after a life full of grace. '
@@ -227,7 +227,7 @@ const Map<String, String> translationsEn = {
   'memory_7_title': 'Her Passing',
   'memory_7_body':
       'She passed away quietly internal bleeding in her pancreas. '
-      'She is not truly gone: she lives in our laughter, our prayers, and our home.',
+      'She is not truly gone: she lives in our laughter, prayers, and home.',
   'memories_subtitle': 'Moments we will never forget',
   'memories_count': '{count} memories',
   'memories_photos_in_gallery': '{count} photos in Gallery',
@@ -576,6 +576,8 @@ const Map<String, String> translationsEn = {
   'candle_list_empty': 'Be the first to light a candle.',
   'candle_list_more': '+{count} more',
   'candle_list_retry': 'Retry',
+  'candle_save_failed':
+      'Could not save your candle. Check connection and try again.',
   'candle_condolences_button': 'Condolences',
   'condolences_keepsake': 'Her memory keeps glowing on',
   'group_celebrations': 'Celebrations',

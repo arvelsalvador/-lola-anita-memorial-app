@@ -7,6 +7,8 @@
 /// 4. Copy "publishable / anon" key (sb_publishable_...) -> _defaultKey
 /// 5. Save + `flutter run -d chrome` (no extra flags).
 /// --dart-define still wins if supplied. Unconfigured = local-only.
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 class SupabaseConfig {
   SupabaseConfig._();
 
@@ -33,7 +35,29 @@ class SupabaseConfig {
   /// like a real Supabase project URL. Catches the common mistake of
   /// passing `--dart-define=SUPABASE_URL=your_url` literally (which
   /// yields PostgREST 404 for every table, as seen in debug logs).
-  static bool get isConfigured =>
+  ///
+  /// Mutable — deliberately NOT a getter over the credentials: main()
+  /// flips it to false when Supabase.initialize throws or times out so
+  /// every repository's existing `isConfigured` guard cleanly degrades
+  /// to offline/local-only mode instead of throwing per call.
+  static bool isConfigured = _credentialsLookValid();
+
+  /// True only after `Supabase.initialize()` has succeeded. This prevents
+  /// test and local-only flows from crashing on `Supabase.instance` access
+  /// before the singleton is ready.
+  static bool isInitialized = false;
+
+  /// Returns the live client when initialization has succeeded, otherwise null.
+  static SupabaseClient? safeClient() {
+    if (!isConfigured || !isInitialized) return null;
+    try {
+      return Supabase.instance.client;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static bool _credentialsLookValid() =>
       !url.contains('your-project') &&
       !publishableKey.contains('your-publishable-key') &&
       _looksLikeSupabaseUrl(url);

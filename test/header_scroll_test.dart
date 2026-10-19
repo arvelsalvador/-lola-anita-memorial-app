@@ -104,10 +104,11 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 400));
 
-    // Viewport is 390x844, so this matches the expandedHeight formula in
-    // _HomeShellState.build.
-    const viewportHeight = 844.0;
-    final expandedHeight = (viewportHeight * 0.46).clamp(400.0, 540.0);
+    // Mirrors the expandedHeight formula in _HomeShellState.build, read from
+    // the real test viewport instead of a hardcoded guess.
+    final viewportHeight =
+        tester.view.physicalSize.height / tester.view.devicePixelRatio;
+    final expandedHeight = (viewportHeight * 0.50).clamp(460.0, 580.0);
 
     // The visible (Story) page's scroll offset.
     double storyPixels() {

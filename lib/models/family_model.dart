@@ -25,10 +25,16 @@ class FamilyGroup {
   /// Subtitle like "3 anak" or "4 kapatid".
   final String subtitleKey;
 
-  /// How many members are in this group (displayed in the group header).
-  final int count;
-
   final List<FamilyMember> members;
+
+  /// Optional legacy pin: nothing in the family data passes `count`
+  /// anymore — the header number always derives from [members] so
+  /// adding/removing a member can never make the header lie. Older call
+  /// sites that still pass it keep compiling (and keep it winning).
+  final int? _countOverride;
+
+  /// How many members are in this group (displayed in the group header).
+  int get count => _countOverride ?? members.length;
 
   /// True for groups shown as a "view all" card (like Mga Apo, Mga Pamangkin)
   /// instead of listing each member's name + role.
@@ -41,11 +47,11 @@ class FamilyGroup {
   const FamilyGroup({
     required this.labelKey,
     required this.subtitleKey,
-    required this.count,
+    int? count,
     required this.members,
     this.showAsSummary = false,
     this.viewAllLabelKey,
-  });
+  }) : _countOverride = count;
 }
 
 class FamilyMember {

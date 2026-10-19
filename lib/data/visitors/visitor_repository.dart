@@ -64,9 +64,9 @@ class VisitorRepository {
     await prefs.setString(_kAddress, cleanAddress);
     await prefs.setString(_kSavedAt, DateTime.now().toIso8601String());
 
-    if (!SupabaseConfig.isConfigured) return false;
+    final client = SupabaseConfig.safeClient();
+    if (client == null) return false;
     try {
-      final client = Supabase.instance.client;
       await client.from('visitors').insert({
         'name': cleanName,
         'address': cleanAddress,
@@ -90,37 +90,20 @@ class VisitorRepository {
   static const String table = 'visitors';
 
   /// How many visitors entered the app (rows in [table]).
-  /// Prefers the aggregate RPC `pakikiramay_candle_count()` (the table is
-  /// insert-only for the anon key after the security migration) and falls
-  /// back to the legacy plain SELECT while the project is unmigrated.
-  /// Returns null when offline/unconfigured/denied (caller shows fallback).
-  /// Never throws.
+  /// Runs through the aggregate RPC `pakikiramay_candle_count()` — the
+  /// table is insert-only for the anon key after the security migration,
+  /// so there is deliberately NO direct-table fallback (fail closed).
+  /// Returns null when offline/unconfigured/denied (caller shows
+  /// fallback). Never throws.
   Future<int?> fetchVisitorCount() async {
-    if (!SupabaseConfig.isConfigured) return null;
+    final client = SupabaseConfig.safeClient();
+    if (client == null) return null;
     try {
-      final count = await Supabase.instance.client
+      final count = await client
           .rpc('pakikiramay_candle_count')
           .timeout(const Duration(seconds: 8));
       if (count is num) return count.toInt();
       return int.tryParse('$count');
-    } catch (e) {
-      if (!isRpcMissing(e)) {
-        debugPrint(
-          'VisitorRepository: visitor count skipped '
-          '(${SupabaseConfig.redactedUrl} $e)',
-        );
-        return null;
-      }
-      debugPrint('VisitorRepository: count RPC missing — legacy fallback.');
-    }
-    // Legacy path (unmigrated project).
-    try {
-      final client = Supabase.instance.client;
-      final rows = await client
-          .from(table)
-          .select('id')
-          .timeout(const Duration(seconds: 8));
-      return (rows as List).length;
     } catch (e) {
       debugPrint(
         'VisitorRepository: visitor count skipped '
@@ -131,36 +114,17 @@ class VisitorRepository {
   }
 
   /// Names-only list of who visited, newest first.
-  /// Prefers the narrow RPC `pakikiramay_candle_names()` — it returns
-  /// names only; addresses and lang stay inside the server. Falls back
-  /// to the legacy plain SELECT while the project is unmigrated.
-  /// Returns null when offline/unconfigured/denied, an empty list when
-  /// online with no rows yet. Never throws.
+  /// Uses the narrow RPC `pakikiramay_candle_names()` — names only;
+  /// addresses and lang stay inside the server. There is deliberately NO
+  /// direct-table fallback (fail closed: the table is private after the
+  /// security migration). Returns null when offline/unconfigured/denied,
+  /// an empty list when online with no rows yet. Never throws.
   Future<List<String>?> fetchVisitorNames({int limit = 50}) async {
-    if (!SupabaseConfig.isConfigured) return null;
+    final client = SupabaseConfig.safeClient();
+    if (client == null) return null;
     try {
-      final rows = await Supabase.instance.client
-          .rpc('pakikiramay_candle_names', params: {'p_limit': limit})
-          .timeout(const Duration(seconds: 8));
-      return _parseNameRows(rows as List);
-    } catch (e) {
-      if (!isRpcMissing(e)) {
-        debugPrint(
-          'VisitorRepository: visitor names skipped '
-          '(${SupabaseConfig.redactedUrl} $e)',
-        );
-        return null;
-      }
-      debugPrint('VisitorRepository: names RPC missing — legacy fallback.');
-    }
-    // Legacy path (unmigrated project).
-    try {
-      final client = Supabase.instance.client;
       final rows = await client
-          .from(table)
-          .select('name, created_at')
-          .order('created_at', ascending: false)
-          .limit(limit)
+          .rpc('pakikiramay_candle_names', params: {'p_limit': limit})
           .timeout(const Duration(seconds: 8));
       return _parseNameRows(rows as List);
     } catch (e) {
@@ -172,7 +136,7 @@ class VisitorRepository {
     }
   }
 
-  /// Shared row mapper for both the RPC and the legacy SELECT result.
+  /// Row mapper for the RPC result.
   List<String> _parseNameRows(List rows) {
     final names = <String>[];
     for (final row in rows) {
@@ -197,35 +161,20 @@ class VisitorRepository {
   }
 
   /// Full visitor rows for the family admin page, newest first.
-  /// PIN-verified RPC first (`pakikiramay_admin_list_visitors` — a wrong
-  /// PIN raises 403), legacy anon SELECT fallback while the project is
-  /// unmigrated. Empty when offline/unconfigured/denied. Never throws.
+  /// PIN-verified RPC only (`pakikiramay_admin_list_visitors` — a wrong
+  /// PIN raises 403). There is deliberately NO anon SELECT fallback (fail
+  /// closed: visitor rows are private after the security migration).
+  /// Empty when offline/unconfigured/denied/RPC missing. Never throws.
   Future<List<AdminVisitor>> fetchAdminVisitors({int limit = 200}) async {
-    if (!SupabaseConfig.isConfigured) return [];
+    final client = SupabaseConfig.safeClient();
+    if (client == null) return [];
     final pin = await AdminCredential.effectivePin();
     try {
-      final rows = await Supabase.instance.client
+      final rows = await client
           .rpc('pakikiramay_admin_list_visitors', params: {
         'p_pin': pin,
         'p_limit': limit,
       }).timeout(const Duration(seconds: 8));
-      return _parseVisitorRows(rows as List);
-    } catch (e) {
-      if (!isRpcMissing(e)) {
-        debugPrint('VisitorRepository fetchAdminVisitors skipped: $e');
-        return [];
-      }
-      debugPrint('VisitorRepository visitors RPC missing — legacy fallback.');
-    }
-    // Legacy path (unmigrated project).
-    try {
-      final client = Supabase.instance.client;
-      final rows = await client
-          .from(table)
-          .select('id, name, address, lang, created_at')
-          .order('created_at', ascending: false)
-          .limit(limit)
-          .timeout(const Duration(seconds: 8));
       return _parseVisitorRows(rows as List);
     } catch (e) {
       debugPrint('VisitorRepository fetchAdminVisitors skipped: $e');
@@ -233,7 +182,7 @@ class VisitorRepository {
     }
   }
 
-  /// Shared row mapper for both the RPC and the legacy SELECT result.
+  /// Row mapper for the RPC result.
   List<AdminVisitor> _parseVisitorRows(List rows) {
     final out = <AdminVisitor>[];
     for (final row in rows) {
@@ -253,7 +202,7 @@ class VisitorRepository {
   }
 
   /// Updates a visitor's name + address (family admin). PIN-verified RPC
-  /// first, legacy anon UPDATE fallback while the project is unmigrated.
+  /// only — there is deliberately NO anon UPDATE fallback (fail closed).
   /// Returns true when saved. Never throws.
   Future<bool> updateVisitor({
     required String id,
@@ -264,10 +213,11 @@ class VisitorRepository {
     final cleanAddress = address.trim();
     if (id.isEmpty || cleanName.isEmpty) return false;
     if (validateAddress(cleanAddress) != null) return false;
-    if (!SupabaseConfig.isConfigured) return false;
+    final client = SupabaseConfig.safeClient();
+    if (client == null) return false;
     final pin = await AdminCredential.effectivePin();
     try {
-      final ok = (await Supabase.instance.client.rpc(
+      final ok = (await client.rpc(
             'pakikiramay_admin_update_visitor',
             params: {
               'p_pin': pin,
@@ -278,51 +228,25 @@ class VisitorRepository {
           ).timeout(const Duration(seconds: 8))) as bool?;
       return ok ?? false;
     } catch (e) {
-      if (!isRpcMissing(e)) {
-        debugPrint('VisitorRepository updateVisitor skipped: $e');
-        return false;
-      }
-      debugPrint('VisitorRepository visitor edit RPC missing — legacy fallback.');
-    }
-    try {
-      await Supabase.instance.client
-          .from(table)
-          .update({'name': cleanName, 'address': cleanAddress})
-          .eq('id', id)
-          .timeout(const Duration(seconds: 8));
-      return true;
-    } catch (e) {
       debugPrint('VisitorRepository updateVisitor skipped: $e');
       return false;
     }
   }
 
-  /// Deletes a visitor row (family admin). PIN-verified RPC first,
-  /// legacy anon DELETE fallback while the project is unmigrated.
-  /// Returns true when deleted. Never throws.
+  /// Deletes a visitor row (family admin). PIN-verified RPC only — there
+  /// is deliberately NO anon DELETE fallback (fail closed). Returns true
+  /// when deleted. Never throws.
   Future<bool> deleteVisitor(String id) async {
-    if (id.isEmpty || !SupabaseConfig.isConfigured) return false;
+    if (id.isEmpty) return false;
+    final client = SupabaseConfig.safeClient();
+    if (client == null) return false;
     final pin = await AdminCredential.effectivePin();
     try {
-      final ok = (await Supabase.instance.client.rpc(
+      final ok = (await client.rpc(
             'pakikiramay_admin_delete_visitor',
             params: {'p_pin': pin, 'p_id': id},
           ).timeout(const Duration(seconds: 8))) as bool?;
       return ok ?? false;
-    } catch (e) {
-      if (!isRpcMissing(e)) {
-        debugPrint('VisitorRepository deleteVisitor skipped: $e');
-        return false;
-      }
-      debugPrint('VisitorRepository visitor delete RPC missing — legacy fallback.');
-    }
-    try {
-      await Supabase.instance.client
-          .from(table)
-          .delete()
-          .eq('id', id)
-          .timeout(const Duration(seconds: 8));
-      return true;
     } catch (e) {
       debugPrint('VisitorRepository deleteVisitor skipped: $e');
       return false;

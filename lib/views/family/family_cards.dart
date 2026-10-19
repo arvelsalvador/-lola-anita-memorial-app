@@ -369,11 +369,19 @@ class _MemberPortrait extends StatelessWidget {
                 child: Image.asset(
                   _familyBorderAsset,
                   fit: BoxFit.cover,
-                  // No cacheWidth here: the 1536x1024 artwork is
-                  // cover-fitted into a square box, so bounding the
-                  // decode to the box width under-decodes the height
-                  // and forces a blurry GPU upscale. Full-res decode
-                  // (~6MB) stays sharp on 2x/3x screens.
+                  // DPR-budgeted decode (see ImageDecode): the wreath is
+                  // cover-fitted into a square box expanded to
+                  // ~1.44x the portrait size
+                  // (1 + 2 * _familyBorderOverflowFactor), so decoding
+                  // the bundled 1536x1024 (~6MB) for every sheet open
+                  // is waste — bounding to the box's logical width at
+                  // the device pixel ratio stays sharp on 2x/3x
+                  // screens, capped at 512px for future larger
+                  // call sites.
+                  cacheWidth: ImageDecode.width(
+                    size * (1 + 2 * _familyBorderOverflowFactor),
+                    context,
+                  ).clamp(0, 512).toInt(),
                   filterQuality: FilterQuality.high,
                   errorBuilder: (context, error, stackTrace) =>
                       const SizedBox.shrink(),

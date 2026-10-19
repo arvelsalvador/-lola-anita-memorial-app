@@ -179,41 +179,93 @@ class FamilyGroupSection extends StatelessWidget {
                             beadBottom: true,
                           ),
                         ),
-                        // One vertical stack per parent branch: cards chain
-                        // card→card with short beaded lines in the gaps, and
-                        // a branch simply ends when its children run out
-                        // (Lorie's four stack deepest; the shorter columns
-                        // leave clean ground below).
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            for (final branch in branches)
-                              Expanded(
-                                child: Column(
-                                  children: [
-                                    for (var i = 0; i < branch.length; i++) ...[
-                                      if (i > 0)
-                                        const SizedBox(
-                                          height: 12,
-                                          child: _SpineLines(
-                                            columns: 1,
-                                            beadTop: true,
-                                          ),
-                                        ),
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 6,
-                                        ),
-                                        child: _MemberThumbnailCard(
-                                          member: branch[i],
-                                          portraitSize: portraitSize,
-                                        ),
+                        // Cards are laid out per ROW so every branch's
+                        // r-th card shares one equal-height row: cards of
+                        // different heights (a two-line name like
+                        // "Rodel Lumbao Jr." next to a one-line one) can
+                        // no longer stagger the rows and throw the
+                        // connector lines out of alignment across
+                        // columns. A branch simply ends when its children
+                        // run out — its cell goes empty and no connector
+                        // is drawn there (Lorie's four stack deepest; the
+                        // shorter columns leave clean ground below).
+                        Builder(
+                          builder: (context) {
+                            final maxLen = branches
+                                .map((b) => b.length)
+                                .reduce((a, b) => a > b ? a : b);
+                            return Column(
+                              children: [
+                                for (var r = 0; r < maxLen; r++) ...[
+                                  // Descent lines through the gap above
+                                  // every row after the first: each
+                                  // continuing card connects straight down
+                                  // from the card above it in the same
+                                  // column; a column whose branch has
+                                  // ended draws nothing in the gap.
+                                  if (r > 0)
+                                    SizedBox(
+                                      height: 12,
+                                      child: Row(
+                                        children: [
+                                          for (
+                                            var c = 0;
+                                            c < branches.length;
+                                            c++
+                                          )
+                                            Expanded(
+                                              child:
+                                                  branches[c].length > r
+                                                      ? const _SpineLines(
+                                                          columns: 1,
+                                                          beadTop: true,
+                                                        )
+                                                      : const SizedBox
+                                                          .shrink(),
+                                            ),
+                                        ],
                                       ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                          ],
+                                    ),
+                                  // One shared row: every column's card
+                                  // stretches to the row's tallest card,
+                                  // so card tops/bottoms and the beads
+                                  // below them stay level across columns.
+                                  IntrinsicHeight(
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        for (
+                                          var c = 0;
+                                          c < branches.length;
+                                          c++
+                                        )
+                                          Expanded(
+                                            child:
+                                                r < branches[c].length
+                                                    ? Padding(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .symmetric(
+                                                              horizontal: 6,
+                                                            ),
+                                                        child:
+                                                            _MemberThumbnailCard(
+                                                          member:
+                                                              branches[c][r],
+                                                          portraitSize:
+                                                              portraitSize,
+                                                        ),
+                                                      )
+                                                    : const SizedBox(),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            );
+                          },
                         ),
                       ],
                     )

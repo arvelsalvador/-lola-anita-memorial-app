@@ -78,22 +78,7 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
 
   Future<void> _handleSubmit() async {
     if (_submitting) return;
-    // Identity is locked to the splash-gate name — no per-post editing,
-    // so nobody can impersonate another visitor.
-    var gateName = _gateName;
-    if (gateName.isEmpty) {
-      try {
-        final fresh = await _visitorRepo.localName();
-        gateName = (fresh ?? '').trim();
-        if (mounted) setState(() => _gateName = gateName);
-      } catch (_) {}
-    }
     final content = _contentController.text.trim();
-
-    if (gateName.isEmpty) {
-      setState(() => _errorMessageKey = 'forum_require_name');
-      return;
-    }
     if (content.isEmpty) {
       setState(() => _errorMessageKey = 'forum_require_content');
       return;
@@ -103,14 +88,9 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
       setState(() => _errorMessageKey = 'forum_blocked_message');
       return;
     }
-    // Spam layer 1: 1 post per minute per device.
-    final waitSeconds = await SpamGuard.secondsUntilNextPost();
-    if (!mounted) return;
-    if (waitSeconds > 0) {
-      setState(() => _errorMessageKey = 'forum_throttle_post');
-      return;
-    }
-
+    // Lock the submit BEFORE the first await so a second quick tap (or
+    // Ctrl+Enter) can't slip past the guard while the throttle check
+    // runs and double-post.
     setState(() {
       _submitting = true;
       _errorMessageKey = null;
@@ -119,6 +99,30 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
     HapticFeedback.lightImpact().catchError((_) {});
 
     try {
+      // Identity is locked to the splash-gate name — no per-post
+      // editing, so nobody can impersonate another visitor.
+      var gateName = _gateName;
+      if (gateName.isEmpty) {
+        try {
+          final fresh = await _visitorRepo.localName();
+          gateName = (fresh ?? '').trim();
+          if (mounted) setState(() => _gateName = gateName);
+        } catch (e) {
+          debugPrint('CreatePostDialog gate name skipped: $e');
+        }
+      }
+      if (gateName.isEmpty) {
+        setState(() => _errorMessageKey = 'forum_require_name');
+        return;
+      }
+      // Spam layer 1: 1 post per minute per device.
+      final waitSeconds = await SpamGuard.secondsUntilNextPost();
+      if (!mounted) return;
+      if (waitSeconds > 0) {
+        setState(() => _errorMessageKey = 'forum_throttle_post');
+        return;
+      }
+
       final post = await widget.controller.addPost(
         authorName: gateName,
         message: content,
@@ -126,21 +130,18 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
       if (!mounted) return;
       // Null = save failed: stay open and keep the typed text.
       if (post == null) {
-        setState(() {
-          _submitting = false;
-          _errorMessageKey = 'forum_send_failed';
-        });
+        setState(() => _errorMessageKey = 'forum_send_failed');
         return;
       }
       await SpamGuard.recordPost();
       if (!mounted) return;
       Navigator.of(context).pop();
-    } catch (_) {
+    } catch (e) {
+      debugPrint('CreatePostDialog submit skipped: $e');
       if (!mounted) return;
-      setState(() {
-        _submitting = false;
-        _errorMessageKey = 'forum_send_failed';
-      });
+      setState(() => _errorMessageKey = 'forum_send_failed');
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
