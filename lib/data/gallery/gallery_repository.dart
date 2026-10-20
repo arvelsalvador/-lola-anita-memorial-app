@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:nita/core/constants/app_timeouts.dart';
 import 'package:nita/core/utils/gallery_assets.dart';
 import 'package:nita/models/gallery_model.dart';
 
@@ -122,7 +123,7 @@ class GalleryRepository {
   static Future<String?> findFirstAudioAsset() async {
     try {
       final audioFiles = await _listAudioAssets().timeout(
-        const Duration(seconds: 8),
+        AppTimeouts.remote,
       );
       if (audioFiles.isEmpty) return null;
       for (final file in audioFiles) {
@@ -140,7 +141,7 @@ class GalleryRepository {
   static Future<List<String>> findAllAudioAssets() async {
     try {
       final audioFiles = await _listAudioAssets().timeout(
-        const Duration(seconds: 8),
+        AppTimeouts.remote,
       );
       return audioFiles.map((key) => key.replaceFirst('assets/', '')).toList();
     } catch (e) {

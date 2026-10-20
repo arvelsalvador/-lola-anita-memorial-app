@@ -77,7 +77,7 @@ class HomeController extends ChangeNotifier {
         titleKey: 'memory_1_title',
         bodyKey: 'memory_1_body',
         photoCount: 14,
-        image: 'assets/images/Best Pictures/Bahay.jpg',
+        image: 'assets/images/best_pictures/Bahay.jpg',
       ),
       MemoryItem(
         id: 'memory_2',
@@ -85,7 +85,7 @@ class HomeController extends ChangeNotifier {
         titleKey: 'memory_2_title',
         bodyKey: 'memory_2_body',
         photoCount: 8,
-        image: 'assets/images/Best Pictures/Fullbody.jpg',
+        image: 'assets/images/best_pictures/Fullbody.jpg',
       ),
       MemoryItem(
         id: 'memory_3',
@@ -93,7 +93,7 @@ class HomeController extends ChangeNotifier {
         titleKey: 'memory_3_title',
         bodyKey: 'memory_3_body',
         photoCount: 9,
-        image: 'assets/images/Best Pictures/Halik.jpg',
+        image: 'assets/images/best_pictures/Halik.jpg',
       ),
       MemoryItem(
         id: 'memory_4',
@@ -101,7 +101,7 @@ class HomeController extends ChangeNotifier {
         titleKey: 'memory_4_title',
         bodyKey: 'memory_4_body',
         photoCount: 12,
-        image: 'assets/images/Best Pictures/Kamay.jpg',
+        image: 'assets/images/best_pictures/Kamay.jpg',
       ),
       MemoryItem(
         id: 'memory_5',
@@ -109,7 +109,7 @@ class HomeController extends ChangeNotifier {
         titleKey: 'memory_5_title',
         bodyKey: 'memory_5_body',
         photoCount: 6,
-        image: 'assets/images/Best Pictures/Stolen.jpg',
+        image: 'assets/images/best_pictures/Stolen.jpg',
       ),
       MemoryItem(
         id: 'memory_6',
@@ -117,7 +117,7 @@ class HomeController extends ChangeNotifier {
         titleKey: 'memory_6_title',
         bodyKey: 'memory_6_body',
         photoCount: 15,
-        image: 'assets/images/Best Pictures/Bday5.jpg',
+        image: 'assets/images/best_pictures/Bday5.jpg',
       ),
       MemoryItem(
         id: 'memory_7',
@@ -125,7 +125,7 @@ class HomeController extends ChangeNotifier {
         titleKey: 'memory_7_title',
         bodyKey: 'memory_7_body',
         photoCount: 2,
-        image: 'assets/images/Best Pictures/After death.jpg',
+        image: 'assets/images/best_pictures/after_death.jpg',
       ),
     ],
   );

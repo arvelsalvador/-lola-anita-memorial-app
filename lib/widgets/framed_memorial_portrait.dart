@@ -45,7 +45,7 @@ class FramedMemorialPortrait extends StatelessWidget {
   final bool showGlow;
 
   static const _frameAsset =
-      'assets/images/Editing images/Main border.png';
+      'assets/images/editing_images/main_border.png';
 
   /// Border art aspect, height ÷ width (1254 ÷ 1254).
   static const double frameAspect = 1254 / 1254;

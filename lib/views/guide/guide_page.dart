@@ -13,35 +13,85 @@ import 'package:nita/widgets/abuloy_touch.dart';
 import 'package:nita/widgets/app_bottom_nav.dart';
 import 'package:nita/widgets/app_brand_bar.dart';
 
+/// Which tour a [GuidePage] runs.
+enum GuideTour {
+  /// Homepage: top bar, Abuloy touch, bottom navigation.
+  home,
+
+  /// Gallery: the search bar, then the filter pills.
+  gallery,
+}
+
 /// First-visit "spotlight" guide: the app is dimmed, one real part stays lit,
 /// and Nanay explains it in a speech bubble.
 ///
-/// Three stops today:
+/// Homepage tour (three stops):
 ///   1. Top bar — language switch and Settings.
 ///   2. Abuloy touch — the floating gift button.
 ///   3. Bottom nav — the five tabs.
 ///
-/// Shown once automatically (see `HomePage`), and always reachable again from
-/// the top-bar `?` and Settings. Closing it by any route — the last button,
-/// Skip, or the system back gesture — marks it seen, so it never nags twice.
+/// Gallery tour (two stops):
+///   1. The search bar — type to narrow the photo grid.
+///   2. The filter pills — categories plus the candle-gated Huling Araw row.
+///
+/// The real controls stay lit through a cut-out in the scrim.
+///
+/// Shown once automatically (see `HomePage` and `GalleryGridView`), and the
+/// homepage tour is always reachable again from the top-bar `?` and Settings.
+/// Closing it by any route — the last button, Skip, or the system back
+/// gesture — marks that tour seen, so it never nags twice.
 ///
 /// Accessibility: large type, 56px buttons with visible labels, high contrast
 /// against the scrim, no autoplay or timers, and the lit app fragments are
 /// hidden from screen readers because the bubble already names them.
 class GuidePage extends StatefulWidget {
-  const GuidePage({super.key});
+  /// Which tour to show. Defaults to the homepage tour so existing callers
+  /// (Settings, the top-bar `?`) keep working unchanged.
+  final GuideTour tour;
+
+  /// Global rect of the Gallery search bar, lit by the first Gallery stop.
+  final Rect? searchBarRect;
+
+  /// Global rect of the Gallery filter-pill row, lit by the second stop.
+  final Rect? filterPillsRect;
+
+  /// Called when the filter-pills stop becomes visible, so the Gallery can
+  /// scroll the row to the gold Huling Araw pill. Optional: the direct-widget
+  /// tests and any future non-Gallery use can omit it.
+  final VoidCallback? onFilterPillsShown;
+
+  const GuidePage({
+    super.key,
+    this.tour = GuideTour.home,
+    this.searchBarRect,
+    this.filterPillsRect,
+    this.onFilterPillsShown,
+  });
 
   /// The dimming layer over the app. Deliberately translucent: the visitor
   /// should still recognise Home underneath, not stare at a black screen.
   static const double scrimOpacity = 0.65;
   static const Key scrimKey = Key('guide-scrim');
+  static const Key spotlightScrimKey = Key('guide-spotlight-scrim');
+  static const Key gallerySearchOutlineKey = Key(
+    'guide-gallery-search-outline',
+  );
+  static const Key galleryPillsOutlineKey = Key('guide-gallery-pills-outline');
 
   @override
   State<GuidePage> createState() => _GuidePageState();
 }
 
 class _GuidePageState extends State<GuidePage> {
-  final GuideRepository _repo = const GuideRepository();
+  /// The tour-specific flag. The Gallery tip has its own key so a visitor who
+  /// finished the homepage tour still sees it.
+  GuideRepository get _repo => widget.tour == GuideTour.gallery
+      ? const GuideRepository.gallery()
+      : const GuideRepository();
+
+  List<GuideStep> get _steps =>
+      widget.tour == GuideTour.gallery ? galleryGuideSteps : guideSteps;
+
   final VisitorRepository _visitorRepo = const VisitorRepository();
 
   int _step = 0;
@@ -53,7 +103,8 @@ class _GuidePageState extends State<GuidePage> {
   @override
   void initState() {
     super.initState();
-    _loadVisitorName();
+    // Only the homepage top-bar stop prints the visitor's greeting.
+    if (widget.tour == GuideTour.home) _loadVisitorName();
   }
 
   Future<void> _loadVisitorName() async {
@@ -70,11 +121,21 @@ class _GuidePageState extends State<GuidePage> {
   }
 
   void _advance() {
-    if (_step >= guideSteps.length - 1) {
+    if (_step >= _steps.length - 1) {
       _close();
       return;
     }
-    setState(() => _step += 1);
+    _goToStep(_step + 1);
+  }
+
+  /// Moves to [next] and lets the Gallery react to the new stop. Keeping this
+  /// in one place means back-navigation (and future stops) triggers the same
+  /// reveal as Next.
+  void _goToStep(int next) {
+    setState(() => _step = next);
+    if (_steps[next].spotlight == GuideSpotlight.galleryFilterPills) {
+      widget.onFilterPillsShown?.call();
+    }
   }
 
   /// Persist first, then pop. `markSeen` swallows its own errors, so this
@@ -89,13 +150,19 @@ class _GuidePageState extends State<GuidePage> {
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
-    final step = guideSteps[_step];
-    final isLast = _step == guideSteps.length - 1;
+    final steps = _steps;
+    final step = steps[_step];
+    final isLast = _step == steps.length - 1;
     final compact = MediaQuery.sizeOf(context).width < 720;
     final stepLabel = lang.t('guide_step', {
       'current': '${_step + 1}',
-      'total': '${guideSteps.length}',
+      'total': '${steps.length}',
     });
+    // The Gallery tip has its own closing label ("Got it") — "Start
+    // exploring" reads oddly after a couple of in-tour hints.
+    final doneKey = widget.tour == GuideTour.gallery
+        ? 'gallery_guide_done'
+        : 'guide_done';
 
     final first = _firstName ?? '';
     final greeting = first.isNotEmpty
@@ -106,12 +173,76 @@ class _GuidePageState extends State<GuidePage> {
       art: step.art,
       title: lang.t(step.titleKey),
       body: lang.t(step.bodyKey),
-      nextLabel: isLast ? lang.t('guide_done') : lang.t('guide_next'),
+      nextLabel: isLast ? lang.t(doneKey) : lang.t('guide_next'),
       onNext: isLast ? _close : _advance,
       compact: compact,
       maxHeight: maxHeight,
       showArt: showArt,
     );
+
+    final Widget body;
+    if (widget.tour == GuideTour.gallery) {
+      final isSearch = step.spotlight == GuideSpotlight.gallerySearchBar;
+      // Blocks the dimmed Gallery underneath from the screen reader while the
+      // bubble is talking; the lit control stays visible but inert.
+      body = BlockSemantics(
+        child: _CutoutStep(
+          rect: isSearch ? widget.searchBarRect : widget.filterPillsRect,
+          outlineKey: isSearch
+              ? GuidePage.gallerySearchOutlineKey
+              : GuidePage.galleryPillsOutlineKey,
+          holeRadius: isSearch ? 14 : 12,
+          outlineRadius: isSearch ? 20 : 18,
+          art: step.art,
+          dialogueBuilder: buildDialogue,
+          skipLabel: lang.t('guide_skip'),
+          onSkip: _close,
+          stepLabel: stepLabel,
+          stepCount: steps.length,
+          activeStep: _step,
+        ),
+      );
+    } else {
+      body = ColoredBox(
+        key: GuidePage.scrimKey,
+        color: AppColors.charcoal.withValues(alpha: GuidePage.scrimOpacity),
+        child: switch (step.spotlight) {
+          GuideSpotlight.topBar => _TopBarStep(
+            art: step.art,
+            greeting: greeting,
+            helpTooltip: lang.t('guide_help_tooltip'),
+            dialogueBuilder: buildDialogue,
+            skipLabel: lang.t('guide_skip'),
+            onSkip: _close,
+            stepLabel: stepLabel,
+            stepCount: steps.length,
+            activeStep: _step,
+          ),
+          GuideSpotlight.abuloy => _AbuloyStep(
+            art: step.art,
+            dialogueBuilder: buildDialogue,
+            skipLabel: lang.t('guide_skip'),
+            onSkip: _close,
+            stepLabel: stepLabel,
+            stepCount: steps.length,
+            activeStep: _step,
+          ),
+          GuideSpotlight.bottomNav => _NavStep(
+            art: step.art,
+            dialogueBuilder: buildDialogue,
+            skipLabel: lang.t('guide_skip'),
+            onSkip: _close,
+            stepLabel: stepLabel,
+            stepCount: steps.length,
+            activeStep: _step,
+          ),
+          // Gallery stops never appear inside the homepage tour. The Gallery
+          // tour is built above, with its own cut-out scrim.
+          GuideSpotlight.gallerySearchBar ||
+          GuideSpotlight.galleryFilterPills => const SizedBox.shrink(),
+        },
+      );
+    }
 
     return PopScope(
       // Back goes to the previous stop; on the first stop it closes the guide.
@@ -120,7 +251,7 @@ class _GuidePageState extends State<GuidePage> {
         if (didPop) {
           _repo.markSeen();
         } else if (_step > 0) {
-          setState(() => _step -= 1);
+          _goToStep(_step - 1);
         }
       },
       child: AnnotatedRegion<SystemUiOverlayStyle>(
@@ -128,46 +259,9 @@ class _GuidePageState extends State<GuidePage> {
           statusBarColor: Colors.transparent,
           systemNavigationBarColor: AppColors.charcoal,
         ),
-        // Transparent so the route below (Home or Settings) shows through the
-        // translucent scrim. The route itself is pushed with `opaque: false`.
-        child: Scaffold(
-          backgroundColor: Colors.transparent,
-          body: ColoredBox(
-            key: GuidePage.scrimKey,
-            color: AppColors.charcoal.withValues(alpha: GuidePage.scrimOpacity),
-            child: switch (step.spotlight) {
-              GuideSpotlight.topBar => _TopBarStep(
-                art: step.art,
-                greeting: greeting,
-                helpTooltip: lang.t('guide_help_tooltip'),
-                dialogueBuilder: buildDialogue,
-                skipLabel: lang.t('guide_skip'),
-                onSkip: _close,
-                stepLabel: stepLabel,
-                stepCount: guideSteps.length,
-                activeStep: _step,
-              ),
-              GuideSpotlight.abuloy => _AbuloyStep(
-                art: step.art,
-                dialogueBuilder: buildDialogue,
-                skipLabel: lang.t('guide_skip'),
-                onSkip: _close,
-                stepLabel: stepLabel,
-                stepCount: guideSteps.length,
-                activeStep: _step,
-              ),
-              GuideSpotlight.bottomNav => _NavStep(
-                art: step.art,
-                dialogueBuilder: buildDialogue,
-                skipLabel: lang.t('guide_skip'),
-                onSkip: _close,
-                stepLabel: stepLabel,
-                stepCount: guideSteps.length,
-                activeStep: _step,
-              ),
-            },
-          ),
-        ),
+        // Transparent so the route below (Home, Settings, or Gallery) shows
+        // through the scrim. The route itself is pushed with `opaque: false`.
+        child: Scaffold(backgroundColor: Colors.transparent, body: body),
       ),
     );
   }
@@ -557,6 +651,251 @@ class _NavStep extends StatelessWidget {
   }
 }
 
+/// Gallery stop: a hole is cut in the scrim over one real control (the search
+/// field or the filter-pill row), so it stays at full brightness while
+/// everything else dims. Nanay's bubble sits just below it, with a small
+/// arrow pointing back up.
+class _CutoutStep extends StatelessWidget {
+  /// Measured global rect of the control. Null only if the caller failed to
+  /// measure it; the fallback still explains the step, just without the lit
+  /// cut-out.
+  final Rect? rect;
+
+  /// Identifies the dashed outline so each stop has its own test key.
+  final Key outlineKey;
+
+  /// Corner radius of the hole (matching the real control) and of the dashed
+  /// outline around it.
+  final double holeRadius;
+  final double outlineRadius;
+
+  final GuideArt art;
+  final _DialogueBuilder dialogueBuilder;
+  final String skipLabel;
+  final VoidCallback onSkip;
+  final String stepLabel;
+  final int stepCount;
+  final int activeStep;
+
+  const _CutoutStep({
+    required this.rect,
+    required this.outlineKey,
+    required this.art,
+    required this.dialogueBuilder,
+    required this.skipLabel,
+    required this.onSkip,
+    required this.stepLabel,
+    required this.stepCount,
+    required this.activeStep,
+    this.holeRadius = 14,
+    this.outlineRadius = 20,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final rect = this.rect;
+    final short = MediaQuery.sizeOf(context).height < 500;
+
+    if (rect == null) return _fallback(context);
+
+    return Stack(
+      children: [
+        // The scrim itself, with a rounded hole at the control. The route
+        // below is non-opaque, so the live control shows through untouched.
+        Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            // Swallow taps on the lit control: the guide, not the app, owns
+            // the screen until it closes.
+            onTap: () {},
+            child: CustomPaint(
+              key: GuidePage.spotlightScrimKey,
+              painter: _CutoutScrimPainter(
+                hole: rect,
+                radius: holeRadius,
+                color: AppColors.charcoal.withValues(
+                  alpha: GuidePage.scrimOpacity,
+                ),
+              ),
+            ),
+          ),
+        ),
+        // Soft gold glow hugging the hole.
+        Positioned.fromRect(
+          rect: rect.inflate(6),
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(outlineRadius),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.gold.withValues(alpha: 0.24),
+                    blurRadius: 28,
+                    spreadRadius: 3,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        // Dashed gold outline just outside the control, same language as the
+        // lit top bar and nav.
+        Positioned.fromRect(
+          rect: rect.inflate(6),
+          child: IgnorePointer(
+            child: CustomPaint(
+              key: outlineKey,
+              painter: _DashedRoundedBorderPainter(
+                color: AppColors.gold,
+                radius: outlineRadius,
+                strokeWidth: 2,
+                dash: 6,
+                gap: 4,
+              ),
+            ),
+          ),
+        ),
+        Positioned.fill(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(20, rect.bottom + 16, 20, 8),
+            child: short
+                ? _LandscapeLayout(
+                    art: art,
+                    dialogueBuilder: dialogueBuilder,
+                    skipLabel: skipLabel,
+                    onSkip: onSkip,
+                    stepLabel: stepLabel,
+                    stepCount: stepCount,
+                    activeStep: activeStep,
+                  )
+                : Column(
+                    children: [
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final compact =
+                                MediaQuery.sizeOf(context).width < 720;
+                            final artHeight = compact ? 180.0 : 240.0;
+                            // Reserve the arrow row. Capping the bubble lets
+                            // its copy scroll while Next/Got it stays above
+                            // the fold on short phones.
+                            final dialogueMax = math.max(
+                              0.0,
+                              constraints.maxHeight - 38,
+                            );
+                            return SingleChildScrollView(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  const Align(
+                                    alignment: Alignment.topRight,
+                                    child: Padding(
+                                      padding: EdgeInsets.only(
+                                        right: 24,
+                                        bottom: 2,
+                                      ),
+                                      child: CustomPaint(
+                                        size: Size(52, 30),
+                                        painter: _CurvedArrowPainter(
+                                          color: AppColors.gold,
+                                          flip: true,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  dialogueBuilder(
+                                    maxHeight: dialogueMax,
+                                    showArt: dialogueMax >= artHeight,
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      _SkipButton(label: skipLabel, onPressed: onSkip),
+                      const SizedBox(height: 2),
+                      _ProgressDots(
+                        count: stepCount,
+                        active: activeStep,
+                        semanticsLabel: stepLabel,
+                        showArrow: false,
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Used only when the caller could not supply a rect: dim the whole app and
+  /// still explain the control, so the visitor is never left without guidance.
+  Widget _fallback(BuildContext context) {
+    return ColoredBox(
+      key: GuidePage.scrimKey,
+      color: AppColors.charcoal.withValues(alpha: GuidePage.scrimOpacity),
+      child: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+                child: dialogueBuilder(),
+              ),
+            ),
+            _SkipButton(label: skipLabel, onPressed: onSkip),
+            const SizedBox(height: 2),
+            _ProgressDots(
+              count: stepCount,
+              active: activeStep,
+              semanticsLabel: stepLabel,
+              showArrow: false,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Fills the screen with the scrim except for a rounded hole where a real
+/// Gallery control sits. The route underneath is non-opaque, so the control
+/// shows through at full brightness.
+class _CutoutScrimPainter extends CustomPainter {
+  final Rect hole;
+  final Color color;
+  final double radius;
+
+  const _CutoutScrimPainter({
+    required this.hole,
+    required this.color,
+    this.radius = 14,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final screen = Path()..addRect(Offset.zero & size);
+    final cutout = Path()
+      ..addRRect(RRect.fromRectAndRadius(hole, Radius.circular(radius)));
+    final scrim = Path.combine(PathOperation.difference, screen, cutout);
+    canvas.drawPath(
+      scrim,
+      Paint()
+        ..color = color
+        ..isAntiAlias = true,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _CutoutScrimPainter oldDelegate) {
+    return oldDelegate.hole != hole ||
+        oldDelegate.color != color ||
+        oldDelegate.radius != radius;
+  }
+}
+
 /// The real brand bar, fully lit and outlined. It is a diagram: the language
 /// pill is live so visitors can try switching, while `?` and the gear are
 /// inert until the guide closes.
@@ -726,6 +1065,10 @@ class _SpeechBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Landscape / short viewports: shave the vertical gaps so a two-line
+    // title and the 56px action still leave a sliver for the body to scroll.
+    final dense = maxHeight != null;
+
     final bodyText = Text(
       body,
       style: TextStyle(
@@ -757,7 +1100,12 @@ class _SpeechBubble extends StatelessWidget {
         ),
         child: Padding(
           // Extra left padding clears the tail that points at Nanay.
-          padding: const EdgeInsets.fromLTRB(26, 16, 18, 16),
+          padding: EdgeInsets.fromLTRB(
+            26,
+            dense ? 10 : 16,
+            18,
+            dense ? 10 : 16,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -775,14 +1123,16 @@ class _SpeechBubble extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: dense ? 4 : 8),
               if (maxHeight == null)
                 bodyText
               else
                 // Short viewport: the action stays fixed while long copy
-                // scrolls inside the bubble.
-                Flexible(child: SingleChildScrollView(child: bodyText)),
-              const SizedBox(height: 14),
+                // scrolls inside whatever space is left. Expanded (not
+                // Flexible) keeps the scroll view from claiming a full line
+                // and pushing the button past the card.
+                Expanded(child: SingleChildScrollView(child: bodyText)),
+              SizedBox(height: dense ? 8 : 14),
               Align(
                 alignment: Alignment.centerRight,
                 child: SizedBox(
@@ -960,10 +1310,22 @@ class _ProgressDot extends StatelessWidget {
 class _CurvedArrowPainter extends CustomPainter {
   final Color color;
 
-  const _CurvedArrowPainter({required this.color});
+  /// True to rotate the arrow 180°, so it points up at the Gallery search bar
+  /// instead of down at the nav.
+  final bool flip;
+
+  const _CurvedArrowPainter({required this.color, this.flip = false});
 
   @override
   void paint(Canvas canvas, Size size) {
+    canvas.save();
+    if (flip) {
+      // Rotate around the centre so the same curve/arrowhead reads as an
+      // upward gesture towards the search field.
+      canvas.translate(size.width, size.height);
+      canvas.rotate(math.pi);
+    }
+
     final end = Offset(size.width - 4, size.height - 4);
     final path = Path()
       ..moveTo(0, 4)
@@ -988,11 +1350,13 @@ class _CurvedArrowPainter extends CustomPainter {
         ..strokeWidth = 2.2
         ..strokeJoin = StrokeJoin.round,
     );
+
+    canvas.restore();
   }
 
   @override
   bool shouldRepaint(covariant _CurvedArrowPainter oldDelegate) {
-    return oldDelegate.color != color;
+    return oldDelegate.color != color || oldDelegate.flip != flip;
   }
 }
 

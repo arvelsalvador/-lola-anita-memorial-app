@@ -36,13 +36,13 @@ class DonationDetails {
       accountName: 'MA*C AR**L S.',
       displayNumber: '0909063 ****',
       copyNumber: '09090634076',
-      qrAssetPath: 'assets/images/donation/Arvel gcash.jpg',
+      qrAssetPath: 'assets/images/donation/arvel_gcash.jpg',
     ),
     DonationAccount(
       accountName: 'LO**E S.',
       displayNumber: '0946835 ****',
       copyNumber: '09468357721',
-      qrAssetPath: 'assets/images/donation/Lorie gcash.jpg',
+      qrAssetPath: 'assets/images/donation/lorie_gcash.jpg',
     ),
   ];
 

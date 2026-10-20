@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:nita/core/constants/app_timeouts.dart';
 import 'package:nita/core/constants/supabase_config.dart';
 
 /// The family admin PIN, this app's single source of truth.
@@ -65,7 +66,7 @@ class AdminCredential {
         final ok = await client.rpc(
           'pakikiramay_admin_change_pin',
           params: {'p_old_pin': oldPin, 'p_new_pin': cleanNew},
-        ).timeout(const Duration(seconds: 8));
+        ).timeout(AppTimeouts.remote);
         // Fail closed: only a definite `true` from the PIN-verified RPC
         // counts as success; anything else (false, null, unexpected
         // shape) rejects the change and saves nothing locally.

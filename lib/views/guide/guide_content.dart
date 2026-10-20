@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-/// The five vector poses bundled under `assets/images/Vector/`.
+/// The five vector poses bundled under `assets/images/vector/`.
 ///
 /// The guide points at these by enum, never by hard-coded path, so replacing
 /// or adding artwork only touches [GuideArtAsset.asset].
@@ -9,18 +9,24 @@ enum GuideArt { wave, pointUp, touchPhone, heart, thumbsUp }
 extension GuideArtAsset on GuideArt {
   /// Bundled asset path. The files are transparent PNGs, cropped to the
   /// figure and optimised to ~720px tall (originals kept in
-  /// `assets/images/Vector/source/`, which is not registered in pubspec).
+  /// `assets/images/vector/source/`, which is not registered in pubspec).
   String get asset => switch (this) {
-    GuideArt.wave => 'assets/images/Vector/wave.png',
-    GuideArt.pointUp => 'assets/images/Vector/point up.png',
-    GuideArt.touchPhone => 'assets/images/Vector/touch phone.png',
-    GuideArt.heart => 'assets/images/Vector/heart.png',
-    GuideArt.thumbsUp => 'assets/images/Vector/thumbs up.png',
+    GuideArt.wave => 'assets/images/vector/wave.png',
+    GuideArt.pointUp => 'assets/images/vector/point_up.png',
+    GuideArt.touchPhone => 'assets/images/vector/touch_phone.png',
+    GuideArt.heart => 'assets/images/vector/heart.png',
+    GuideArt.thumbsUp => 'assets/images/vector/thumbs_up.png',
   };
 }
 
 /// Which part of the real app the step lights up.
-enum GuideSpotlight { topBar, abuloy, bottomNav }
+enum GuideSpotlight {
+  topBar,
+  abuloy,
+  bottomNav,
+  gallerySearchBar,
+  galleryFilterPills,
+}
 
 /// One stop in the first-visit tour.
 ///
@@ -73,4 +79,30 @@ const List<GuideStep> guideSteps = [
   ),
   abuloyGuideStep,
   navGuideStep,
+];
+
+/// The Gallery search-bar stop. The search field narrows the photo grid as
+/// the visitor types, so it is the first thing worth learning on that tab.
+const GuideStep gallerySearchGuideStep = GuideStep(
+  art: GuideArt.touchPhone,
+  titleKey: 'gallery_guide_search_title',
+  bodyKey: 'gallery_guide_search_body',
+  spotlight: GuideSpotlight.gallerySearchBar,
+);
+
+/// The Gallery filter-pill stop. The row narrows the grid by category, and
+/// the Huling Araw pill is the candle-gated last-day section worth pointing
+/// out in the same breath.
+const GuideStep galleryFilterPillsGuideStep = GuideStep(
+  art: GuideArt.pointUp,
+  titleKey: 'gallery_guide_pills_title',
+  bodyKey: 'gallery_guide_pills_body',
+  spotlight: GuideSpotlight.galleryFilterPills,
+);
+
+/// The Gallery tour. Future stops — the featured slideshow — slot in here
+/// without touching [GuidePage]. The order is the order the visitor sees.
+const List<GuideStep> galleryGuideSteps = [
+  gallerySearchGuideStep,
+  galleryFilterPillsGuideStep,
 ];

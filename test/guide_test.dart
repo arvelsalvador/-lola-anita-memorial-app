@@ -5,7 +5,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import 'package:nita/core/localization/language_provider.dart';
+import 'package:nita/controllers/gallery_controller.dart';
 import 'package:nita/data/guide/guide_repository.dart';
+import 'package:nita/models/gallery_model.dart';
+import 'package:nita/views/gallery/gallery_page.dart';
 import 'package:nita/views/guide/guide_content.dart';
 import 'package:nita/views/guide/guide_page.dart';
 import 'package:nita/views/home/home_page.dart';
@@ -37,6 +40,22 @@ void main() {
       await repo.reset();
       expect(await repo.hasSeen(), isFalse);
     });
+
+    test('the Gallery flag is independent of the homepage flag', () async {
+      const home = GuideRepository();
+      const gallery = GuideRepository.gallery();
+
+      await home.markSeen();
+      expect(await home.hasSeen(), isTrue);
+      expect(await gallery.hasSeen(), isFalse);
+
+      await gallery.markSeen();
+      expect(await gallery.hasSeen(), isTrue);
+
+      await gallery.reset();
+      expect(await gallery.hasSeen(), isFalse);
+      expect(await home.hasSeen(), isTrue);
+    });
   });
 
   group('guide copy', () {
@@ -55,6 +74,11 @@ void main() {
         'guide_done',
         'guide_step',
         'guide_skip',
+        'gallery_guide_search_title',
+        'gallery_guide_search_body',
+        'gallery_guide_pills_title',
+        'gallery_guide_pills_body',
+        'gallery_guide_done',
       };
 
       for (final entry in {
@@ -91,7 +115,27 @@ void main() {
       expect(guideSteps[2].bodyKey, 'guide_nav_body');
 
       for (final step in guideSteps) {
-        expect(step.art.asset, contains('assets/images/Vector/'));
+        expect(step.art.asset, contains('assets/images/vector/'));
+      }
+    });
+
+    test('the Gallery tour starts with search, then the filter pills', () {
+      expect(galleryGuideSteps, hasLength(2));
+
+      final search = galleryGuideSteps[0];
+      expect(search.spotlight, GuideSpotlight.gallerySearchBar);
+      expect(search.art, GuideArt.touchPhone);
+      expect(search.titleKey, 'gallery_guide_search_title');
+      expect(search.bodyKey, 'gallery_guide_search_body');
+
+      final pills = galleryGuideSteps[1];
+      expect(pills.spotlight, GuideSpotlight.galleryFilterPills);
+      expect(pills.art, GuideArt.pointUp);
+      expect(pills.titleKey, 'gallery_guide_pills_title');
+      expect(pills.bodyKey, 'gallery_guide_pills_body');
+
+      for (final step in galleryGuideSteps) {
+        expect(step.art.asset, contains('assets/images/vector/'));
       }
     });
   });
@@ -440,6 +484,190 @@ void main() {
       expect(find.text('Bistohon an bar sa ibaba'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('the Gallery tour lights search, then pills, then finishes', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final lang = LanguageProvider()..setLanguage(AppLanguage.english);
+      await tester.pumpWidget(
+        ChangeNotifierProvider.value(
+          value: lang,
+          child: const MaterialApp(
+            home: GuidePage(
+              tour: GuideTour.gallery,
+              searchBarRect: Rect.fromLTWH(16, 150, 358, 46),
+              filterPillsRect: Rect.fromLTWH(16, 216, 358, 48),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Search the memories'), findsOneWidget);
+      expect(find.text('Next'), findsOneWidget);
+      expect(find.text('Got it'), findsNothing);
+      expect(find.text('Skip'), findsOneWidget);
+      expect(find.byKey(GuidePage.gallerySearchOutlineKey), findsOneWidget);
+      expect(find.bySemanticsLabel('Step 1 of 2'), findsOneWidget);
+      // No homepage chrome is rebuilt on the Gallery tour.
+      expect(find.byType(AppBrandBar), findsNothing);
+      expect(find.byType(AppBottomNav), findsNothing);
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.text('Next'));
+      await tester.pump();
+
+      expect(find.text('Filter the memories'), findsOneWidget);
+      expect(find.textContaining('Last Day'), findsOneWidget);
+      expect(find.text('Got it'), findsOneWidget);
+      expect(find.byKey(GuidePage.galleryPillsOutlineKey), findsOneWidget);
+      expect(find.byKey(GuidePage.gallerySearchOutlineKey), findsNothing);
+      expect(find.bySemanticsLabel('Step 2 of 2'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.text('Got it'));
+      await tester.pump();
+
+      expect(await const GuideRepository.gallery().hasSeen(), isTrue);
+      expect(
+        await const GuideRepository().hasSeen(),
+        isFalse,
+        reason: 'finishing the Gallery tip must not consume the home tour',
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the pills stop asks the Gallery to reveal Huling Araw', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      var reveals = 0;
+      final lang = LanguageProvider()..setLanguage(AppLanguage.english);
+      await tester.pumpWidget(
+        ChangeNotifierProvider.value(
+          value: lang,
+          child: MaterialApp(
+            home: GuidePage(
+              tour: GuideTour.gallery,
+              searchBarRect: const Rect.fromLTWH(16, 150, 358, 46),
+              filterPillsRect: const Rect.fromLTWH(16, 216, 358, 48),
+              onFilterPillsShown: () => reveals++,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(reveals, 0, reason: 'the search stop leaves the row alone');
+
+      await tester.tap(find.text('Next'));
+      await tester.pump();
+      expect(reveals, 1);
+
+      final navigator = tester.state<NavigatorState>(
+        find.byType(Navigator).first,
+      );
+      await navigator.maybePop();
+      await tester.pump();
+      expect(find.text('Search the memories'), findsOneWidget);
+      expect(reveals, 1, reason: 'going back to search must not re-scroll');
+
+      await tester.tap(find.text('Next'));
+      await tester.pump();
+      expect(reveals, 2, reason: 'returning to the pills reveals them again');
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the Gallery stop fits phones, desktop, and landscape', (
+      tester,
+    ) async {
+      addTearDown(tester.view.reset);
+
+      for (final size in const [
+        Size(360, 640),
+        Size(390, 844),
+        Size(1280, 800),
+        Size(640, 360),
+      ]) {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1.0;
+
+        final lang = LanguageProvider()..setLanguage(AppLanguage.english);
+        final searchRect = Rect.fromLTWH(
+          16,
+          size.height * 0.18,
+          size.width - 32,
+          46,
+        );
+        final pillsRect = Rect.fromLTWH(
+          16,
+          size.height * 0.34,
+          size.width - 32,
+          48,
+        );
+
+        await tester.pumpWidget(
+          ChangeNotifierProvider.value(
+            value: lang,
+            child: MaterialApp(
+              home: GuidePage(
+                tour: GuideTour.gallery,
+                searchBarRect: searchRect,
+                filterPillsRect: pillsRect,
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: 'Gallery search stop should fit ${size.width}x${size.height}',
+        );
+        var action = tester.getRect(find.byType(FilledButton));
+        expect(
+          action.top,
+          greaterThanOrEqualTo(0),
+          reason: 'Next should start on-screen at $size',
+        );
+        expect(
+          action.bottom,
+          lessThanOrEqualTo(size.height),
+          reason: 'Next should end on-screen at $size',
+        );
+
+        // The pills stop sits lower on the screen, leaving less room below.
+        await tester.tap(find.text('Next'));
+        await tester.pump();
+
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: 'Gallery pills stop should fit ${size.width}x${size.height}',
+        );
+        action = tester.getRect(find.byType(FilledButton));
+        expect(
+          action.top,
+          greaterThanOrEqualTo(0),
+          reason: 'Got it should start on-screen at $size',
+        );
+        expect(
+          action.bottom,
+          lessThanOrEqualTo(size.height),
+          reason: 'Got it should end on-screen at $size',
+        );
+
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump();
+      }
+    });
   });
 
   group('first-run trigger', () {
@@ -541,6 +769,166 @@ void main() {
 
       expect(find.byType(GuidePage), findsOneWidget);
       expect(find.text('Kilalanin ang bar sa itaas'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('gallery first-open trigger', () {
+    Widget galleryHarness(
+      ValueNotifier<int> tab, {
+      List<GalleryImageItem> images = const [],
+    }) => ChangeNotifierProvider(
+      create: (_) => LanguageProvider()..setLanguage(AppLanguage.english),
+      child: MaterialApp(
+        home: Scaffold(
+          body: GalleryGridView(
+            images: images,
+            activeTab: tab,
+            galleryController: GalleryController(),
+          ),
+        ),
+      ),
+    );
+
+    testWidgets('opens once when the Gallery tab becomes active', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final tab = ValueNotifier<int>(0);
+      addTearDown(tab.dispose);
+
+      await tester.pumpWidget(galleryHarness(tab));
+      await tester.pump();
+      expect(find.byType(GuidePage), findsNothing);
+
+      tab.value = 1;
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.byType(GuidePage), findsOneWidget);
+      expect(find.text('Search the memories'), findsOneWidget);
+      expect(find.text('Next'), findsOneWidget);
+
+      await tester.tap(find.text('Next'));
+      await tester.pump();
+      expect(find.text('Filter the memories'), findsOneWidget);
+      expect(find.text('Got it'), findsOneWidget);
+
+      await tester.tap(find.text('Got it'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(await const GuideRepository.gallery().hasSeen(), isTrue);
+      expect(
+        await const GuideRepository().hasSeen(),
+        isFalse,
+        reason: 'the Gallery tip is its own flag',
+      );
+
+      // Leaving and reopening the tab must not show it again.
+      tab.value = 0;
+      await tester.pump();
+      tab.value = 1;
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byType(GuidePage), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('stays away when the Gallery tip was already seen', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({'gallery_guide_seen_v1': true});
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final tab = ValueNotifier<int>(1);
+      addTearDown(tab.dispose);
+
+      await tester.pumpWidget(galleryHarness(tab));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.byType(GuidePage), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+    testWidgets('the pills stop scrolls the gold Huling Araw pill into view', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      // One photo per group makes the row overflow, as it does on a phone,
+      // so the reveal has somewhere to scroll. The errorBuilder in the grid
+      // covers the missing placeholder files.
+      final images = [
+        for (final group in GalleryGroup.values)
+          GalleryImageItem(
+            // Unique paths keep the grid's Hero tags unique; the files do not
+            // exist, and the grid's errorBuilder renders a placeholder.
+            path: 'assets/images/gallery/missing_${group.name}.jpg',
+            group: group,
+          ),
+      ];
+
+      final tab = ValueNotifier<int>(1);
+      addTearDown(tab.dispose);
+
+      await tester.pumpWidget(galleryHarness(tab, images: images));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.byType(GuidePage), findsOneWidget);
+      expect(find.text('Search the memories'), findsOneWidget);
+
+      final pillsList = find.byWidgetPredicate(
+        (widget) =>
+            widget is ListView && widget.scrollDirection == Axis.horizontal,
+        skipOffstage: false,
+      );
+      expect(pillsList, findsOneWidget);
+      final scrollable = tester.state<ScrollableState>(
+        find.descendant(
+          of: pillsList,
+          matching: find.byType(Scrollable, skipOffstage: false),
+          skipOffstage: false,
+        ),
+      );
+      expect(scrollable.position.pixels, 0);
+
+      await tester.tap(find.text('Next'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(
+        scrollable.position.pixels,
+        greaterThan(0),
+        reason: 'the row should slide so Huling Araw is under the cut-out',
+      );
+      final lastDay = find.text('Last Day', skipOffstage: false);
+      expect(lastDay, findsOneWidget);
+      final lastDayRect = tester.getRect(lastDay);
+      final rowRect = tester.getRect(pillsList);
+      expect(
+        lastDayRect.left,
+        greaterThanOrEqualTo(rowRect.left),
+        reason: 'Huling Araw should be inside the row viewport',
+      );
+      expect(
+        lastDayRect.right,
+        lessThanOrEqualTo(rowRect.right),
+        reason: 'Huling Araw should be fully inside the row viewport',
+      );
+      expect(find.text('Filter the memories'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });

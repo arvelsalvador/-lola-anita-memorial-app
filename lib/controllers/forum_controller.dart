@@ -5,7 +5,9 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:nita/core/constants/app_timeouts.dart';
 import 'package:nita/core/constants/supabase_config.dart';
+import 'package:nita/controllers/forum_pending_sync.dart';
 import 'package:nita/data/forum/forum_repository.dart';
 import 'package:nita/data/security/own_ids.dart';
 import 'package:nita/data/security/reaction_identity.dart';
@@ -298,7 +300,7 @@ class ForumController extends ChangeNotifier {
       if (_disposed) return;
       // Fix #3: merge unsent (pendingSync) posts/replies back in — a
       // successful fetch alone would wipe them silently.
-      _posts = _keepPendingSync(_posts, fetched);
+      _posts = ForumPendingSync.merge(_posts, fetched);
       _loadError = false;
       // Fix #4 backfill: posts made before ownership tracking (or on a
       // previous install) are claimed when they match this device's
@@ -568,78 +570,6 @@ class ForumController extends ChangeNotifier {
     }
   }
 
-  /// Fix #3: keeps unsent (pendingSync) posts and replies from the
-  /// previous feed inside the freshly fetched list, so a successful
-  /// refresh never silently deletes the user's text. A temp post whose
-  /// exact content already landed as a real row is dropped instead
-  /// (the live echo swapped it in). Pure list shaping — no writes.
-  List<ForumPost> _keepPendingSync(
-    List<ForumPost> previous,
-    List<ForumPost> fetched,
-  ) {
-    if (previous.isEmpty) return fetched;
-    final kept = List<ForumPost>.from(fetched);
-    final pendingPosts = <ForumPost>[];
-    for (final old in previous) {
-      if (!old.pendingSync) continue;
-      final landed = fetched.any(
-        (p) =>
-            !p.id.startsWith('msg-') &&
-            p.authorName == old.authorName &&
-            p.message == old.message,
-      );
-      if (landed) continue;
-      pendingPosts.add(old);
-    }
-    if (pendingPosts.isNotEmpty) {
-      kept.removeWhere((p) => pendingPosts.any((pp) => pp.id == p.id));
-      kept.insertAll(0, pendingPosts);
-    }
-    // Unsent replies: re-attach the ones the fetch dropped, and restore
-    // the unsent mark when the repository cache re-materialized the same
-    // temp reply without it.
-    final oldById = <String, ForumPost>{
-      for (final p in previous) p.id: p,
-    };
-    return kept.map((p) {
-      final oldPost = oldById[p.id];
-      if (oldPost == null) return p;
-      var changed = false;
-      final replies = <ForumReply>[];
-      for (final r in p.replies) {
-        ForumReply? oldReply;
-        for (final o in oldPost.replies) {
-          if (o.id == r.id) {
-            oldReply = o;
-            break;
-          }
-        }
-        if (oldReply != null && oldReply.pendingSync && !r.pendingSync) {
-          replies.add(r.copyWith(pendingSync: true));
-          changed = true;
-        } else {
-          replies.add(r);
-        }
-      }
-      for (final r in oldPost.replies) {
-        if (!r.pendingSync) continue;
-        final exists = replies.any(
-          (nr) =>
-              nr.id == r.id ||
-              (!nr.id.startsWith('reply-') &&
-                  nr.authorName == r.authorName &&
-                  nr.message == r.message),
-        );
-        if (exists) continue;
-        replies.add(r);
-        changed = true;
-      }
-      if (!changed) return p;
-      replies.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-      return p.copyWith(replies: replies);
-    }).toList();
-  }
-
   /// Fix #3: one best-effort upload retry for every unsent post and
   /// reply, run after each successful fetch. Never loops — a failed
   /// retry keeps its pendingSync mark and waits for the next fetch.
@@ -843,7 +773,7 @@ class ForumController extends ChangeNotifier {
     if (_visitorName.trim().isNotEmpty) return _visitorName.trim();
     try {
       final name =
-          await const VisitorRepository().localName().timeout(const Duration(seconds: 3));
+          await const VisitorRepository().localName().timeout(AppTimeouts.local);
       _visitorName = (name ?? '').trim();
     } catch (_) {}
     return _visitorName.isEmpty ? 'Anonymous' : _visitorName;

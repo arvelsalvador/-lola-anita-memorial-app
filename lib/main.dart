@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:fvp/fvp.dart' as fvp;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:nita/core/constants/app_timeouts.dart';
 import 'package:nita/core/constants/supabase_config.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/app.dart';
@@ -33,7 +34,7 @@ void main() async {
       await Supabase.initialize(
         url: SupabaseConfig.url,
         publishableKey: SupabaseConfig.publishableKey,
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(AppTimeouts.startup);
       SupabaseConfig.isInitialized = true;
       debugPrint(
         'Supabase init completed (${SupabaseConfig.redactedUrl})',
@@ -52,8 +53,8 @@ void main() async {
   } else {
     debugPrint(
       'Supabase unconfigured — running local-only. '
-      'Pass real --dart-define=SUPABASE_URL=https://<ref>.supabase.co '
-      '(not "your_url").',
+      'To sync: flutter run --dart-define=SUPABASE_URL=https://REF.supabase.co '
+      '--dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_...',
     );
   }
   runApp(const LolaApp());

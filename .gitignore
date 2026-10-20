@@ -33,6 +33,17 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Local debug logs — never commit flutter pub / analyze output dumps
+analyze.txt
+out.txt
+test.txt
+
+# AI agent / tooling workspaces — local only
+.freebuff/
+.kilo/
+.opencode/
+opencode.json
+
 # Symbolication related
 app.*.symbols
 

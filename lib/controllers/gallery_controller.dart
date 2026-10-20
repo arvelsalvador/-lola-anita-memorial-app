@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:nita/core/constants/app_timeouts.dart';
 import 'package:nita/data/gallery/gallery_repository.dart';
 import 'package:nita/models/gallery_model.dart';
 
@@ -35,7 +36,7 @@ class GalleryController extends ChangeNotifier {
   Future<void> load() async {
     try {
       final imagePaths = await GalleryRepository.loadImagePaths().timeout(
-        const Duration(seconds: 10),
+        AppTimeouts.manifest,
       );
       _images = GalleryRepository.toItems(imagePaths);
       notifyListeners();

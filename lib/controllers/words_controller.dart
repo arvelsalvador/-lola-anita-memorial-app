@@ -21,7 +21,7 @@ class WordsController extends ChangeNotifier {
         relationKey: 'words_relation_bunso',
         group: QuoteGroup.children,
         dateKey: 'words_date_1',
-        photoPath: 'assets/images/Family DP/lorie.jpg',
+        photoPath: 'assets/images/family_dp/lorie.jpg',
       ),
       FamilyQuote(
         quoteKey: 'words_quote_2',
@@ -29,7 +29,7 @@ class WordsController extends ChangeNotifier {
         relationKey: 'words_relation_panganay',
         group: QuoteGroup.children,
         dateKey: 'words_date_2',
-        photoPath: 'assets/images/Family DP/gernan.jpg',
+        photoPath: 'assets/images/family_dp/gernan.jpg',
       ),
       FamilyQuote(
         quoteKey: 'words_quote_3',
@@ -37,7 +37,7 @@ class WordsController extends ChangeNotifier {
         relationKey: 'words_relation_ikalawa',
         group: QuoteGroup.children,
         dateKey: 'words_date_3',
-        photoPath: 'assets/images/Family DP/Odin.jpg',
+        photoPath: 'assets/images/family_dp/Odin.jpg',
       ),
       // ── Mga kapatid (siblings) ────────────────────────────────────────
       FamilyQuote(
@@ -46,7 +46,7 @@ class WordsController extends ChangeNotifier {
         relationKey: 'words_relation_kapatid_lalaki',
         group: QuoteGroup.siblings,
         dateKey: 'words_date_4',
-        photoPath: 'assets/images/Family DP/obit.jpg',
+        photoPath: 'assets/images/family_dp/obit.jpg',
       ),
       FamilyQuote(
         quoteKey: 'words_quote_5',
@@ -54,7 +54,7 @@ class WordsController extends ChangeNotifier {
         relationKey: 'words_relation_kapatid_lalaki',
         group: QuoteGroup.siblings,
         dateKey: 'words_date_5',
-        photoPath: 'assets/images/Family DP/dolfo.jpg',
+        photoPath: 'assets/images/family_dp/dolfo.jpg',
       ),
       FamilyQuote(
         quoteKey: 'words_quote_6',
@@ -62,7 +62,7 @@ class WordsController extends ChangeNotifier {
         relationKey: 'words_relation_kapatid_babae',
         group: QuoteGroup.siblings,
         dateKey: 'words_date_6',
-        photoPath: 'assets/images/Family DP/sonia.jpg',
+        photoPath: 'assets/images/family_dp/sonia.jpg',
       ),
       // ── Mga apo (grandchildren) ───────────────────────────────────────
       FamilyQuote(
@@ -71,7 +71,7 @@ class WordsController extends ChangeNotifier {
         relationKey: 'words_relation_apo_babae',
         group: QuoteGroup.grandchildren,
         dateKey: 'words_date_7',
-        photoPath: 'assets/images/Family DP/hans.png',
+        photoPath: 'assets/images/family_dp/hans.png',
       ),
       FamilyQuote(
         quoteKey: 'words_quote_8',
@@ -79,7 +79,7 @@ class WordsController extends ChangeNotifier {
         relationKey: 'words_relation_apo_babae',
         group: QuoteGroup.grandchildren,
         dateKey: 'words_date_8',
-        photoPath: 'assets/images/Family DP/audrey.png',
+        photoPath: 'assets/images/family_dp/audrey.png',
       ),
       FamilyQuote(
         quoteKey: 'words_quote_9',
@@ -87,7 +87,7 @@ class WordsController extends ChangeNotifier {
         relationKey: 'words_relation_apo_lalaki',
         group: QuoteGroup.grandchildren,
         dateKey: 'words_date_9',
-        photoPath: 'assets/images/Family DP/rodel.png',
+        photoPath: 'assets/images/family_dp/rodel.png',
       ),
       FamilyQuote(
         quoteKey: 'words_quote_10',
@@ -95,7 +95,7 @@ class WordsController extends ChangeNotifier {
         relationKey: 'words_relation_apo_babae',
         group: QuoteGroup.grandchildren,
         dateKey: 'words_date_10',
-        photoPath: 'assets/images/Family DP/Rose-ann.png',
+        photoPath: 'assets/images/family_dp/Rose-ann.png',
       ),
       FamilyQuote(
         quoteKey: 'words_quote_11',
@@ -103,7 +103,7 @@ class WordsController extends ChangeNotifier {
         relationKey: 'words_relation_apo_lalaki',
         group: QuoteGroup.grandchildren,
         dateKey: 'words_date_11',
-        photoPath: 'assets/images/Family DP/arvel.jpg',
+        photoPath: 'assets/images/family_dp/arvel.jpg',
       ),
       FamilyQuote(
         quoteKey: 'words_quote_12',
@@ -111,7 +111,7 @@ class WordsController extends ChangeNotifier {
         relationKey: 'words_relation_apo_lalaki',
         group: QuoteGroup.grandchildren,
         dateKey: 'words_date_12',
-        photoPath: 'assets/images/Family DP/aivan.jpg',
+        photoPath: 'assets/images/family_dp/aivan.jpg',
       ),
       FamilyQuote(
         quoteKey: 'words_quote_13',
@@ -119,7 +119,7 @@ class WordsController extends ChangeNotifier {
         relationKey: 'words_relation_apo_babae',
         group: QuoteGroup.grandchildren,
         dateKey: 'words_date_13',
-        photoPath: 'assets/images/Family DP/honey.jpg',
+        photoPath: 'assets/images/family_dp/honey.jpg',
       ),
       FamilyQuote(
         quoteKey: 'words_quote_14',
@@ -127,7 +127,7 @@ class WordsController extends ChangeNotifier {
         relationKey: 'words_relation_apo_lalaki',
         group: QuoteGroup.grandchildren,
         dateKey: 'words_date_14',
-        photoPath: 'assets/images/Family DP/Daniel.png',
+        photoPath: 'assets/images/family_dp/Daniel.png',
       ),
     ],
   );

@@ -10,7 +10,7 @@ class LolaHeroHeader extends StatelessWidget {
   final VoidCallback? onTap;
 
   static const _backgroundAsset =
-      'assets/images/Editing images/memorial_header_background_raw.jpg';
+      'assets/images/editing_images/memorial_header_background_raw.jpg';
   static const _maxContentWidth = 720.0;
   static const _sidePad = 18.0;
   // Top spacing inside the hero (the brand bar above it handles the status

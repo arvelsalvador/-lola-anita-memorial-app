@@ -755,4 +755,15 @@ const Map<String, String> translationsBi = {
   'guide_done': 'Pumunta na',
   'guide_step': 'Hakbang {current} kan {total}',
   'guide_skip': 'Laktawan',
+  // ── Giya sa Galeriya: an search bar ───────────────────────────────────
+  'gallery_guide_search_title': 'Hanapon an mga alaala',
+  'gallery_guide_search_body':
+      'I-type an lugar, petsa, o tataramon — tulos nagkukuro an mga '
+      'ladawan sa ibaba mientras nagta-type ka.',
+  'gallery_guide_pills_title': 'Salaon an mga alaala',
+  'gallery_guide_pills_body':
+      'Pindoton an sarong kategorya para salaon an mga ladawan. An bulawan '
+      'na Huring Aldaw na pill igwa kan mga ladawan kan huring aldaw — '
+      'magsindi nin kandila para mabuksan.',
+  'gallery_guide_done': 'Nasabutan ko',
 };

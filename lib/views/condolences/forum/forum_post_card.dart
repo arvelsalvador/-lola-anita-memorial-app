@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
+import 'package:nita/core/utils/forum_format.dart';
 import 'package:nita/data/security/spam_guard.dart';
 import 'package:nita/data/visitors/visitor_repository.dart';
 import 'package:nita/models/admin_report_model.dart';
@@ -480,71 +481,33 @@ class _ForumPostCardState extends State<ForumPostCard> {
     }
   }
 
-  /// Relative first (<1h just now, <24h hours, <7d days), then exact.
-  /// Uses existing keys forum_just_now / forum_hours_ago / forum_days_ago
-  /// so EN/TL/BI all work. Future timestamps fall back to just now.
-  String _formatRelative(
-    LanguageProvider lang,
-    DateTime dateTime, {
-    required String fallback,
-  }) {
-    final now = DateTime.now();
-    final diff = now.difference(dateTime.toLocal());
-    if (diff.isNegative || diff.inMinutes < 60) {
-      return lang.t('forum_just_now');
-    }
-    if (diff.inHours < 24) {
-      return lang.t('forum_hours_ago', {'count': '${diff.inHours}'});
-    }
-    if (diff.inDays < 7) {
-      return lang.t('forum_days_ago', {'count': '${diff.inDays}'});
-    }
-    return fallback;
-  }
-
   /// Full date for the main post: "Kanina lamang" / "3 oras..." / "Okt 6, 2026".
+  /// Delegates to [ForumFormat].
   String _formatExact(BuildContext context, DateTime dateTime) {
     final lang = context.read<LanguageProvider>();
-    const monthsEn = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    const monthsFil = [
-      'Ene', 'Peb', 'Mar', 'Abr', 'May', 'Hun',
-      'Hul', 'Ago', 'Set', 'Okt', 'Nob', 'Dis',
-    ];
-    final local = dateTime.toLocal();
-    final month =
-        (lang.isEnglish ? monthsEn : monthsFil)[local.month - 1];
-    final fallback = '$month ${local.day}, ${local.year}';
-    return _formatRelative(lang, dateTime, fallback: fallback);
+    return ForumFormat.exact(
+      dateTime,
+      english: lang.isEnglish,
+      justNow: lang.t('forum_just_now'),
+      hoursAgo: (c) => lang.t('forum_hours_ago', {'count': '$c'}),
+      daysAgo: (c) => lang.t('forum_days_ago', {'count': '$c'}),
+    );
   }
 
   /// Short date for replies: "Kanina lamang" / "Okt 7".
+  /// Delegates to [ForumFormat].
   String _formatShort(BuildContext context, DateTime dateTime) {
     final lang = context.read<LanguageProvider>();
-    const monthsEn = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    const monthsFil = [
-      'Ene', 'Peb', 'Mar', 'Abr', 'May', 'Hun',
-      'Hul', 'Ago', 'Set', 'Okt', 'Nob', 'Dis',
-    ];
-    final local = dateTime.toLocal();
-    final month =
-        (lang.isEnglish ? monthsEn : monthsFil)[local.month - 1];
-    final fallback = '$month ${local.day}';
-    return _formatRelative(lang, dateTime, fallback: fallback);
+    return ForumFormat.short(
+      dateTime,
+      english: lang.isEnglish,
+      justNow: lang.t('forum_just_now'),
+      hoursAgo: (c) => lang.t('forum_hours_ago', {'count': '$c'}),
+      daysAgo: (c) => lang.t('forum_days_ago', {'count': '$c'}),
+    );
   }
 
-  String _getInitials(String name) {
-    final parts = name.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty || parts.first.isEmpty) return 'A';
-    if (parts.length == 1) return parts[0].substring(0, 1).toUpperCase();
-    return '${parts[0].substring(0, 1)}${parts[1].substring(0, 1)}'
-        .toUpperCase();
-  }
+  String _getInitials(String name) => ForumFormat.initials(name);
 
   @override
   Widget build(BuildContext context) {

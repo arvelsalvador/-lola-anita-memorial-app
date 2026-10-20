@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:nita/core/constants/app_timeouts.dart';
 import 'package:nita/core/constants/supabase_config.dart';
 import 'package:nita/data/security/admin_pin.dart';
 import 'package:nita/models/admin_visitor_model.dart';
@@ -71,7 +72,7 @@ class VisitorRepository {
         'name': cleanName,
         'address': cleanAddress,
         'lang': lang,
-      }).timeout(const Duration(seconds: 8));
+      }).timeout(AppTimeouts.remote);
       return true;
     } catch (e) {
       // Offline / RLS / table-missing / Data API disabled: entry already
@@ -101,7 +102,7 @@ class VisitorRepository {
     try {
       final count = await client
           .rpc('pakikiramay_candle_count')
-          .timeout(const Duration(seconds: 8));
+          .timeout(AppTimeouts.remote);
       if (count is num) return count.toInt();
       return int.tryParse('$count');
     } catch (e) {
@@ -125,7 +126,7 @@ class VisitorRepository {
     try {
       final rows = await client
           .rpc('pakikiramay_candle_names', params: {'p_limit': limit})
-          .timeout(const Duration(seconds: 8));
+          .timeout(AppTimeouts.remote);
       return _parseNameRows(rows as List);
     } catch (e) {
       debugPrint(
@@ -174,7 +175,7 @@ class VisitorRepository {
           .rpc('pakikiramay_admin_list_visitors', params: {
         'p_pin': pin,
         'p_limit': limit,
-      }).timeout(const Duration(seconds: 8));
+      }).timeout(AppTimeouts.remote);
       return _parseVisitorRows(rows as List);
     } catch (e) {
       debugPrint('VisitorRepository fetchAdminVisitors skipped: $e');
@@ -225,7 +226,7 @@ class VisitorRepository {
               'p_name': cleanName,
               'p_address': cleanAddress,
             },
-          ).timeout(const Duration(seconds: 8))) as bool?;
+          ).timeout(AppTimeouts.remote)) as bool?;
       return ok ?? false;
     } catch (e) {
       debugPrint('VisitorRepository updateVisitor skipped: $e');
@@ -245,7 +246,7 @@ class VisitorRepository {
       final ok = (await client.rpc(
             'pakikiramay_admin_delete_visitor',
             params: {'p_pin': pin, 'p_id': id},
-          ).timeout(const Duration(seconds: 8))) as bool?;
+          ).timeout(AppTimeouts.remote)) as bool?;
       return ok ?? false;
     } catch (e) {
       debugPrint('VisitorRepository deleteVisitor skipped: $e');

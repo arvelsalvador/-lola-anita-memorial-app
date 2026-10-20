@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import 'package:nita/core/constants/app_timeouts.dart';
 import 'package:nita/core/constants/supabase_config.dart';
 import 'package:nita/data/security/admin_pin.dart';
 import 'package:nita/models/admin_candle_message_model.dart';
@@ -47,7 +48,7 @@ class CondolenceRepository {
       await client
           .from(table)
           .insert({'name': cleanName, 'message': cleanMessage}).timeout(
-            const Duration(seconds: 8),
+            AppTimeouts.remote,
           );
       return true;
     } catch (e) {
@@ -78,7 +79,7 @@ class CondolenceRepository {
           .rpc('pakikiramay_admin_list_candles', params: {
         'p_pin': pin,
         'p_limit': limit,
-      }).timeout(const Duration(seconds: 8));
+      }).timeout(AppTimeouts.remote);
       return _parseCandleRows(rows as List);
     } catch (e) {
       debugPrint('CondolenceRepository fetchAdminMessages skipped: $e');
@@ -120,7 +121,7 @@ class CondolenceRepository {
       final ok = (await client.rpc(
             'pakikiramay_admin_edit_candle',
             params: {'p_pin': pin, 'p_id': id, 'p_message': clean},
-          ).timeout(const Duration(seconds: 8))) as bool?;
+          ).timeout(AppTimeouts.remote)) as bool?;
       return ok ?? false;
     } catch (e) {
       debugPrint('CondolenceRepository updateMessage skipped: $e');
@@ -140,7 +141,7 @@ class CondolenceRepository {
       final ok = (await client.rpc(
             'pakikiramay_admin_delete_candle',
             params: {'p_pin': pin, 'p_id': id},
-          ).timeout(const Duration(seconds: 8))) as bool?;
+          ).timeout(AppTimeouts.remote)) as bool?;
       return ok ?? false;
     } catch (e) {
       debugPrint('CondolenceRepository deleteMessage skipped: $e');

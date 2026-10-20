@@ -28,7 +28,7 @@ class FamilyQuote {
   /// rendered under the name ("— Lorie Salvador · Bunso").
   final String relationKey;
 
-  /// Optional portrait asset, e.g. 'assets/images/Family DP/lorie.jpg'.
+  /// Optional portrait asset, e.g. 'assets/images/family_dp/lorie.jpg'.
   /// Null falls back to a gradient initials avatar.
   final String? photoPath;
 

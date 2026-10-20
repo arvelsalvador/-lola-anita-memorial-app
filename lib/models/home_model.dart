@@ -62,7 +62,7 @@ class MemoryItem {
   final int photoCount;
 
   /// Bundled photo asset shown on the card and in its full-screen preview,
-  /// e.g. 'assets/images/Best Pictures/Bahay.jpg'. Null until a photo is
+  /// e.g. 'assets/images/best_pictures/Bahay.jpg'. Null until a photo is
   /// wired in — the soft gradient placeholder shows instead.
   final String? image;
 

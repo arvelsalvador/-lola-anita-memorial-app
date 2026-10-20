@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:nita/core/constants/app_timeouts.dart';
 import 'package:nita/core/constants/supabase_config.dart';
 import 'package:nita/data/security/admin_pin.dart';
 import 'package:nita/data/security/reaction_identity.dart';
@@ -63,7 +64,7 @@ class ForumRepository {
             .select('id, name, message, created_at')
             .order('created_at', ascending: false)
             .limit(100)
-            .timeout(const Duration(seconds: 8));
+            .timeout(AppTimeouts.remote);
 
         // Fetch replies from database if table is available
         Map<String, List<ForumReply>> dbReplies = {};
@@ -93,13 +94,13 @@ class ForumRepository {
                 .select(
                     'id, post_id, author_name, message, created_at, reply_to_name')
                 .order('created_at', ascending: true)
-                .timeout(const Duration(seconds: 5)) as List;
+                .timeout(AppTimeouts.quick) as List;
           } catch (_) {
             replyRows = await client
                 .from(repliesTable)
                 .select('id, post_id, author_name, message, created_at')
                 .order('created_at', ascending: true)
-                .timeout(const Duration(seconds: 5)) as List;
+                .timeout(AppTimeouts.quick) as List;
           }
 
           for (final r in replyRows) {
@@ -265,7 +266,7 @@ class ForumRepository {
             })
             .select()
             .single()
-            .timeout(const Duration(seconds: 8));
+            .timeout(AppTimeouts.remote);
 
         final realId = res['id']?.toString() ?? tempId;
         newPost = newPost.copyWith(id: realId);
@@ -342,7 +343,7 @@ class ForumRepository {
               })
               .select('id, created_at')
               .single()
-              .timeout(const Duration(seconds: 8));
+              .timeout(AppTimeouts.remote);
         } catch (_) {
           // Column missing on old DBs — retry without reply_to_name.
           res = await client
@@ -354,7 +355,7 @@ class ForumRepository {
               })
               .select('id, created_at')
               .single()
-              .timeout(const Duration(seconds: 8));
+              .timeout(AppTimeouts.remote);
         }
         final realId = res['id']?.toString();
         DateTime? realAt;
@@ -441,7 +442,7 @@ class ForumRepository {
             .select('target_id, reaction_type')
             .order('target_id')
             .range(from, from + pageSize - 1)
-            .timeout(const Duration(seconds: 8));
+            .timeout(AppTimeouts.remote);
         final list = rows as List;
         for (final row in list) {
           final target = row['target_id']?.toString() ?? '';
@@ -489,7 +490,7 @@ class ForumRepository {
         'reaction_type': reactionType,
         'device_id': deviceId,
         'reactor_name': cleanName,
-      }).timeout(const Duration(seconds: 8));
+      }).timeout(AppTimeouts.remote);
       return true;
     } catch (e) {
       debugPrint('ForumRepository addReactionRemote FAILED: $e');
@@ -521,7 +522,7 @@ class ForumRepository {
               'p_reaction_type': reactionType,
               'p_device_id': deviceId,
             },
-          ).timeout(const Duration(seconds: 8))) as bool?;
+          ).timeout(AppTimeouts.remote)) as bool?;
       return ok ?? false;
     } catch (e) {
       if (!isRpcMissing(e)) {
@@ -540,7 +541,7 @@ class ForumRepository {
           .eq('reaction_type', reactionType)
           .eq('device_id', deviceId)
           .limit(1)
-          .timeout(const Duration(seconds: 8));
+          .timeout(AppTimeouts.remote);
       final list = rows as List;
       if (list.isEmpty) return false;
       final rowId = list.first['id']?.toString() ?? '';
@@ -549,7 +550,7 @@ class ForumRepository {
           .from(reactionsTable)
           .delete()
           .eq('id', rowId)
-          .timeout(const Duration(seconds: 8));
+          .timeout(AppTimeouts.remote);
       return true;
     } catch (e) {
       debugPrint('ForumRepository removeReactionRemote FAILED: $e');
@@ -574,7 +575,7 @@ class ForumRepository {
           .eq('reaction_type', 'heart')
           .order('created_at', ascending: true)
           .limit(100)
-          .timeout(const Duration(seconds: 8));
+          .timeout(AppTimeouts.remote);
       final names = <String>[];
       for (final row in (rows as List)) {
         final raw = (row as Map)['reactor_name'];
@@ -629,7 +630,7 @@ class ForumRepository {
         'details': cleanDetails,
         'reporter_device_id': deviceId.trim(),
         'reporter_name': cleanName,
-      }).timeout(const Duration(seconds: 8));
+      }).timeout(AppTimeouts.remote);
       return ReportSubmitOutcome.saved;
     } catch (e) {
       final msg = e.toString().toLowerCase();
@@ -661,7 +662,7 @@ class ForumRepository {
     try {
       final rows = await client
           .rpc('pakikiramay_report_counts')
-          .timeout(const Duration(seconds: 8));
+          .timeout(AppTimeouts.remote);
       final counts = <String, int>{};
       for (final row in (rows as List)) {
         final m = row as Map;
@@ -704,7 +705,7 @@ class ForumRepository {
           .rpc('pakikiramay_admin_list_reports', params: {
         'p_pin': pin,
         'p_limit': limit,
-      }).timeout(const Duration(seconds: 8));
+      }).timeout(AppTimeouts.remote);
       return _parseAdminReportRows(rows as List);
     } catch (e) {
       debugPrint('ForumRepository fetchAdminReports skipped: $e');
@@ -754,7 +755,7 @@ class ForumRepository {
       final ok = (await client.rpc(
             'pakikiramay_admin_dismiss_reports',
             params: {'p_pin': pin, 'p_target_id': targetId},
-          ).timeout(const Duration(seconds: 8))) as bool?;
+          ).timeout(AppTimeouts.remote)) as bool?;
       return ok ?? false;
     } catch (e) {
       debugPrint('ForumRepository dismissReports skipped: $e');
@@ -783,7 +784,7 @@ class ForumRepository {
       final ok = (await client.rpc(
             'pakikiramay_admin_edit_message',
             params: {'p_pin': pin, 'p_id': postId, 'p_message': clean},
-          ).timeout(const Duration(seconds: 8))) as bool?;
+          ).timeout(AppTimeouts.remote)) as bool?;
       if (ok ?? false) {
         await _updateCachedPostMessage(postId, clean);
         return true;
@@ -827,7 +828,7 @@ class ForumRepository {
               'p_reply_id': replyId,
               'p_message': clean,
             },
-          ).timeout(const Duration(seconds: 8))) as bool?;
+          ).timeout(AppTimeouts.remote)) as bool?;
       if (ok ?? false) {
         await _updateCachedReplyMessage(postId, replyId, clean);
         return true;
@@ -872,7 +873,7 @@ class ForumRepository {
       final ok = (await client.rpc(
             'pakikiramay_admin_delete_target',
             params: params,
-          ).timeout(const Duration(seconds: 8))) as bool?;
+          ).timeout(AppTimeouts.remote)) as bool?;
       if (ok ?? false) {
         await dismissReports(targetId);
         return true;
@@ -937,7 +938,7 @@ class ForumRepository {
               'p_device_id': deviceId,
               'p_message': clean,
             },
-          ).timeout(const Duration(seconds: 8))) as bool?;
+          ).timeout(AppTimeouts.remote)) as bool?;
       if (ok ?? false) {
         await _updateCachedPostMessage(postId, clean);
         return true;
@@ -982,7 +983,7 @@ class ForumRepository {
               'p_device_id': deviceId,
               'p_message': clean,
             },
-          ).timeout(const Duration(seconds: 8))) as bool?;
+          ).timeout(AppTimeouts.remote)) as bool?;
       if (ok ?? false) {
         await _updateCachedReplyMessage(postId, replyId, clean);
         return true;
@@ -1011,7 +1012,7 @@ class ForumRepository {
       final ok = (await client.rpc(
             'pakikiramay_delete_message',
             params: {'p_id': postId, 'p_device_id': deviceId},
-          ).timeout(const Duration(seconds: 8))) as bool?;
+          ).timeout(AppTimeouts.remote)) as bool?;
       if (ok ?? false) {
         await _deleteCachedPost(postId);
         return true;
@@ -1045,7 +1046,7 @@ class ForumRepository {
               'p_post_id': postId,
               'p_device_id': deviceId,
             },
-          ).timeout(const Duration(seconds: 8))) as bool?;
+          ).timeout(AppTimeouts.remote)) as bool?;
       if (ok ?? false) {
         await _deleteCachedReply(postId, replyId);
         return true;
@@ -1202,7 +1203,7 @@ class ForumRepository {
             .eq('target_id', targetId)
             .order('reaction_type')
             .range(from, from + pageSize - 1)
-            .timeout(const Duration(seconds: 8));
+            .timeout(AppTimeouts.remote);
         final list = rows as List;
         for (final row in list) {
           final type = (row['reaction_type'] as String? ?? '').trim();

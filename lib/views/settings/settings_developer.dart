@@ -10,7 +10,7 @@ class _AboutDeveloperPage extends StatelessWidget {
   /// Opens the Family tab in the bottom nav (provided by Home).
   final VoidCallback? onViewFamily;
 
-  static const _photo = 'assets/images/Family DP/arvel.jpg';
+  static const _photo = 'assets/images/family_dp/arvel.jpg';
 
   /// Closes Settings entirely, then jumps to the real Family tab —
   /// not a separate page.

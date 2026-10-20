@@ -263,7 +263,7 @@ class _MemberPortrait extends StatelessWidget {
   final VoidCallback? onPhotoTap;
 
   static const String _familyBorderAsset =
-      'assets/images/Editing images/Family_Border.png';
+      'assets/images/editing_images/Family_Border.png';
   static const double _familyBorderOverflowFactor = 0.22;
   static const double _familyBorderPhotoScale = 0.75;
   static const double _familyBorderVerticalShift =

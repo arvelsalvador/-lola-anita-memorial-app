@@ -756,4 +756,15 @@ const Map<String, String> translationsTl = {
   'guide_done': 'Simulan na',
   'guide_step': 'Hakbang {current} ng {total}',
   'guide_skip': 'Laktawan',
+  // ── Gabay sa Galeri: ang search bar ───────────────────────────────────
+  'gallery_guide_search_title': 'Hanapin ang mga alaala',
+  'gallery_guide_search_body':
+      'I-type ang lugar, petsa, o salita — agad lumiliit ang mga litrato '
+      'sa ibaba habang nagta-type ka.',
+  'gallery_guide_pills_title': 'Salain ang mga alaala',
+  'gallery_guide_pills_body':
+      'Pindutin ang isang kategorya para salain ang mga litrato. Ang '
+      'ginintuang Huling Araw na pill ay may mga litrato ng huling sandali — '
+      'magsindi muna ng kandila para mabuksan.',
+  'gallery_guide_done': 'Naintindihan ko',
 };

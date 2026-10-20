@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 
+import 'package:nita/core/constants/app_timeouts.dart';
+
 /// Support assets that happen to live in the gallery folder but are not
 /// gallery photos: hero header background, memorial frame, profile photo,
 /// and strays. Excluding them keeps them out of the grid, the chips, and
@@ -19,7 +21,7 @@ const Set<String> gallerySupportAssets = {
 Future<List<String>> loadGalleryPhotoPaths() async {
   final assetManifest = await AssetManifest.loadFromAssetBundle(rootBundle)
       .timeout(
-        const Duration(seconds: 10),
+        AppTimeouts.manifest,
         onTimeout: () => throw TimeoutException('gallery manifest timed out'),
       );
   final paths = assetManifest

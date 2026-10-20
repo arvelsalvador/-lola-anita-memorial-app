@@ -21,11 +21,14 @@ void main() {
   });
 
   // Each test starts as a first-time visitor: clear the remembered
-  // name/address so the splash gate always appears. The guide is marked
-  // seen so these tests land directly on Home; `guide_test.dart` covers
-  // the unseen first-run flow.
+  // name/address so the splash gate always appears. Both guides are marked
+  // seen so these tests land directly on their tabs; `guide_test.dart`
+  // covers the unseen first-run flows.
   setUp(() {
-    SharedPreferences.setMockInitialValues({'guide_seen_v4': true});
+    SharedPreferences.setMockInitialValues({
+      'guide_seen_v4': true,
+      'gallery_guide_seen_v1': true,
+    });
   });
 
   // Nav taps must be scoped to the nav bar so the Family page's own title

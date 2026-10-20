@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
+import 'package:nita/core/constants/app_timeouts.dart';
 import 'package:nita/core/utils/motion.dart';
 
 /// Full-bleed, muted, looping video ground for the splash.
@@ -77,7 +78,7 @@ class _SplashVideoBackdropState extends State<SplashVideoBackdrop>
       _controller = controller;
       // Timeout so a wedged native decoder can't hold the controller open
       // forever; the painted fallback simply stays on screen.
-      await controller.initialize().timeout(const Duration(seconds: 8));
+      await controller.initialize().timeout(AppTimeouts.mediaInit);
       await controller.setLooping(true);
       await controller.setVolume(0);
       if (_disposed) return;

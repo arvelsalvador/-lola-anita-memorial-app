@@ -191,7 +191,7 @@ class _TitleAccent extends StatelessWidget {
   const _TitleAccent();
 
   static const _assetPath =
-      'assets/images/Editing images/Memories_design_trim.png';
+      'assets/images/editing_images/Memories_design_trim.png';
 
   @override
   Widget build(BuildContext context) {

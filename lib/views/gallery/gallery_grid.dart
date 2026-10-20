@@ -23,6 +23,15 @@ class _GalleryGridViewState extends State<GalleryGridView> {
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
 
+  /// Global rect source for the Gallery guide: the lit bar is the real one.
+  final GlobalKey _searchBarKey = GlobalKey();
+
+  /// Global rect source for the guide's second stop, the filter-pill row.
+  final GlobalKey _filterPillsKey = GlobalKey();
+
+  /// One-shot guard so the guide is scheduled at most once per grid instance.
+  bool _galleryGuideCheckStarted = false;
+
   // Tracks whether the filter-pill row can still scroll further right,
   // so the edge fade only shows when it's actually true — not as a
   // permanent decoration that lingers even at the end of the list.
@@ -36,6 +45,7 @@ class _GalleryGridViewState extends State<GalleryGridView> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       child: Container(
+        key: _searchBarKey,
         height: 46,
         decoration: BoxDecoration(
           color: AppColors.paper,
@@ -88,6 +98,7 @@ class _GalleryGridViewState extends State<GalleryGridView> {
           // (the tails of "g" in "Pagdiriwang") are never clipped by
           // the horizontal ListView's edge.
           SizedBox(
+            key: _filterPillsKey,
             height: 48,
             width: double.infinity,
             child: ShaderMask(
@@ -299,14 +310,142 @@ class _GalleryGridViewState extends State<GalleryGridView> {
   void initState() {
     super.initState();
     _pillsScrollController.addListener(_updatePillsFade);
+    widget.activeTab?.addListener(_onActiveTabChanged);
     // Check once after the first frame, in case there are enough pills
     // to overflow even before the user touches the row.
     WidgetsBinding.instance.addPostFrameCallback((_) => _updatePillsFade());
+    // The grid can mount after the Gallery tab is already active (the image
+    // manifest may finish loading late), so try once on the first frame too.
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _maybeShowGalleryGuide(),
+    );
     // One fixed shuffle order per page instance: the "Lahat na Larawan"
     // grid shows the photos in a mixed-up order instead of the sorted
     // source order. Built once in initState so the grid doesn't reshuffle
     // on filter/search setStates.
     _shuffleRandom = math.Random();
+  }
+
+  @override
+  void didUpdateWidget(covariant GalleryGridView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.activeTab, widget.activeTab)) {
+      oldWidget.activeTab?.removeListener(_onActiveTabChanged);
+      widget.activeTab?.addListener(_onActiveTabChanged);
+    }
+  }
+
+  /// Gallery lives inside the home shell's IndexedStack, so it is mounted
+  /// before the visitor ever opens the tab. The tab notifier is the real
+  /// "opened Gallery" signal.
+  void _onActiveTabChanged() {
+    if (widget.activeTab?.value == 1) _maybeShowGalleryGuide();
+  }
+
+  void _maybeShowGalleryGuide() {
+    if (_galleryGuideCheckStarted) return;
+    if (widget.activeTab?.value != 1) return;
+    _galleryGuideCheckStarted = true;
+
+    // The next frame has the tab laid out (and, in the shell, the scroll
+    // reset queued). `_openGalleryGuide` still re-checks the rect and brings
+    // the bar back if the grid was scrolled down.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _openGalleryGuide());
+    // The notifier listener can fire outside a frame (as in tests), so make
+    // sure the callback above actually gets a frame to run at.
+    WidgetsBinding.instance.scheduleFrame();
+  }
+
+  Future<void> _openGalleryGuide() async {
+    if (!mounted || widget.activeTab?.value != 1) {
+      _galleryGuideCheckStarted = false;
+      return;
+    }
+
+    final seen = await const GuideRepository.gallery().hasSeen();
+    if (!mounted || seen || widget.activeTab?.value != 1) return;
+
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) {
+      // Another overlay is on top (for example the homepage guide is still
+      // fading out). Let the visitor re-enter the tab to try again.
+      _galleryGuideCheckStarted = false;
+      return;
+    }
+
+    final rect = _controlRect(_searchBarKey);
+    if (rect == null) {
+      // The bar is scrolled out of view; bring it back and try next frame.
+      if (widget.controller?.hasClients ?? false) {
+        widget.controller!.jumpTo(0);
+      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final retry = _controlRect(_searchBarKey);
+        if (retry != null) _pushGalleryGuide(retry);
+      });
+      return;
+    }
+
+    _pushGalleryGuide(rect);
+  }
+
+  /// A spotlighted control's global rect, or null when it is not laid out or
+  /// not on screen — so the scrim never cuts a hole in the wrong place.
+  Rect? _controlRect(GlobalKey key) {
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return null;
+    final topLeft = box.localToGlobal(Offset.zero);
+    final rect = topLeft & box.size;
+    final screen = Offset.zero & MediaQuery.sizeOf(context);
+    if (rect.top < 0 || rect.bottom > screen.height) return null;
+    return rect;
+  }
+
+  void _pushGalleryGuide(Rect searchBarRect) {
+    if (!mounted) return;
+    Navigator.of(context).push(
+      fadeRoute(
+        GuidePage(
+          tour: GuideTour.gallery,
+          searchBarRect: searchBarRect,
+          // Null if the row is below the fold; the second stop then falls
+          // back to a full-screen scrim instead of a misplaced hole.
+          filterPillsRect: _controlRect(_filterPillsKey),
+          onFilterPillsShown: _revealFilterPills,
+        ),
+        opaque: false,
+      ),
+    );
+  }
+
+  /// Slides the pill row to the end when the guide reaches its second stop,
+  /// so the gold Huling Araw pill is actually visible under the cut-out
+  /// instead of sitting off-screen. Only the row scrolls, so the measured
+  /// screen rect (and therefore the hole) stays correct.
+  void _revealFilterPills() {
+    final controller = _pillsScrollController;
+    if (!controller.hasClients) return;
+    // A lazy ListView only estimates its full extent until the far end has
+    // been laid out. After the first slide, ease back to the real end if the
+    // estimate overshot, so the row never rests in blank trailing space.
+    controller
+        .animateTo(
+          controller.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 420),
+          curve: Curves.easeOutCubic,
+        )
+        .then((_) {
+          if (!mounted || !controller.hasClients) return;
+          final max = controller.position.maxScrollExtent;
+          if (controller.position.pixels > max + 0.5) {
+            controller.animateTo(
+              max,
+              duration: const Duration(milliseconds: 140),
+              curve: Curves.easeOut,
+            );
+          }
+        });
   }
 
   void _updatePillsFade() {
@@ -334,6 +473,7 @@ class _GalleryGridViewState extends State<GalleryGridView> {
 
   @override
   void dispose() {
+    widget.activeTab?.removeListener(_onActiveTabChanged);
     _searchController.dispose();
     _pillsScrollController.dispose();
     super.dispose();
@@ -562,14 +702,14 @@ class _PhotoCard extends StatelessWidget {
                           // drop the wrapper and render the plain image
                           // (its natural sharp rendering) instead.
                           sigma > 0
-                              ? ImageFiltered(
-                                  imageFilter: ImageFilter.blur(
-                                    sigmaX: sigma,
-                                    sigmaY: sigma,
-                                  ),
-                                  child: child,
-                                )
-                              : child!,
+                          ? ImageFiltered(
+                              imageFilter: ImageFilter.blur(
+                                sigmaX: sigma,
+                                sigmaY: sigma,
+                              ),
+                              child: child,
+                            )
+                          : child!,
                       child: Image.asset(
                         item.path,
                         fit: BoxFit.cover,
@@ -700,4 +840,3 @@ class _PhotoCard extends StatelessWidget {
     );
   }
 }
-

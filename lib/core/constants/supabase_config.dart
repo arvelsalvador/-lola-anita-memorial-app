@@ -1,12 +1,14 @@
 /// Supabase connection for the memorial backend (visitors + condolences).
 ///
-/// OPTION A (chosen): paste values once below — no --dart-define needed.
-/// 1. Supabase dashboard > your project Anita-Memorial_Database
-/// 2. Bottom-left gear (Project Settings) > Data API
-/// 3. Copy "Project URL" (https://xxx.supabase.co) -> _defaultUrl
-/// 4. Copy "publishable / anon" key (sb_publishable_...) -> _defaultKey
-/// 5. Save + `flutter run -d chrome` (no extra flags).
-/// --dart-define still wins if supplied. Unconfigured = local-only.
+/// Keys come ONLY from --dart-define (never pasted in code):
+///   flutter run -d chrome --dart-define=SUPABASE_URL=https://REF.supabase.co
+///                        --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+///
+/// No flags = local-only mode (visitor gate saves on-device, candle/forum
+/// use local cache). Every repository guards with `safeClient()`, so a
+/// mourning visitor is never blocked by network.
+///
+/// NEVER paste the secret `service_role` key anywhere in this repo.
 
 library;
 
@@ -15,29 +17,23 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class SupabaseConfig {
   SupabaseConfig._();
 
-  // ==== PASTE HERE (Option A) ====
-  static const String _defaultUrl = 'https://mpvkblyvfizjiatsrkck.supabase.co';
-  static const String _defaultKey =
-      'sb_publishable_lkrORoyPXTQiw6LrZ0Dgtw_8iNUgBVK';
-  // ===============================
-
   static const String url = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: _defaultUrl,
+    defaultValue: '',
   );
 
   /// Publishable (anon) key from the Supabase dashboard.
-  /// Public by design with our insert-only RLS — safe to commit.
-  /// NEVER paste the secret `service_role` key here.
+  /// Public by design with our insert-only RLS — but still supplied via
+  /// --dart-define so the repo stays key-free and git history stays clean.
   static const String publishableKey = String.fromEnvironment(
     'SUPABASE_PUBLISHABLE_KEY',
-    defaultValue: _defaultKey,
+    defaultValue: '',
   );
 
-  /// True only when real credentials were supplied AND the URL looks
-  /// like a real Supabase project URL. Catches the common mistake of
-  /// passing `--dart-define=SUPABASE_URL=your_url` literally (which
-  /// yields PostgREST 404 for every table, as seen in debug logs).
+  /// True only when real credentials were supplied via --dart-define AND
+  /// the URL looks like a real Supabase project URL. Catches the common
+  /// mistake of passing `--dart-define=SUPABASE_URL=your_url` literally
+  /// (which yields PostgREST 404 for every table, as seen in debug logs).
   ///
   /// Mutable — deliberately NOT a getter over the credentials: main()
   /// flips it to false when Supabase.initialize throws or times out so
@@ -61,6 +57,8 @@ class SupabaseConfig {
   }
 
   static bool _credentialsLookValid() =>
+      url.isNotEmpty &&
+      publishableKey.isNotEmpty &&
       !url.contains('your-project') &&
       !publishableKey.contains('your-publishable-key') &&
       _looksLikeSupabaseUrl(url);
@@ -69,7 +67,7 @@ class SupabaseConfig {
     final uri = Uri.tryParse(value);
     if (uri == null || !uri.isAbsolute) return false;
     if (uri.scheme != 'https') return false;
-    // Standard: https://<ref>.supabase.co (+ optional trailing slash).
+    // Standard: https://REF.supabase.co (+ optional trailing slash).
     // Self-hosted / custom domains still pass if https + has a host.
     if (value.contains('your_url')) return false;
     return uri.host.isNotEmpty;
@@ -77,9 +75,11 @@ class SupabaseConfig {
 
   /// URL with project ref kept but path hidden, safe for debug logs.
   /// e.g. https://abcdefgh.supabase.co (never logs the key).
+  /// Returns `[unconfigured]` when no URL was supplied (local-only mode).
   static String get redactedUrl {
+    if (url.isEmpty) return '[unconfigured - local-only]';
     final uri = Uri.tryParse(url);
-    if (uri == null || uri.host.isEmpty) return '<invalid SUPABASE_URL>';
+    if (uri == null || uri.host.isEmpty) return '[invalid SUPABASE_URL]';
     return '${uri.scheme}://${uri.host}';
   }
 }

@@ -719,4 +719,14 @@ const Map<String, String> translationsEn = {
   'guide_done': 'Start exploring',
   'guide_step': 'Step {current} of {total}',
   'guide_skip': 'Skip',
+  // ── Gallery guide: the search bar ──────────────────────────────────────
+  'gallery_guide_search_title': 'Search the memories',
+  'gallery_guide_search_body':
+      'Type a place, a date, or a word — the photos below narrow down as '
+      'you type.',
+  'gallery_guide_pills_title': 'Filter the memories',
+  'gallery_guide_pills_body':
+      'Tap a category to narrow the photos. The gold Last Day pill holds '
+      'the final-day photos — light a candle to open them.',
+  'gallery_guide_done': 'Got it',
 };
