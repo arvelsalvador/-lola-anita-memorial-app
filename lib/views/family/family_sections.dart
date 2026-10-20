@@ -15,10 +15,15 @@ class FamilyGroupSection extends StatelessWidget {
   /// section's connector reads as continuous.
   final bool showGather;
 
+  /// Marks the section's first member card (the top-left cell) so the
+  /// Family guide can measure and light it. Only the first section needs it.
+  final Key? firstMemberKey;
+
   const FamilyGroupSection({
     super.key,
     required this.group,
     this.showGather = false,
+    this.firstMemberKey,
   });
 
   @override
@@ -166,6 +171,18 @@ class FamilyGroupSection extends StatelessWidget {
                   ? (cellWidth - 36.0).clamp(28.0, 88.0)
                   : null;
 
+              // The Family guide lights the very first card, so it needs a
+              // key on the top-left cell only.
+              Widget memberCard(FamilyMember member, int row, int col) {
+                final card = _MemberThumbnailCard(
+                  member: member,
+                  portraitSize: portraitSize,
+                );
+                return row == 0 && col == 0 && firstMemberKey != null
+                    ? KeyedSubtree(key: firstMemberKey, child: card)
+                    : card;
+              }
+
               final Widget grid = useColumns
                   ? Column(
                       children: [
@@ -250,12 +267,11 @@ class FamilyGroupSection extends StatelessWidget {
                                                               horizontal: 6,
                                                             ),
                                                         child:
-                                                            _MemberThumbnailCard(
-                                                          member:
+                                                            memberCard(
                                                               branches[c][r],
-                                                          portraitSize:
-                                                              portraitSize,
-                                                        ),
+                                                              r,
+                                                              c,
+                                                            ),
                                                       )
                                                     : const SizedBox(),
                                           ),
@@ -288,9 +304,10 @@ class FamilyGroupSection extends StatelessWidget {
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 6,
                                         ),
-                                        child: _MemberThumbnailCard(
-                                          member: rows[r][c],
-                                          portraitSize: portraitSize,
+                                        child: memberCard(
+                                          rows[r][c],
+                                          r,
+                                          c,
                                         ),
                                       ),
                                     )

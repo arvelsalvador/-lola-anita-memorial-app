@@ -223,6 +223,15 @@ class _HomeShellState extends State<HomeShell> {
   // Tells the gallery when the user switches tabs, so its "featured"
   // glows can reset when they come back to the gallery.
   final ValueNotifier<int> _activeTab = ValueNotifier<int>(0);
+
+  // Bumped by the top-bar `?` on the Gallery tab. The grid owns the guide's
+  // measured rects, so it opens the tour itself rather than the shell.
+  final ValueNotifier<int> _galleryGuideRequest = ValueNotifier<int>(0);
+
+  // Bumped by the top-bar `?` on the Family tab. The page owns its card
+  // rect, so (like the Gallery) it opens the guide itself.
+  final ValueNotifier<int> _familyGuideRequest = ValueNotifier<int>(0);
+
   late final List<ScrollController> _controllers;
 
   @override
@@ -251,9 +260,14 @@ class _HomeShellState extends State<HomeShell> {
       GalleryPage(
         controller: _controllers[1],
         activeTab: _activeTab,
+        guideRequests: _galleryGuideRequest,
         galleryController: widget.galleryController,
       ),
-      FamilyPage(controller: _controllers[2]),
+      FamilyPage(
+        controller: _controllers[2],
+        activeTab: _activeTab,
+        guideRequests: _familyGuideRequest,
+      ),
       WordsPage(
         controller: _controllers[3],
         wordsController: widget.wordsController,
@@ -266,10 +280,29 @@ class _HomeShellState extends State<HomeShell> {
     ];
   }
 
+  // The shared `?` in the top bar: replay the tour that belongs to the tab
+  // the visitor is on. The Gallery and Family tours need their controls
+  // measured, so those pages handle it; every other tab opens the homepage
+  // tour.
+  void _openGuideForActiveTab() {
+    switch (GuidePage.tourForTab(widget.selectedTab)) {
+      case GuideTour.gallery:
+        _galleryGuideRequest.value++;
+      case GuideTour.family:
+        _familyGuideRequest.value++;
+      case GuideTour.home:
+        Navigator.of(context).push(
+          fadeRoute(const GuidePage(), opaque: false),
+        );
+    }
+  }
+
   @override
   void dispose() {
     _heroTabTimer?.cancel();
     _activeTab.dispose();
+    _galleryGuideRequest.dispose();
+    _familyGuideRequest.dispose();
     _storyOffset.dispose();
     _controllers[0].removeListener(_mirrorStoryOffset);
     for (final controller in _controllers) {
@@ -376,6 +409,7 @@ class _HomeShellState extends State<HomeShell> {
             _TopBar(
               onOpenFamily: () => widget.onTabChanged(2),
               onOpenTab: widget.onTabChanged,
+              onOpenGuide: _openGuideForActiveTab,
             ),
             // The memorial hero belongs to the home page only — on the other
             // tabs (gallery, family, words, condolences) the pages show their
@@ -520,7 +554,15 @@ class _TopBar extends StatefulWidget {
   /// About-Us rows land on their real tabs.
   final ValueChanged<int> onOpenTab;
 
-  const _TopBar({required this.onOpenFamily, required this.onOpenTab});
+  /// Replays the tour for whichever tab is active. Resolved by the shell
+  /// because the Gallery's tour is opened by the grid that measures it.
+  final VoidCallback onOpenGuide;
+
+  const _TopBar({
+    required this.onOpenFamily,
+    required this.onOpenTab,
+    required this.onOpenGuide,
+  });
 
   @override
   State<_TopBar> createState() => _TopBarState();
@@ -565,9 +607,7 @@ class _TopBarState extends State<_TopBar> {
     return AppBrandBar(
       greeting: greeting,
       helpTooltip: lang.t('guide_help_tooltip'),
-      onHelpTap: () {
-        Navigator.of(context).push(fadeRoute(const GuidePage(), opaque: false));
-      },
+      onHelpTap: widget.onOpenGuide,
       onSettingsTap: () {
         Navigator.of(context).push(
           fadeRoute(

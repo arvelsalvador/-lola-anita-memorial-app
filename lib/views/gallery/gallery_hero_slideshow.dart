@@ -10,11 +10,17 @@ class HeroSlideshowCard extends StatefulWidget {
   final GalleryController galleryController;
   final ValueNotifier<int>? activeTab;
 
+  /// Key for the card's visible surface (inside its outer padding). The
+  /// Gallery guide measures this so its spotlight hugs the card, not the
+  /// whole sliver slot.
+  final Key? surfaceKey;
+
   const HeroSlideshowCard({
     super.key,
     required this.images,
     required this.galleryController,
     this.activeTab,
+    this.surfaceKey,
   });
 
   @override
@@ -109,85 +115,88 @@ class _HeroSlideshowCardState extends State<HeroSlideshowCard>
       child: Semantics(
         button: true,
         label: lang.t('gallery_highlights'),
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(18),
-          child: InkWell(
+        child: KeyedSubtree(
+          key: widget.surfaceKey,
+          child: Material(
+            color: Colors.transparent,
             borderRadius: BorderRadius.circular(18),
-            onTap: () {
-              final shuffled = List<GalleryImageItem>.of(widget.images)
-                ..shuffle();
-              Navigator.of(context).push(
-                fadeRoute(
-                  HighlightSlideshow(
-                    images: shuffled,
-                    galleryController: widget.galleryController,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(18),
+              onTap: () {
+                final shuffled = List<GalleryImageItem>.of(widget.images)
+                  ..shuffle();
+                Navigator.of(context).push(
+                  fadeRoute(
+                    HighlightSlideshow(
+                      images: shuffled,
+                      galleryController: widget.galleryController,
+                    ),
                   ),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.paper,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: AppColors.sandBorder, width: 1),
                 ),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.paper,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppColors.sandBorder, width: 1),
-              ),
-              child: SizedBox(
-                height: 100,
-                child: Row(
-                  children: [
-                    _heroPhotoStack(item),
-                    const SizedBox(width: 18),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            lang.t('gallery_highlights_title'),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.copper,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 400),
-                            child: Text(
-                              lang.t(item.date ?? 'date_1'),
-                              key: ValueKey('date_$_heroIndex'),
+                child: SizedBox(
+                  height: 100,
+                  child: Row(
+                    children: [
+                      _heroPhotoStack(item),
+                      const SizedBox(width: 18),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              lang.t('gallery_highlights_title'),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 19,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.warmDark,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.copper,
                               ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 6),
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 400),
+                              child: Text(
+                                lang.t(item.date ?? 'date_1'),
+                                key: ValueKey('date_$_heroIndex'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 19,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.warmDark,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Container(
-                      width: 38,
-                      height: 38,
-                      decoration: const BoxDecoration(
-                        color: AppColors.copper,
-                        shape: BoxShape.circle,
+                      const SizedBox(width: 10),
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: const BoxDecoration(
+                          color: AppColors.copper,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.chevron_right_rounded,
+                          color: AppColors.paper,
+                          size: 22,
+                        ),
                       ),
-                      child: const Icon(
-                        Icons.chevron_right_rounded,
-                        color: AppColors.paper,
-                        size: 22,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

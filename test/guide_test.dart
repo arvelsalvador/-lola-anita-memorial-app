@@ -8,6 +8,7 @@ import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/controllers/gallery_controller.dart';
 import 'package:nita/data/guide/guide_repository.dart';
 import 'package:nita/models/gallery_model.dart';
+import 'package:nita/views/family/family_page.dart';
 import 'package:nita/views/gallery/gallery_page.dart';
 import 'package:nita/views/guide/guide_content.dart';
 import 'package:nita/views/guide/guide_page.dart';
@@ -78,7 +79,12 @@ void main() {
         'gallery_guide_search_body',
         'gallery_guide_pills_title',
         'gallery_guide_pills_body',
+        'gallery_guide_featured_title',
+        'gallery_guide_featured_body',
         'gallery_guide_done',
+        'family_guide_member_title',
+        'family_guide_member_body',
+        'family_guide_done',
       };
 
       for (final entry in {
@@ -119,8 +125,8 @@ void main() {
       }
     });
 
-    test('the Gallery tour starts with search, then the filter pills', () {
-      expect(galleryGuideSteps, hasLength(2));
+    test('the Gallery tour ends on the playable featured slideshow', () {
+      expect(galleryGuideSteps, hasLength(3));
 
       final search = galleryGuideSteps[0];
       expect(search.spotlight, GuideSpotlight.gallerySearchBar);
@@ -134,9 +140,34 @@ void main() {
       expect(pills.titleKey, 'gallery_guide_pills_title');
       expect(pills.bodyKey, 'gallery_guide_pills_body');
 
+      final featured = galleryGuideSteps[2];
+      expect(featured.spotlight, GuideSpotlight.galleryFeaturedCard);
+      expect(featured.art, GuideArt.heart);
+      expect(featured.titleKey, 'gallery_guide_featured_title');
+      expect(featured.bodyKey, 'gallery_guide_featured_body');
+
       for (final step in galleryGuideSteps) {
         expect(step.art.asset, contains('assets/images/vector/'));
       }
+    });
+
+    test('the Family tour is a single member-card hint', () {
+      expect(familyGuideSteps, hasLength(1));
+
+      final member = familyGuideSteps.single;
+      expect(member.spotlight, GuideSpotlight.familyMember);
+      expect(member.art, GuideArt.pointUp);
+      expect(member.titleKey, 'family_guide_member_title');
+      expect(member.bodyKey, 'family_guide_member_body');
+      expect(member.art.asset, contains('assets/images/vector/'));
+    });
+
+    test('the top-bar ? picks the tour for the tab that is open', () {
+      expect(GuidePage.tourForTab(0), GuideTour.home);
+      expect(GuidePage.tourForTab(1), GuideTour.gallery);
+      expect(GuidePage.tourForTab(2), GuideTour.family);
+      expect(GuidePage.tourForTab(3), GuideTour.home);
+      expect(GuidePage.tourForTab(4), GuideTour.home);
     });
   });
 
@@ -485,22 +516,27 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('the Gallery tour lights search, then pills, then finishes', (
+    testWidgets('the Gallery tour lights search, pills, then the slideshow', (
       tester,
     ) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
 
+      final featured = ValueNotifier<Rect?>(
+        const Rect.fromLTWH(16, 290, 358, 128),
+      );
+      addTearDown(featured.dispose);
       final lang = LanguageProvider()..setLanguage(AppLanguage.english);
       await tester.pumpWidget(
         ChangeNotifierProvider.value(
           value: lang,
-          child: const MaterialApp(
+          child: MaterialApp(
             home: GuidePage(
               tour: GuideTour.gallery,
-              searchBarRect: Rect.fromLTWH(16, 150, 358, 46),
-              filterPillsRect: Rect.fromLTWH(16, 216, 358, 48),
+              searchBarRect: const Rect.fromLTWH(16, 150, 358, 46),
+              filterPillsRect: const Rect.fromLTWH(16, 216, 358, 48),
+              featuredCardRect: featured,
             ),
           ),
         ),
@@ -512,7 +548,7 @@ void main() {
       expect(find.text('Got it'), findsNothing);
       expect(find.text('Skip'), findsOneWidget);
       expect(find.byKey(GuidePage.gallerySearchOutlineKey), findsOneWidget);
-      expect(find.bySemanticsLabel('Step 1 of 2'), findsOneWidget);
+      expect(find.bySemanticsLabel('Step 1 of 3'), findsOneWidget);
       // No homepage chrome is rebuilt on the Gallery tour.
       expect(find.byType(AppBrandBar), findsNothing);
       expect(find.byType(AppBottomNav), findsNothing);
@@ -523,10 +559,22 @@ void main() {
 
       expect(find.text('Filter the memories'), findsOneWidget);
       expect(find.textContaining('Last Day'), findsOneWidget);
-      expect(find.text('Got it'), findsOneWidget);
+      expect(find.text('Got it'), findsNothing);
       expect(find.byKey(GuidePage.galleryPillsOutlineKey), findsOneWidget);
       expect(find.byKey(GuidePage.gallerySearchOutlineKey), findsNothing);
-      expect(find.bySemanticsLabel('Step 2 of 2'), findsOneWidget);
+      expect(find.bySemanticsLabel('Step 2 of 3'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.text('Next'));
+      await tester.pump();
+
+      expect(find.text('Play the memories'), findsOneWidget);
+      expect(find.textContaining('slideshow'), findsOneWidget);
+      expect(find.textContaining('music'), findsOneWidget);
+      expect(find.text('Got it'), findsOneWidget);
+      expect(find.byKey(GuidePage.galleryFeaturedOutlineKey), findsOneWidget);
+      expect(find.byKey(GuidePage.galleryPillsOutlineKey), findsNothing);
+      expect(find.bySemanticsLabel('Step 3 of 3'), findsOneWidget);
       expect(tester.takeException(), isNull);
 
       await tester.tap(find.text('Got it'));
@@ -584,6 +632,114 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('the pills stop rings the gold Huling Araw pill', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final hulingAraw = ValueNotifier<Rect?>(null);
+      addTearDown(hulingAraw.dispose);
+      final lang = LanguageProvider()..setLanguage(AppLanguage.english);
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider.value(
+          value: lang,
+          child: MaterialApp(
+            home: GuidePage(
+              tour: GuideTour.gallery,
+              searchBarRect: const Rect.fromLTWH(16, 150, 358, 46),
+              filterPillsRect: const Rect.fromLTWH(16, 216, 358, 48),
+              hulingArawRect: hulingAraw,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(
+        find.byKey(GuidePage.galleryHulingArawOutlineKey),
+        findsNothing,
+        reason: 'only the pills stop rings the gold pill',
+      );
+
+      await tester.tap(find.text('Next'));
+      await tester.pump();
+      expect(find.byKey(GuidePage.galleryPillsOutlineKey), findsOneWidget);
+      expect(
+        find.byKey(GuidePage.galleryHulingArawOutlineKey),
+        findsNothing,
+        reason: 'the Gallery has not reported the pill yet',
+      );
+
+      hulingAraw.value = const Rect.fromLTWH(280, 222, 90, 36);
+      await tester.pump();
+      expect(find.byKey(GuidePage.galleryHulingArawOutlineKey), findsOneWidget);
+      final ring = tester.getRect(
+        find.byKey(GuidePage.galleryHulingArawOutlineKey),
+      );
+      expect(ring.center.dx, closeTo(325, 1));
+      expect(ring.center.dy, closeTo(240, 1));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the featured stop lights the card once it is measured', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final featured = ValueNotifier<Rect?>(null);
+      addTearDown(featured.dispose);
+      var reveals = 0;
+      final lang = LanguageProvider()..setLanguage(AppLanguage.english);
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider.value(
+          value: lang,
+          child: MaterialApp(
+            home: GuidePage(
+              tour: GuideTour.gallery,
+              searchBarRect: const Rect.fromLTWH(16, 150, 358, 46),
+              filterPillsRect: const Rect.fromLTWH(16, 216, 358, 48),
+              featuredCardRect: featured,
+              onFeaturedCardShown: () => reveals++,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(reveals, 0, reason: 'the search stop leaves the card alone');
+
+      await tester.tap(find.text('Next'));
+      await tester.pump();
+      expect(reveals, 0, reason: 'the pills stop leaves the card alone');
+
+      await tester.tap(find.text('Next'));
+      await tester.pump();
+      expect(reveals, 1);
+      expect(find.text('Play the memories'), findsOneWidget);
+      expect(
+        find.byKey(GuidePage.galleryFeaturedOutlineKey),
+        findsNothing,
+        reason: 'the Gallery has not measured the card yet',
+      );
+      // Without a rect the step still explains the card via the fallback.
+      expect(find.byKey(GuidePage.scrimKey), findsOneWidget);
+      expect(find.text('Got it'), findsOneWidget);
+
+      featured.value = const Rect.fromLTWH(16, 120, 358, 128);
+      await tester.pump();
+      expect(find.byKey(GuidePage.galleryFeaturedOutlineKey), findsOneWidget);
+      final outline = tester.getRect(
+        find.byKey(GuidePage.galleryFeaturedOutlineKey),
+      );
+      expect(outline.center.dx, closeTo(195, 1));
+      expect(outline.center.dy, closeTo(184, 1));
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('the Gallery stop fits phones, desktop, and landscape', (
       tester,
     ) async {
@@ -611,6 +767,10 @@ void main() {
           size.width - 32,
           48,
         );
+        final featuredRect = ValueNotifier<Rect?>(
+          Rect.fromLTWH(16, 8, size.width - 32, 120),
+        );
+        addTearDown(featuredRect.dispose);
 
         await tester.pumpWidget(
           ChangeNotifierProvider.value(
@@ -620,6 +780,7 @@ void main() {
                 tour: GuideTour.gallery,
                 searchBarRect: searchRect,
                 filterPillsRect: pillsRect,
+                featuredCardRect: featuredRect,
               ),
             ),
           ),
@@ -664,9 +825,80 @@ void main() {
           reason: 'Got it should end on-screen at $size',
         );
 
+        // The featured-slideshow stop, lower still.
+        await tester.tap(find.text('Next'));
+        await tester.pump();
+
+        expect(
+          tester.takeException(),
+          isNull,
+          reason:
+              'Gallery featured stop should fit ${size.width}x'
+              '${size.height}',
+        );
+        action = tester.getRect(find.byType(FilledButton));
+        expect(
+          action.top,
+          greaterThanOrEqualTo(0),
+          reason: 'Got it should start on-screen at $size',
+        );
+        expect(
+          action.bottom,
+          lessThanOrEqualTo(size.height),
+          reason: 'Got it should end on-screen at $size',
+        );
+
         await tester.pumpWidget(const SizedBox.shrink());
         await tester.pump();
       }
+    });
+
+    testWidgets('the Family tour lights one member card', (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final memberRect = ValueNotifier<Rect?>(
+        const Rect.fromLTWH(16, 260, 110, 170),
+      );
+      addTearDown(memberRect.dispose);
+      final lang = LanguageProvider()..setLanguage(AppLanguage.english);
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider.value(
+          value: lang,
+          child: MaterialApp(
+            home: GuidePage(
+              tour: GuideTour.family,
+              familyMemberRect: memberRect,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Tap a family member'), findsOneWidget);
+      expect(find.textContaining('personal information'), findsOneWidget);
+      expect(find.text('Got it'), findsOneWidget);
+      expect(find.text('Next'), findsNothing);
+      expect(find.bySemanticsLabel('Step 1 of 1'), findsOneWidget);
+      expect(find.byKey(GuidePage.familyMemberOutlineKey), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.text('Got it'));
+      await tester.pump();
+
+      expect(await const GuideRepository.family().hasSeen(), isTrue);
+      expect(
+        await const GuideRepository().hasSeen(),
+        isFalse,
+        reason: 'the Family tip is its own flag',
+      );
+      expect(
+        await const GuideRepository.gallery().hasSeen(),
+        isFalse,
+        reason: 'the Family tip must not consume the Gallery tour',
+      );
     });
   });
 
@@ -773,10 +1005,179 @@ void main() {
     });
   });
 
+  group('family first-open trigger', () {
+    Widget familyHarness(
+      ValueNotifier<int> tab, {
+      ValueNotifier<int>? requests,
+    }) => ChangeNotifierProvider(
+      create: (_) => LanguageProvider()..setLanguage(AppLanguage.english),
+      child: MaterialApp(
+        home: Scaffold(
+          body: FamilyPage(activeTab: tab, guideRequests: requests),
+        ),
+      ),
+    );
+
+    testWidgets('opens once when the Family tab becomes active', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final tab = ValueNotifier<int>(0);
+      addTearDown(tab.dispose);
+
+      await tester.pumpWidget(familyHarness(tab));
+      await tester.pump();
+      expect(find.byType(GuidePage), findsNothing);
+
+      tab.value = 2;
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.byType(GuidePage), findsOneWidget);
+      expect(find.text('Tap a family member'), findsOneWidget);
+      expect(find.text('Got it'), findsOneWidget);
+      expect(
+        find.byKey(GuidePage.familyMemberOutlineKey),
+        findsOneWidget,
+        reason: 'the member card is measured and lit',
+      );
+
+      // The hole sits on the first member card.
+      final outline = tester.getRect(
+        find.byKey(GuidePage.familyMemberOutlineKey),
+      );
+      final firstName = tester.getRect(find.text('Roberto Daiz'));
+      expect(outline.contains(firstName.center), isTrue);
+
+      await tester.tap(find.text('Got it'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(await const GuideRepository.family().hasSeen(), isTrue);
+      expect(
+        await const GuideRepository().hasSeen(),
+        isFalse,
+        reason: 'the Family tip is its own flag',
+      );
+      expect(
+        await const GuideRepository.gallery().hasSeen(),
+        isFalse,
+        reason: 'the Family tip must not consume the Gallery tour',
+      );
+
+      // Leaving and reopening the tab must not show it again.
+      tab.value = 0;
+      await tester.pump();
+      tab.value = 2;
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byType(GuidePage), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('scrolls the member card into view on a short screen', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 520);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final tab = ValueNotifier<int>(2);
+      addTearDown(tab.dispose);
+
+      await tester.pumpWidget(familyHarness(tab));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.byType(GuidePage), findsOneWidget);
+      expect(find.byKey(GuidePage.familyMemberOutlineKey), findsOneWidget);
+
+      final page = find
+          .descendant(
+            of: find.byType(FamilyPage),
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is Scrollable &&
+                  widget.axisDirection == AxisDirection.down,
+            ),
+          )
+          .first;
+      final position = tester.state<ScrollableState>(page).position;
+      expect(
+        position.pixels,
+        greaterThan(0),
+        reason: 'the card is brought up so the bubble fits below it',
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('stays away when the Family tip was already seen', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({'family_guide_seen_v2': true});
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final tab = ValueNotifier<int>(2);
+      addTearDown(tab.dispose);
+
+      await tester.pumpWidget(familyHarness(tab));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.byType(GuidePage), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the ? replay reopens the Family tour', (tester) async {
+      SharedPreferences.setMockInitialValues({'family_guide_seen_v2': true});
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final tab = ValueNotifier<int>(2);
+      final requests = ValueNotifier<int>(0);
+      addTearDown(tab.dispose);
+      addTearDown(requests.dispose);
+
+      await tester.pumpWidget(familyHarness(tab, requests: requests));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(
+        find.byType(GuidePage),
+        findsNothing,
+        reason: 'the seen flag keeps the auto-open quiet',
+      );
+
+      requests.value++;
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.byType(GuidePage), findsOneWidget);
+      expect(find.text('Tap a family member'), findsOneWidget);
+      expect(find.byKey(GuidePage.familyMemberOutlineKey), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   group('gallery first-open trigger', () {
     Widget galleryHarness(
       ValueNotifier<int> tab, {
       List<GalleryImageItem> images = const [],
+      ValueNotifier<int>? requests,
     }) => ChangeNotifierProvider(
       create: (_) => LanguageProvider()..setLanguage(AppLanguage.english),
       child: MaterialApp(
@@ -784,6 +1185,7 @@ void main() {
           body: GalleryGridView(
             images: images,
             activeTab: tab,
+            guideRequests: requests,
             galleryController: GalleryController(),
           ),
         ),
@@ -817,6 +1219,11 @@ void main() {
       await tester.tap(find.text('Next'));
       await tester.pump();
       expect(find.text('Filter the memories'), findsOneWidget);
+      expect(find.text('Next'), findsOneWidget);
+
+      await tester.tap(find.text('Next'));
+      await tester.pump();
+      expect(find.text('Play the memories'), findsOneWidget);
       expect(find.text('Got it'), findsOneWidget);
 
       await tester.tap(find.text('Got it'));
@@ -843,7 +1250,7 @@ void main() {
     testWidgets('stays away when the Gallery tip was already seen', (
       tester,
     ) async {
-      SharedPreferences.setMockInitialValues({'gallery_guide_seen_v1': true});
+      SharedPreferences.setMockInitialValues({'gallery_guide_seen_v2': true});
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
@@ -908,6 +1315,7 @@ void main() {
       await tester.tap(find.text('Next'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
 
       expect(
         scrollable.position.pixels,
@@ -928,7 +1336,169 @@ void main() {
         lessThanOrEqualTo(rowRect.right),
         reason: 'Huling Araw should be fully inside the row viewport',
       );
+      // The gold pill is ringed inside the lit row, so the copy's "the gold
+      // Last Day pill" has a visible target.
+      final ringFinder = find.byKey(
+        GuidePage.galleryHulingArawOutlineKey,
+        skipOffstage: false,
+      );
+      expect(ringFinder, findsOneWidget);
+      final ring = tester.getRect(ringFinder);
+      expect(ring.contains(lastDayRect.center), isTrue);
       expect(find.text('Filter the memories'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the ? replay reopens the tour at the search bar', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({'gallery_guide_seen_v2': true});
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final tab = ValueNotifier<int>(1);
+      final requests = ValueNotifier<int>(0);
+      addTearDown(tab.dispose);
+      addTearDown(requests.dispose);
+
+      await tester.pumpWidget(galleryHarness(tab, requests: requests));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(
+        find.byType(GuidePage),
+        findsNothing,
+        reason: 'the seen flag keeps the auto-open quiet',
+      );
+
+      requests.value++;
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.byType(GuidePage), findsOneWidget);
+      expect(find.text('Search the memories'), findsOneWidget);
+      expect(find.byKey(GuidePage.gallerySearchOutlineKey), findsOneWidget);
+      expect(find.bySemanticsLabel('Step 1 of 3'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the search stop brings a scrolled Gallery back to the bar', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({'gallery_guide_seen_v2': true});
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      // Enough cards to make the grid scroll far below the search bar.
+      final images = [
+        for (var i = 0; i < 14; i++)
+          GalleryImageItem(
+            path: 'assets/images/gallery/missing_$i.jpg',
+            group: GalleryGroup.family,
+          ),
+      ];
+      final tab = ValueNotifier<int>(1);
+      final requests = ValueNotifier<int>(0);
+      addTearDown(tab.dispose);
+      addTearDown(requests.dispose);
+
+      await tester.pumpWidget(
+        galleryHarness(tab, images: images, requests: requests),
+      );
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      final grid = find
+          .byWidgetPredicate(
+            (widget) =>
+                widget is Scrollable &&
+                widget.axisDirection == AxisDirection.down,
+          )
+          .first;
+      final position = tester.state<ScrollableState>(grid).position;
+      position.jumpTo(600);
+      await tester.pump();
+      expect(position.pixels, greaterThan(0));
+
+      requests.value++;
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(
+        position.pixels,
+        0,
+        reason: 'the first stop has to be on screen before it is lit',
+      );
+      expect(find.byType(GuidePage), findsOneWidget);
+      expect(find.byKey(GuidePage.gallerySearchOutlineKey), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the featured stop scrolls the card up on a short screen', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({'gallery_guide_seen_v2': true});
+      // Small phone in landscape: the card is on screen but leaves little
+      // room for the guide bubble, so the stop scrolls it up first.
+      tester.view.physicalSize = const Size(390, 480);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final images = [
+        for (var i = 0; i < 6; i++)
+          GalleryImageItem(
+            path: 'assets/images/gallery/missing_$i.jpg',
+            group: GalleryGroup.family,
+          ),
+      ];
+      final tab = ValueNotifier<int>(1);
+      final requests = ValueNotifier<int>(0);
+      addTearDown(tab.dispose);
+      addTearDown(requests.dispose);
+
+      await tester.pumpWidget(
+        galleryHarness(tab, images: images, requests: requests),
+      );
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      requests.value++;
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('Search the memories'), findsOneWidget);
+
+      final grid = find
+          .byWidgetPredicate(
+            (widget) =>
+                widget is Scrollable &&
+                widget.axisDirection == AxisDirection.down,
+          )
+          .first;
+      final position = tester.state<ScrollableState>(grid).position;
+      expect(position.pixels, 0);
+
+      await tester.tap(find.text('Next'));
+      await tester.pump();
+      await tester.tap(find.text('Next'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
+
+      expect(find.text('Play the memories'), findsOneWidget);
+      expect(
+        position.pixels,
+        greaterThan(0),
+        reason: 'the card should be scrolled up so the bubble fits',
+      );
+      expect(find.byKey(GuidePage.galleryFeaturedOutlineKey), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });

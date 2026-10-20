@@ -728,5 +728,16 @@ const Map<String, String> translationsEn = {
   'gallery_guide_pills_body':
       'Tap a category to narrow the photos. The gold Last Day pill holds '
       'the final-day photos — light a candle to open them.',
+  'gallery_guide_featured_title': 'Play the memories',
+  'gallery_guide_featured_body':
+      'Tap the featured card to play a slideshow of her photos with music. '
+      'Use the volume button to mute it, or the music button to pick another '
+      'song.',
   'gallery_guide_done': 'Got it',
+  // ── Family guide: one member card ──────────────────────────────────────
+  'family_guide_member_title': 'Tap a family member',
+  'family_guide_member_body':
+      'Tap any member card to see that person\'s personal information — '
+      'their story, family, and photos.',
+  'family_guide_done': 'Got it',
 };

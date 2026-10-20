@@ -766,5 +766,16 @@ const Map<String, String> translationsTl = {
       'Pindutin ang isang kategorya para salain ang mga litrato. Ang '
       'ginintuang Huling Araw na pill ay may mga litrato ng huling sandali — '
       'magsindi muna ng kandila para mabuksan.',
+  'gallery_guide_featured_title': 'Panoorin ang mga alaala',
+  'gallery_guide_featured_body':
+      'Pindutin ang featured card para mag-play ng slideshow ng kanyang mga '
+      'litrato na may musika. I-tap ang volume button para i-mute, o ang '
+      'music button para pumili ng ibang kanta.',
   'gallery_guide_done': 'Naintindihan ko',
+  // ── Gabay sa Pamilya: isang card ng miyembro ───────────────────────────
+  'family_guide_member_title': 'Pindutin ang isang miyembro',
+  'family_guide_member_body':
+      'Pindutin ang card ng isang miyembro para makita ang kanyang personal '
+      'na impormasyon — ang kuwento, pamilya, at mga litrato niya.',
+  'family_guide_done': 'Naintindihan ko',
 };

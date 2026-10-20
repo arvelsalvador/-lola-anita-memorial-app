@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -20,6 +21,9 @@ enum GuideTour {
 
   /// Gallery: the search bar, then the filter pills.
   gallery,
+
+  /// Family: a single hint pointing at a member card.
+  family,
 }
 
 /// First-visit "spotlight" guide: the app is dimmed, one real part stays lit,
@@ -30,9 +34,13 @@ enum GuideTour {
 ///   2. Abuloy touch — the floating gift button.
 ///   3. Bottom nav — the five tabs.
 ///
-/// Gallery tour (two stops):
+/// Gallery tour (three stops):
 ///   1. The search bar — type to narrow the photo grid.
 ///   2. The filter pills — categories plus the candle-gated Huling Araw row.
+///   3. The featured card — tap to play the photos as a slideshow with music.
+///
+/// Family tour (one stop):
+///   1. A member card — tap any card to read that person's details.
 ///
 /// The real controls stay lit through a cut-out in the scrim.
 ///
@@ -60,13 +68,45 @@ class GuidePage extends StatefulWidget {
   /// tests and any future non-Gallery use can omit it.
   final VoidCallback? onFilterPillsShown;
 
+  /// Global rect of the gold Huling Araw pill, published by the Gallery once
+  /// its row has finished sliding. The pills stop rings it inside the lit row
+  /// so the copy's "this gold pill" has something to point at.
+  final ValueListenable<Rect?>? hulingArawRect;
+
+  /// Called when the featured-slideshow stop becomes visible, so the Gallery
+  /// can scroll the card on screen (short viewports) before it is lit.
+  final VoidCallback? onFeaturedCardShown;
+
+  /// Global rect of the featured slideshow card. A listenable because the
+  /// Gallery may have to scroll the card into view after the stop opens; the
+  /// hole follows as soon as the new position is measured.
+  final ValueListenable<Rect?>? featuredCardRect;
+
+  /// Global rect of the Family member card the tour points at. A listenable
+  /// because the page scrolls the card on screen before lighting it, and keeps
+  /// the hole glued to it if the list moves while the guide is open.
+  final ValueListenable<Rect?>? familyMemberRect;
+
   const GuidePage({
     super.key,
     this.tour = GuideTour.home,
     this.searchBarRect,
     this.filterPillsRect,
     this.onFilterPillsShown,
+    this.hulingArawRect,
+    this.onFeaturedCardShown,
+    this.featuredCardRect,
+    this.familyMemberRect,
   });
+
+  /// Which tour the shared top-bar `?` should replay while tab [tab] is
+  /// active. The Gallery and Family tabs have their own tours; every other
+  /// tab keeps the homepage tour, so the button always does something useful.
+  static GuideTour tourForTab(int tab) => switch (tab) {
+    1 => GuideTour.gallery,
+    2 => GuideTour.family,
+    _ => GuideTour.home,
+  };
 
   /// The dimming layer over the app. Deliberately translucent: the visitor
   /// should still recognise Home underneath, not stare at a black screen.
@@ -77,20 +117,34 @@ class GuidePage extends StatefulWidget {
     'guide-gallery-search-outline',
   );
   static const Key galleryPillsOutlineKey = Key('guide-gallery-pills-outline');
+  static const Key galleryHulingArawOutlineKey = Key(
+    'guide-gallery-huling-araw-outline',
+  );
+  static const Key galleryFeaturedOutlineKey = Key(
+    'guide-gallery-featured-outline',
+  );
+  static const Key familyMemberOutlineKey = Key(
+    'guide-family-member-outline',
+  );
 
   @override
   State<GuidePage> createState() => _GuidePageState();
 }
 
 class _GuidePageState extends State<GuidePage> {
-  /// The tour-specific flag. The Gallery tip has its own key so a visitor who
-  /// finished the homepage tour still sees it.
-  GuideRepository get _repo => widget.tour == GuideTour.gallery
-      ? const GuideRepository.gallery()
-      : const GuideRepository();
+  /// The tour-specific flag. The Gallery and Family tips have their own
+  /// keys, so a visitor who finished the homepage tour still sees them.
+  GuideRepository get _repo => switch (widget.tour) {
+    GuideTour.gallery => const GuideRepository.gallery(),
+    GuideTour.family => const GuideRepository.family(),
+    GuideTour.home => const GuideRepository(),
+  };
 
-  List<GuideStep> get _steps =>
-      widget.tour == GuideTour.gallery ? galleryGuideSteps : guideSteps;
+  List<GuideStep> get _steps => switch (widget.tour) {
+    GuideTour.gallery => galleryGuideSteps,
+    GuideTour.family => familyGuideSteps,
+    GuideTour.home => guideSteps,
+  };
 
   final VisitorRepository _visitorRepo = const VisitorRepository();
 
@@ -128,13 +182,25 @@ class _GuidePageState extends State<GuidePage> {
     _goToStep(_step + 1);
   }
 
-  /// Moves to [next] and lets the Gallery react to the new stop. Keeping this
-  /// in one place means back-navigation (and future stops) triggers the same
-  /// reveal as Next.
+  /// Moves to [next] and lets the host page react to the new stop. Keeping
+  /// this in one place means back-navigation (and future stops) triggers the
+  /// same reveal as Next.
   void _goToStep(int next) {
     setState(() => _step = next);
-    if (_steps[next].spotlight == GuideSpotlight.galleryFilterPills) {
-      widget.onFilterPillsShown?.call();
+    _notifyStepShown(next);
+  }
+
+  /// Tells the host page which stop just became visible, so it can scroll a
+  /// row or reveal a card before it is lit.
+  void _notifyStepShown(int index) {
+    final spotlight = _steps[index].spotlight;
+    switch (spotlight) {
+      case GuideSpotlight.galleryFilterPills:
+        widget.onFilterPillsShown?.call();
+      case GuideSpotlight.galleryFeaturedCard:
+        widget.onFeaturedCardShown?.call();
+      default:
+        break;
     }
   }
 
@@ -158,11 +224,13 @@ class _GuidePageState extends State<GuidePage> {
       'current': '${_step + 1}',
       'total': '${steps.length}',
     });
-    // The Gallery tip has its own closing label ("Got it") — "Start
-    // exploring" reads oddly after a couple of in-tour hints.
-    final doneKey = widget.tour == GuideTour.gallery
-        ? 'gallery_guide_done'
-        : 'guide_done';
+    // Each tab tour has its own closing label — "Start exploring" reads
+    // oddly after a couple of in-tour hints.
+    final doneKey = switch (widget.tour) {
+      GuideTour.gallery => 'gallery_guide_done',
+      GuideTour.family => 'family_guide_done',
+      GuideTour.home => 'guide_done',
+    };
 
     final first = _firstName ?? '';
     final greeting = first.isNotEmpty
@@ -175,6 +243,9 @@ class _GuidePageState extends State<GuidePage> {
       body: lang.t(step.bodyKey),
       nextLabel: isLast ? lang.t(doneKey) : lang.t('guide_next'),
       onNext: isLast ? _close : _advance,
+      onBack: _step > 0 ? () => _goToStep(_step - 1) : null,
+      skipLabel: lang.t('guide_skip'),
+      onSkip: _close,
       compact: compact,
       maxHeight: maxHeight,
       showArt: showArt,
@@ -183,16 +254,62 @@ class _GuidePageState extends State<GuidePage> {
     final Widget body;
     if (widget.tour == GuideTour.gallery) {
       final isSearch = step.spotlight == GuideSpotlight.gallerySearchBar;
+      final isPills = step.spotlight == GuideSpotlight.galleryFilterPills;
+      final isFeatured = step.spotlight == GuideSpotlight.galleryFeaturedCard;
+      final outlineKey = isSearch
+          ? GuidePage.gallerySearchOutlineKey
+          : isPills
+          ? GuidePage.galleryPillsOutlineKey
+          : GuidePage.galleryFeaturedOutlineKey;
+
       // Blocks the dimmed Gallery underneath from the screen reader while the
       // bubble is talking; the lit control stays visible but inert.
-      body = BlockSemantics(
+      Widget cutout(Rect? rect) => BlockSemantics(
         child: _CutoutStep(
-          rect: isSearch ? widget.searchBarRect : widget.filterPillsRect,
-          outlineKey: isSearch
-              ? GuidePage.gallerySearchOutlineKey
-              : GuidePage.galleryPillsOutlineKey,
-          holeRadius: isSearch ? 14 : 12,
-          outlineRadius: isSearch ? 20 : 18,
+          rect: rect,
+          outlineKey: outlineKey,
+          holeRadius: isSearch ? 14 : (isPills ? 12 : 18),
+          outlineRadius: isSearch ? 20 : (isPills ? 18 : 22),
+          art: step.art,
+          dialogueBuilder: buildDialogue,
+          skipLabel: lang.t('guide_skip'),
+          onSkip: _close,
+          stepLabel: stepLabel,
+          stepCount: steps.length,
+          activeStep: _step,
+          // The gold pill the pills copy names, ringed once the row has
+          // finished sliding it into view.
+          extraHighlight: isPills ? widget.hulingArawRect : null,
+          extraHighlightKey: GuidePage.galleryHulingArawOutlineKey,
+        ),
+      );
+
+      final featuredRect = widget.featuredCardRect;
+      if (isFeatured && featuredRect != null) {
+        // The card may slide into view after the stop opens, so the hole
+        // follows the latest measured rect instead of the push-time one.
+        body = ValueListenableBuilder<Rect?>(
+          valueListenable: featuredRect,
+          builder: (context, rect, _) => cutout(rect),
+        );
+      } else {
+        body = cutout(
+          isSearch
+              ? widget.searchBarRect
+              : isPills
+              ? widget.filterPillsRect
+              : null,
+        );
+      }
+    } else if (widget.tour == GuideTour.family) {
+      // One stop: light a member card. The page scrolls it on screen and
+      // publishes its rect before opening; the hole follows any later move.
+      Widget cutout(Rect? rect) => BlockSemantics(
+        child: _CutoutStep(
+          rect: rect,
+          outlineKey: GuidePage.familyMemberOutlineKey,
+          holeRadius: 14,
+          outlineRadius: 20,
           art: step.art,
           dialogueBuilder: buildDialogue,
           skipLabel: lang.t('guide_skip'),
@@ -202,6 +319,14 @@ class _GuidePageState extends State<GuidePage> {
           activeStep: _step,
         ),
       );
+
+      final memberRect = widget.familyMemberRect;
+      body = memberRect == null
+          ? cutout(null)
+          : ValueListenableBuilder<Rect?>(
+              valueListenable: memberRect,
+              builder: (context, rect, _) => cutout(rect),
+            );
     } else {
       body = ColoredBox(
         key: GuidePage.scrimKey,
@@ -236,10 +361,12 @@ class _GuidePageState extends State<GuidePage> {
             stepCount: steps.length,
             activeStep: _step,
           ),
-          // Gallery stops never appear inside the homepage tour. The Gallery
-          // tour is built above, with its own cut-out scrim.
+          // Gallery and Family stops never appear inside the homepage tour;
+          // those tours are built above, with their own cut-out scrim.
           GuideSpotlight.gallerySearchBar ||
-          GuideSpotlight.galleryFilterPills => const SizedBox.shrink(),
+          GuideSpotlight.galleryFilterPills ||
+          GuideSpotlight.galleryFeaturedCard ||
+          GuideSpotlight.familyMember => const SizedBox.shrink(),
         },
       );
     }
@@ -297,7 +424,7 @@ class _LandscapeLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
-    final railWidth = (width * 0.24).clamp(104.0, 168.0);
+    final railWidth = (width * 0.28).clamp(120.0, 185.0);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 8, 20 + rightInset, 8),
@@ -323,7 +450,7 @@ class _LandscapeLayout extends StatelessWidget {
                     ),
                   ),
                 ),
-                _SkipButton(label: skipLabel, onPressed: onSkip),
+                const SizedBox(height: 6),
                 _ProgressDots(
                   count: stepCount,
                   active: activeStep,
@@ -411,9 +538,7 @@ class _TopBarStep extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               dialogueBuilder(),
-                              const SizedBox(height: 4),
-                              _SkipButton(label: skipLabel, onPressed: onSkip),
-                              const SizedBox(height: 2),
+                              const SizedBox(height: 6),
                               _ProgressDots(
                                 count: stepCount,
                                 active: activeStep,
@@ -499,8 +624,7 @@ class _AbuloyStep extends StatelessWidget {
                     },
                   ),
                 ),
-                _SkipButton(label: skipLabel, onPressed: onSkip),
-                const SizedBox(height: 2),
+                const SizedBox(height: 6),
                 _ProgressDots(
                   count: stepCount,
                   active: activeStep,
@@ -550,9 +674,14 @@ class _HighlightedAbuloy extends StatelessWidget {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.gold.withValues(alpha: 0.24),
-                    blurRadius: 28,
-                    spreadRadius: 3,
+                    color: AppColors.gold.withValues(alpha: 0.35),
+                    blurRadius: 30,
+                    spreadRadius: 4,
+                  ),
+                  BoxShadow(
+                    color: AppColors.glowGold.withValues(alpha: 0.22),
+                    blurRadius: 14,
+                    spreadRadius: 1,
                   ),
                 ],
               ),
@@ -633,8 +762,7 @@ class _NavStep extends StatelessWidget {
                   ),
           ),
           if (!short) ...[
-            _SkipButton(label: skipLabel, onPressed: onSkip),
-            const SizedBox(height: 2),
+            const SizedBox(height: 6),
             _ProgressDots(
               count: stepCount,
               active: activeStep,
@@ -669,6 +797,11 @@ class _CutoutStep extends StatelessWidget {
   final double holeRadius;
   final double outlineRadius;
 
+  /// A second control inside the lit area worth ringing (the gold Huling Araw
+  /// pill). Its rect arrives after the Gallery slides the row into place.
+  final ValueListenable<Rect?>? extraHighlight;
+  final Key? extraHighlightKey;
+
   final GuideArt art;
   final _DialogueBuilder dialogueBuilder;
   final String skipLabel;
@@ -689,7 +822,13 @@ class _CutoutStep extends StatelessWidget {
     required this.activeStep,
     this.holeRadius = 14,
     this.outlineRadius = 20,
+    this.extraHighlight,
+    this.extraHighlightKey,
   });
+
+  /// The smallest bubble box that still fits a title, the 56px action, and
+  /// the dense gaps. Below this the whole dialogue scrolls instead.
+  static const double _minDialogueHeight = 120;
 
   @override
   Widget build(BuildContext context) {
@@ -755,6 +894,52 @@ class _CutoutStep extends StatelessWidget {
             ),
           ),
         ),
+        // Second ring for a named control inside the lit area (the gold
+        // Huling Araw pill). Hidden until the Gallery reports its rect.
+        if (extraHighlight != null)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: ValueListenableBuilder<Rect?>(
+                valueListenable: extraHighlight!,
+                builder: (context, extra, _) {
+                  if (extra == null) return const SizedBox.shrink();
+                  final ring = extra.inflate(3);
+                  return Stack(
+                    children: [
+                      Positioned.fromRect(
+                        rect: ring,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.gold.withValues(alpha: 0.30),
+                                blurRadius: 18,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Positioned.fromRect(
+                        rect: ring,
+                        child: CustomPaint(
+                          key: extraHighlightKey,
+                          painter: const _DashedRoundedBorderPainter(
+                            color: AppColors.gold,
+                            radius: 14,
+                            strokeWidth: 2.2,
+                            dash: 5,
+                            gap: 3,
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
         Positioned.fill(
           child: Padding(
             padding: EdgeInsets.fromLTRB(20, rect.bottom + 16, 20, 8),
@@ -783,6 +968,11 @@ class _CutoutStep extends StatelessWidget {
                               0.0,
                               constraints.maxHeight - 38,
                             );
+                            // Too tight for even the title and the 56px
+                            // action? Let the whole dialogue scroll instead
+                            // of forcing the card to overflow.
+                            final fitsBubble =
+                                dialogueMax >= _minDialogueHeight;
                             return SingleChildScrollView(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -805,8 +995,9 @@ class _CutoutStep extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 4),
                                   dialogueBuilder(
-                                    maxHeight: dialogueMax,
-                                    showArt: dialogueMax >= artHeight,
+                                    maxHeight: fitsBubble ? dialogueMax : null,
+                                    showArt:
+                                        fitsBubble && dialogueMax >= artHeight,
                                   ),
                                 ],
                               ),
@@ -814,8 +1005,7 @@ class _CutoutStep extends StatelessWidget {
                           },
                         ),
                       ),
-                      _SkipButton(label: skipLabel, onPressed: onSkip),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 6),
                       _ProgressDots(
                         count: stepCount,
                         active: activeStep,
@@ -845,8 +1035,7 @@ class _CutoutStep extends StatelessWidget {
                 child: dialogueBuilder(),
               ),
             ),
-            _SkipButton(label: skipLabel, onPressed: onSkip),
-            const SizedBox(height: 2),
+            const SizedBox(height: 6),
             _ProgressDots(
               count: stepCount,
               active: activeStep,
@@ -921,6 +1110,26 @@ class _LitTopBar extends StatelessWidget {
             onSettingsTap: () {},
           ),
           Positioned(
+            left: 6,
+            right: 6,
+            top: topInset + 2,
+            height: 48,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.gold.withValues(alpha: 0.28),
+                      blurRadius: 20,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
             left: 8,
             right: 8,
             top: topInset + 4,
@@ -930,8 +1139,8 @@ class _LitTopBar extends StatelessWidget {
                 painter: _DashedRoundedBorderPainter(
                   color: AppColors.gold,
                   radius: 14,
-                  strokeWidth: 1.6,
-                  dash: 6,
+                  strokeWidth: 1.8,
+                  dash: 7,
                   gap: 4,
                 ),
               ),
@@ -954,13 +1163,15 @@ class _SkipButton extends StatelessWidget {
     return TextButton(
       onPressed: onPressed,
       style: TextButton.styleFrom(
-        foregroundColor: AppColors.goldLight,
-        minimumSize: const Size(72, 56),
+        foregroundColor: AppColors.muted,
+        minimumSize: const Size(60, 56),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         textStyle: const TextStyle(
           fontFamily: 'Inter',
-          fontSize: 15,
-          fontWeight: FontWeight.w500,
-          shadows: [Shadow(color: Color(0x8C1C1713), blurRadius: 8)],
+          fontSize: 13.5,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.2,
         ),
       ),
       child: Text(label),
@@ -979,6 +1190,9 @@ class _Dialogue extends StatelessWidget {
   final String body;
   final String nextLabel;
   final VoidCallback onNext;
+  final VoidCallback? onBack;
+  final String? skipLabel;
+  final VoidCallback? onSkip;
   final bool compact;
   final double? maxHeight;
   final bool showArt;
@@ -989,6 +1203,9 @@ class _Dialogue extends StatelessWidget {
     required this.body,
     required this.nextLabel,
     required this.onNext,
+    this.onBack,
+    this.skipLabel,
+    this.onSkip,
     required this.compact,
     this.maxHeight,
     this.showArt = true,
@@ -996,16 +1213,17 @@ class _Dialogue extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // A shorter figure on phones leaves the bubble wide enough that the
-    // 56px Next button stays visible without scrolling, even in Tagalog and
-    // Bicol.
-    final artHeight = compact ? 180.0 : 240.0;
+    // A more prominent vector figure so Nanay is expressive and clearly visible.
+    final artHeight = compact ? 230.0 : 320.0;
 
     final bubble = _SpeechBubble(
       title: title,
       body: body,
       nextLabel: nextLabel,
       onNext: onNext,
+      onBack: onBack,
+      skipLabel: skipLabel,
+      onSkip: onSkip,
       compact: compact,
       maxHeight: maxHeight,
     );
@@ -1013,33 +1231,107 @@ class _Dialogue extends StatelessWidget {
     if (!showArt) {
       return Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 560),
+          constraints: const BoxConstraints(maxWidth: 540),
           child: bubble,
         ),
       );
     }
 
+    final plainBubble = _SpeechBubble(
+      title: title,
+      body: body,
+      nextLabel: nextLabel,
+      onNext: onNext,
+      onBack: onBack,
+      skipLabel: skipLabel,
+      onSkip: onSkip,
+      compact: compact,
+      maxHeight: maxHeight,
+      plain: true,
+    );
+    final artWidth = artHeight * 0.42;
+
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 560),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            ExcludeSemantics(
-              child: SizedBox(
-                width: artHeight * 0.4167,
-                height: artHeight,
-                child: Image.asset(
-                  art.asset,
-                  fit: BoxFit.contain,
-                  filterQuality: FilterQuality.medium,
-                  excludeFromSemantics: true,
+        child: Container(
+          margin: const EdgeInsets.only(top: 24),
+          padding: EdgeInsets.fromLTRB(compact ? 8 : 14, 10, 4, 6),
+          decoration: BoxDecoration(
+            color: AppColors.paper,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.charcoal.withValues(alpha: 0.30),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              ExcludeSemantics(
+                child: SizedBox(
+                  width: artWidth,
+                  height: artHeight,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    alignment: Alignment.bottomCenter,
+                    children: [
+                      // Soft beige arch behind Nanay.
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        top: artHeight * 0.18,
+                        bottom: 0,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: AppColors.goldLight.withValues(alpha: 0.35),
+                            borderRadius: BorderRadius.circular(artWidth),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        right: -6,
+                        bottom: artHeight * 0.12,
+                        child: Icon(
+                          Icons.eco_outlined,
+                          size: artWidth * 0.55,
+                          color: AppColors.gold.withValues(alpha: 0.28),
+                        ),
+                      ),
+                      Positioned(
+                        left: -4,
+                        bottom: 4,
+                        child: Icon(
+                          Icons.spa_outlined,
+                          size: artWidth * 0.4,
+                          color: AppColors.gold.withValues(alpha: 0.22),
+                        ),
+                      ),
+                      // Nanay steps slightly out of the card at the top.
+                      Positioned(
+                        left: -4,
+                        right: -4,
+                        top: -34,
+                        bottom: 4,
+                        child: Image.asset(
+                          art.asset,
+                          fit: BoxFit.contain,
+                          alignment: Alignment.bottomCenter,
+                          filterQuality: FilterQuality.medium,
+                          excludeFromSemantics: true,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 4),
-            Expanded(child: bubble),
-          ],
+              const SizedBox(width: 6),
+              Expanded(child: plainBubble),
+            ],
+          ),
         ),
       ),
     );
@@ -1051,6 +1343,9 @@ class _SpeechBubble extends StatelessWidget {
   final String body;
   final String nextLabel;
   final VoidCallback onNext;
+  final VoidCallback? onBack;
+  final String? skipLabel;
+  final VoidCallback? onSkip;
   final bool compact;
   final double? maxHeight;
 
@@ -1059,6 +1354,9 @@ class _SpeechBubble extends StatelessWidget {
     required this.body,
     required this.nextLabel,
     required this.onNext,
+    this.onBack,
+    this.skipLabel,
+    this.onSkip,
     required this.compact,
     this.maxHeight,
   });
@@ -1073,8 +1371,8 @@ class _SpeechBubble extends StatelessWidget {
       body,
       style: TextStyle(
         fontFamily: 'Inter',
-        fontSize: compact ? 15.5 : 16.5,
-        height: 1.5,
+        fontSize: compact ? 12.5 : 14.0,
+        height: 1.35,
         color: AppColors.warmMid,
       ),
     );
@@ -1084,80 +1382,178 @@ class _SpeechBubble extends StatelessWidget {
           ? null
           : BoxConstraints(maxHeight: maxHeight!),
       decoration: BoxDecoration(
+        color: AppColors.paper,
         borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: AppColors.gold.withValues(alpha: 0.38),
+          width: 1.2,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.28),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
+            color: AppColors.charcoal.withValues(alpha: 0.28),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+          BoxShadow(
+            color: AppColors.gold.withValues(alpha: 0.10),
+            blurRadius: 10,
+            spreadRadius: 1,
           ),
         ],
       ),
-      child: CustomPaint(
-        painter: _SpeechBubblePainter(
-          fill: AppColors.paper,
-          border: AppColors.gold.withValues(alpha: 0.4),
-        ),
-        child: Padding(
-          // Extra left padding clears the tail that points at Nanay.
-          padding: EdgeInsets.fromLTRB(
-            26,
-            dense ? 10 : 16,
-            18,
-            dense ? 10 : 16,
+      child: Container(
+        margin: const EdgeInsets.all(2.5),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(19),
+          border: Border.all(
+            color: AppColors.gold.withValues(alpha: 0.16),
+            width: 0.8,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Semantics(
-                header: true,
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontFamily: 'PlayfairDisplay',
-                    fontSize: compact ? 22 : 25,
-                    fontWeight: FontWeight.w700,
-                    height: 1.2,
-                    color: AppColors.textDark,
-                  ),
+        ),
+        padding: EdgeInsets.fromLTRB(
+          compact ? 10 : 16,
+          dense ? 4 : 6,
+          compact ? 10 : 16,
+          dense ? 4 : 6,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (!dense && (onBack != null || !compact)) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  if (onBack != null)
+                    InkWell(
+                      onTap: onBack,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: const EdgeInsets.all(3.5),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.goldLight.withValues(alpha: 0.25),
+                          border: Border.all(
+                            color: AppColors.gold.withValues(alpha: 0.3),
+                            width: 0.8,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.arrow_back_rounded,
+                          size: 13,
+                          color: AppColors.warmMid,
+                        ),
+                      ),
+                    )
+                  else if (!compact)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.goldLight.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: AppColors.gold.withValues(alpha: 0.35),
+                          width: 0.6,
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.auto_awesome,
+                            size: 9.5,
+                            color: AppColors.goldInk,
+                          ),
+                          SizedBox(width: 3.5),
+                          Text(
+                            'LOLA ANITA',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.0,
+                              color: AppColors.goldInk,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    const SizedBox.shrink(),
+                ],
+              ),
+              const SizedBox(height: 2),
+            ],
+            Semantics(
+              header: true,
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontFamily: 'PlayfairDisplay',
+                  fontSize: compact ? 16.0 : 19.0,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
+                  height: 1.18,
+                  color: AppColors.textDark,
                 ),
               ),
-              SizedBox(height: dense ? 4 : 8),
-              if (maxHeight == null)
-                bodyText
-              else
-                // Short viewport: the action stays fixed while long copy
-                // scrolls inside whatever space is left. Expanded (not
-                // Flexible) keeps the scroll view from claiming a full line
-                // and pushing the button past the card.
-                Expanded(child: SingleChildScrollView(child: bodyText)),
-              SizedBox(height: dense ? 8 : 14),
-              Align(
-                alignment: Alignment.centerRight,
-                child: SizedBox(
+            ),
+            SizedBox(height: dense ? 2 : 4),
+            if (maxHeight == null)
+              bodyText
+            else
+              Expanded(child: SingleChildScrollView(child: bodyText)),
+            SizedBox(height: dense ? 4 : 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (skipLabel != null && onSkip != null) ...[
+                  Flexible(
+                    child: _SkipButton(label: skipLabel!, onPressed: onSkip!),
+                  ),
+                  const SizedBox(width: 4),
+                ],
+                Flexible(
+                  child: SizedBox(
                   height: 56,
                   child: FilledButton(
                     onPressed: onNext,
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.warmDark,
                       foregroundColor: AppColors.goldLight,
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      elevation: 3,
+                      shadowColor: AppColors.warmDark.withValues(alpha: 0.4),
+                      side: BorderSide(
+                        color: AppColors.gold.withValues(alpha: 0.45),
+                        width: 1,
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: compact ? 18 : 22,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(99),
                       ),
-                      textStyle: const TextStyle(
+                      textStyle: TextStyle(
                         fontFamily: 'Inter',
-                        fontSize: 15,
+                        fontSize: compact ? 13.5 : 14.5,
                         fontWeight: FontWeight.w600,
+                        letterSpacing: 0.2,
                       ),
                     ),
-                    child: Text(nextLabel),
+                    child: Text(
+                      nextLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -1240,16 +1636,23 @@ class _ProgressDots extends StatelessWidget {
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
+                      horizontal: 12,
+                      vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.charcoal.withValues(alpha: 0.82),
+                      color: AppColors.warmDark.withValues(alpha: 0.88),
                       borderRadius: BorderRadius.circular(99),
                       border: Border.all(
-                        color: AppColors.gold.withValues(alpha: 0.25),
-                        width: 0.6,
+                        color: AppColors.gold.withValues(alpha: 0.35),
+                        width: 0.8,
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.charcoal.withValues(alpha: 0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -1287,18 +1690,22 @@ class _ProgressDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final size = active ? 10.0 : 8.0;
-    return Container(
-      width: size,
-      height: size,
+    final width = active ? 20.0 : 8.0;
+    const height = 8.0;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 240),
+      curve: Curves.easeOutCubic,
+      width: width,
+      height: height,
       decoration: BoxDecoration(
-        color: active ? AppColors.gold : AppColors.gold.withValues(alpha: 0.55),
-        shape: BoxShape.circle,
+        color: active ? AppColors.gold : AppColors.gold.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(99),
         boxShadow: active
             ? [
                 BoxShadow(
-                  color: AppColors.gold.withValues(alpha: 0.5),
+                  color: AppColors.gold.withValues(alpha: 0.6),
                   blurRadius: 8,
+                  spreadRadius: 1,
                 ),
               ]
             : null,
@@ -1389,9 +1796,13 @@ class _HighlightedNav extends StatelessWidget {
                         borderRadius: BorderRadius.circular(30),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.gold.withValues(alpha: 0.20),
-                            blurRadius: 28,
-                            spreadRadius: 2,
+                            color: AppColors.gold.withValues(alpha: 0.32),
+                            blurRadius: 30,
+                            spreadRadius: 3,
+                          ),
+                          BoxShadow(
+                            color: AppColors.glowGold.withValues(alpha: 0.16),
+                            blurRadius: 16,
                           ),
                         ],
                       ),

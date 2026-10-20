@@ -765,5 +765,16 @@ const Map<String, String> translationsBi = {
       'Pindoton an sarong kategorya para salaon an mga ladawan. An bulawan '
       'na Huring Aldaw na pill igwa kan mga ladawan kan huring aldaw — '
       'magsindi nin kandila para mabuksan.',
+  'gallery_guide_featured_title': 'Helingon an mga alaala',
+  'gallery_guide_featured_body':
+      'Pindoton an featured card para mag-play nin slideshow kan saiyang mga '
+      'ladawan na may musika. Pindoton an volume button para i-mute, o an '
+      'music button para pumili nin ibang kanta.',
   'gallery_guide_done': 'Nasabutan ko',
+  // ── Giya sa Pamilya: sarong card nin miyembro ──────────────────────────
+  'family_guide_member_title': 'Pindoton an sarong miyembro',
+  'family_guide_member_body':
+      'Pindoton an card kan sarong miyembro para mahiling an saiyang personal '
+      'na impormasyon — an istorya, pamilya, asin mga ladawan niya.',
+  'family_guide_done': 'Nasabutan ko',
 };

@@ -26,6 +26,8 @@ enum GuideSpotlight {
   bottomNav,
   gallerySearchBar,
   galleryFilterPills,
+  galleryFeaturedCard,
+  familyMember,
 }
 
 /// One stop in the first-visit tour.
@@ -100,9 +102,31 @@ const GuideStep galleryFilterPillsGuideStep = GuideStep(
   spotlight: GuideSpotlight.galleryFilterPills,
 );
 
-/// The Gallery tour. Future stops — the featured slideshow — slot in here
-/// without touching [GuidePage]. The order is the order the visitor sees.
+/// The Gallery featured-memory stop. Tapping the card opens the slideshow,
+/// which plays her photos with background music.
+const GuideStep galleryFeaturedGuideStep = GuideStep(
+  art: GuideArt.heart,
+  titleKey: 'gallery_guide_featured_title',
+  bodyKey: 'gallery_guide_featured_body',
+  spotlight: GuideSpotlight.galleryFeaturedCard,
+);
+
+/// The Gallery tour: search, then filters, then the featured slideshow. The
+/// order is the order the visitor sees.
 const List<GuideStep> galleryGuideSteps = [
   gallerySearchGuideStep,
   galleryFilterPillsGuideStep,
+  galleryFeaturedGuideStep,
 ];
+
+/// The Family tour's only stop: a member card. Tapping any card on the
+/// Pamilya page opens that person's detail sheet.
+const GuideStep familyMemberGuideStep = GuideStep(
+  art: GuideArt.pointUp,
+  titleKey: 'family_guide_member_title',
+  bodyKey: 'family_guide_member_body',
+  spotlight: GuideSpotlight.familyMember,
+);
+
+/// The Family tour — a single hint, so the visitor can get on with browsing.
+const List<GuideStep> familyGuideSteps = [familyMemberGuideStep];

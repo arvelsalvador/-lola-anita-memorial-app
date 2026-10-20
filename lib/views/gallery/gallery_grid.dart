@@ -4,12 +4,19 @@ class GalleryGridView extends StatefulWidget {
   final List<GalleryImageItem> images;
   final ScrollController? controller;
   final ValueNotifier<int>? activeTab;
+
+  /// Bumped by the shell's top-bar `?` to replay the Gallery tour. Auto-open
+  /// on first visit still runs through [activeTab]; this only re-opens a tour
+  /// the visitor has already seen or skipped.
+  final ValueListenable<int>? guideRequests;
+
   final GalleryController galleryController;
   const GalleryGridView({
     super.key,
     required this.images,
     this.controller,
     this.activeTab,
+    this.guideRequests,
     required this.galleryController,
   });
 
@@ -28,6 +35,22 @@ class _GalleryGridViewState extends State<GalleryGridView> {
 
   /// Global rect source for the guide's second stop, the filter-pill row.
   final GlobalKey _filterPillsKey = GlobalKey();
+
+  /// Global rect source for the gold Huling Araw pill the second stop names.
+  final GlobalKey _hulingArawKey = GlobalKey();
+
+  /// Published to the guide once the pill row has slid the gold pill into
+  /// view, so it can ring it inside the lit row. Null until measured.
+  final ValueNotifier<Rect?> _hulingArawRect = ValueNotifier<Rect?>(null);
+
+  /// Global rect source for the guide's third stop, the featured slideshow
+  /// card. Attached to the card's surface, inside its own padding, so the
+  /// hole hugs the card rather than the whole sliver slot.
+  final GlobalKey _featuredCardKey = GlobalKey();
+
+  /// Published to the guide so the third stop's hole can appear once the
+  /// card has been scrolled on screen (short viewports).
+  final ValueNotifier<Rect?> _featuredCardRect = ValueNotifier<Rect?>(null);
 
   /// One-shot guard so the guide is scheduled at most once per grid instance.
   bool _galleryGuideCheckStarted = false;
@@ -135,6 +158,11 @@ class _GalleryGridViewState extends State<GalleryGridView> {
                       // it reads as a distinct, meaningful section worth
                       // tapping into — not just another category.
                       isRemembrances: group == GalleryGroup.remembrances,
+                      // Measured for the guide's second stop, which rings
+                      // this pill once the row has slid it into view.
+                      key: group == GalleryGroup.remembrances
+                          ? _hulingArawKey
+                          : null,
                     ),
                   ],
                   // Extra trailing space so the ShaderMask's fade doesn't
@@ -188,6 +216,7 @@ class _GalleryGridViewState extends State<GalleryGridView> {
     required bool selected,
     required VoidCallback onTap,
     bool isRemembrances = false,
+    Key? key,
   }) {
     // Unselected Remembrances pill: gold border + flame icon, so it
     // stands out from ordinary category pills even before it's tapped.
@@ -204,6 +233,7 @@ class _GalleryGridViewState extends State<GalleryGridView> {
         : AppColors.warmDark;
 
     return Material(
+      key: key,
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
@@ -311,6 +341,7 @@ class _GalleryGridViewState extends State<GalleryGridView> {
     super.initState();
     _pillsScrollController.addListener(_updatePillsFade);
     widget.activeTab?.addListener(_onActiveTabChanged);
+    widget.guideRequests?.addListener(_onGuideRequested);
     // Check once after the first frame, in case there are enough pills
     // to overflow even before the user touches the row.
     WidgetsBinding.instance.addPostFrameCallback((_) => _updatePillsFade());
@@ -333,6 +364,10 @@ class _GalleryGridViewState extends State<GalleryGridView> {
       oldWidget.activeTab?.removeListener(_onActiveTabChanged);
       widget.activeTab?.addListener(_onActiveTabChanged);
     }
+    if (!identical(oldWidget.guideRequests, widget.guideRequests)) {
+      oldWidget.guideRequests?.removeListener(_onGuideRequested);
+      widget.guideRequests?.addListener(_onGuideRequested);
+    }
   }
 
   /// Gallery lives inside the home shell's IndexedStack, so it is mounted
@@ -342,52 +377,95 @@ class _GalleryGridViewState extends State<GalleryGridView> {
     if (widget.activeTab?.value == 1) _maybeShowGalleryGuide();
   }
 
-  void _maybeShowGalleryGuide() {
-    if (_galleryGuideCheckStarted) return;
+  /// The top-bar `?` asked for the tour again. Unlike the first-visit path
+  /// this ignores the "seen" flag — the button is an explicit request.
+  void _onGuideRequested() {
+    _maybeShowGalleryGuide(replay: true);
+  }
+
+  void _maybeShowGalleryGuide({bool replay = false}) {
+    if (!replay && _galleryGuideCheckStarted) return;
     if (widget.activeTab?.value != 1) return;
     _galleryGuideCheckStarted = true;
 
     // The next frame has the tab laid out (and, in the shell, the scroll
     // reset queued). `_openGalleryGuide` still re-checks the rect and brings
     // the bar back if the grid was scrolled down.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _openGalleryGuide());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _openGalleryGuide(replay: replay),
+    );
     // The notifier listener can fire outside a frame (as in tests), so make
     // sure the callback above actually gets a frame to run at.
     WidgetsBinding.instance.scheduleFrame();
   }
 
-  Future<void> _openGalleryGuide() async {
+  Future<void> _openGalleryGuide({bool replay = false}) async {
     if (!mounted || widget.activeTab?.value != 1) {
-      _galleryGuideCheckStarted = false;
+      if (!replay) _galleryGuideCheckStarted = false;
       return;
     }
 
-    final seen = await const GuideRepository.gallery().hasSeen();
-    if (!mounted || seen || widget.activeTab?.value != 1) return;
+    if (!replay) {
+      final seen = await const GuideRepository.gallery().hasSeen();
+      if (!mounted || seen || widget.activeTab?.value != 1) return;
+    }
 
     final route = ModalRoute.of(context);
     if (route != null && !route.isCurrent) {
       // Another overlay is on top (for example the homepage guide is still
       // fading out). Let the visitor re-enter the tab to try again.
-      _galleryGuideCheckStarted = false;
+      if (!replay) _galleryGuideCheckStarted = false;
       return;
     }
 
     final rect = _controlRect(_searchBarKey);
     if (rect == null) {
-      // The bar is scrolled out of view; bring it back and try next frame.
-      if (widget.controller?.hasClients ?? false) {
-        widget.controller!.jumpTo(0);
+      // The search bar is the first stop, so it has to be on screen before
+      // the tour opens: scroll the grid back to the top, then measure again
+      // once the jump has been laid out (a few frames at most).
+      final barContext = _searchBarKey.currentContext;
+      if (barContext != null && barContext.mounted) {
+        // Back to the top of the page, so the tour starts on the same view a
+        // first-time visitor sees (header, search bar, then the pills).
+        final scrollable = Scrollable.maybeOf(barContext);
+        if (scrollable != null) {
+          scrollable.position.jumpTo(scrollable.position.minScrollExtent);
+        } else {
+          Scrollable.ensureVisible(
+            barContext,
+            alignment: 0,
+            duration: Duration.zero,
+          );
+        }
       }
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        final retry = _controlRect(_searchBarKey);
-        if (retry != null) _pushGalleryGuide(retry);
-      });
+      _pushGalleryGuideWhenVisible(replay: replay);
       return;
     }
 
     _pushGalleryGuide(rect);
+  }
+
+  /// Waits for the search bar to be laid out on screen after the scroll, then
+  /// opens the tour on it. Gives up after a few frames rather than pushing a
+  /// guide with a hole in the wrong place.
+  void _pushGalleryGuideWhenVisible({required bool replay, int attempts = 3}) {
+    if (!mounted) return;
+    final rect = _controlRect(_searchBarKey);
+    if (rect != null) {
+      _pushGalleryGuide(rect);
+      return;
+    }
+    if (attempts <= 0) {
+      // Still not laid out (tab fade, first frame): let a later visit try
+      // again instead of leaving the one-shot flag stuck on.
+      if (!replay) _galleryGuideCheckStarted = false;
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _pushGalleryGuideWhenVisible(replay: replay, attempts: attempts - 1);
+    });
+    WidgetsBinding.instance.scheduleFrame();
   }
 
   /// A spotlighted control's global rect, or null when it is not laid out or
@@ -404,6 +482,11 @@ class _GalleryGridViewState extends State<GalleryGridView> {
 
   void _pushGalleryGuide(Rect searchBarRect) {
     if (!mounted) return;
+    // Measure now: on phones and desktop the card is already on screen with
+    // room for the bubble, so the third stop opens with its hole in place
+    // instead of flashing the full-screen fallback while it waits for a
+    // scroll.
+    _featuredCardRect.value = _featuredRectOnScreen(_featuredCardKey);
     Navigator.of(context).push(
       fadeRoute(
         GuidePage(
@@ -413,10 +496,27 @@ class _GalleryGridViewState extends State<GalleryGridView> {
           // back to a full-screen scrim instead of a misplaced hole.
           filterPillsRect: _controlRect(_filterPillsKey),
           onFilterPillsShown: _revealFilterPills,
+          hulingArawRect: _hulingArawRect,
+          onFeaturedCardShown: _revealFeaturedCard,
+          featuredCardRect: _featuredCardRect,
         ),
         opaque: false,
       ),
     );
+  }
+
+  /// Vertical room the guide bubble needs under a lit control. A card lower
+  /// than this is scrolled to the top of the grid so its copy still fits.
+  static const double _bubbleRoom = 200;
+
+  /// Like [_controlRect], but also null when there is not enough room left
+  /// under the control for the guide bubble — the third stop then shows the
+  /// full-screen fallback until the card has been scrolled up.
+  Rect? _featuredRectOnScreen(GlobalKey key) {
+    final rect = _controlRect(key);
+    if (rect == null) return null;
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    return rect.bottom + _bubbleRoom <= screenHeight ? rect : null;
   }
 
   /// Slides the pill row to the end when the guide reaches its second stop,
@@ -424,8 +524,21 @@ class _GalleryGridViewState extends State<GalleryGridView> {
   /// instead of sitting off-screen. Only the row scrolls, so the measured
   /// screen rect (and therefore the hole) stays correct.
   void _revealFilterPills() {
+    // The search and pill holes are measured with the page at the top. If
+    // the featured stop scrolled the grid (short viewports), jump back first
+    // so the row is where the hole expects it.
+    final pillsContext = _filterPillsKey.currentContext;
+    final page = pillsContext == null
+        ? null
+        : Scrollable.maybeOf(pillsContext);
+    if (page != null && page.position.pixels > page.position.minScrollExtent) {
+      page.position.jumpTo(page.position.minScrollExtent);
+    }
     final controller = _pillsScrollController;
-    if (!controller.hasClients) return;
+    if (!controller.hasClients) {
+      _publishHulingArawRect();
+      return;
+    }
     // A lazy ListView only estimates its full extent until the far end has
     // been laid out. After the first slide, ease back to the real end if the
     // estimate overshot, so the row never rests in blank trailing space.
@@ -439,13 +552,59 @@ class _GalleryGridViewState extends State<GalleryGridView> {
           if (!mounted || !controller.hasClients) return;
           final max = controller.position.maxScrollExtent;
           if (controller.position.pixels > max + 0.5) {
-            controller.animateTo(
-              max,
-              duration: const Duration(milliseconds: 140),
-              curve: Curves.easeOut,
-            );
+            controller
+                .animateTo(
+                  max,
+                  duration: const Duration(milliseconds: 140),
+                  curve: Curves.easeOut,
+                )
+                .then((_) => _publishHulingArawRect());
+            return;
           }
+          _publishHulingArawRect();
         });
+  }
+
+  /// Tells the guide where the gold pill ended up, so it can ring it inside
+  /// the lit row. Measured after the row's slide has been laid out — a rect
+  /// taken mid-animation would point at the wrong pill.
+  void _publishHulingArawRect() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _hulingArawRect.value = _controlRect(_hulingArawKey);
+    });
+    WidgetsBinding.instance.scheduleFrame();
+  }
+
+  /// Brings the featured card fully on screen for the third stop. On phones
+  /// it already is, so nothing moves; on short/landscape viewports the grid
+  /// scrolls it up, then the hole follows the measured position.
+  void _revealFeaturedCard() {
+    final cardContext = _featuredCardKey.currentContext;
+    if (cardContext == null || !cardContext.mounted) {
+      _publishFeaturedCardRect();
+      return;
+    }
+    // Already fully visible with room for the bubble: the push-time rect is
+    // still right and moving the page would be a needless jolt.
+    if (_featuredRectOnScreen(_featuredCardKey) != null) {
+      _publishFeaturedCardRect();
+      return;
+    }
+    Scrollable.ensureVisible(
+      cardContext,
+      alignment: 0,
+      duration: const Duration(milliseconds: 360),
+      curve: Curves.easeOutCubic,
+    ).then((_) => _publishFeaturedCardRect());
+  }
+
+  void _publishFeaturedCardRect() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _featuredCardRect.value = _featuredRectOnScreen(_featuredCardKey);
+    });
+    WidgetsBinding.instance.scheduleFrame();
   }
 
   void _updatePillsFade() {
@@ -474,6 +633,9 @@ class _GalleryGridViewState extends State<GalleryGridView> {
   @override
   void dispose() {
     widget.activeTab?.removeListener(_onActiveTabChanged);
+    widget.guideRequests?.removeListener(_onGuideRequested);
+    _hulingArawRect.dispose();
+    _featuredCardRect.dispose();
     _searchController.dispose();
     _pillsScrollController.dispose();
     super.dispose();
@@ -556,6 +718,7 @@ class _GalleryGridViewState extends State<GalleryGridView> {
               images: _playableImages,
               galleryController: widget.galleryController,
               activeTab: widget.activeTab,
+              surfaceKey: _featuredCardKey,
             ),
           ),
         SliverToBoxAdapter(child: _listHeader(lang, images.length)),

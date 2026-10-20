@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -37,6 +38,10 @@ class GalleryPage extends StatefulWidget {
   /// becomes the gallery tab (1), the "featured" glow state resets.
   final ValueNotifier<int>? activeTab;
 
+  /// Bumped by the shell's top-bar `?` to replay the Gallery tour. The grid
+  /// owns the measured rects, so it opens the guide itself.
+  final ValueListenable<int>? guideRequests;
+
   /// Created by the home shell (composition root) and injected here — the
   /// view never constructs or owns the controller.
   final GalleryController galleryController;
@@ -45,6 +50,7 @@ class GalleryPage extends StatefulWidget {
     super.key,
     this.controller,
     this.activeTab,
+    this.guideRequests,
     required this.galleryController,
   });
 
@@ -169,6 +175,7 @@ class _GalleryPageState extends State<GalleryPage> {
       images: images,
       controller: widget.controller,
       activeTab: widget.activeTab,
+      guideRequests: widget.guideRequests,
       galleryController: widget.galleryController,
     );
   }
