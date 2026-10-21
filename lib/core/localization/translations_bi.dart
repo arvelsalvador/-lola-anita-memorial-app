@@ -777,4 +777,24 @@ const Map<String, String> translationsBi = {
       'Pindoton an card kan sarong miyembro para mahiling an saiyang personal '
       'na impormasyon — an istorya, pamilya, asin mga ladawan niya.',
   'family_guide_done': 'Nasabutan ko',
+  // ── Giya sa Mga Tataramon: mga filter pill ─────────────────────────────
+  'words_guide_pills_title': 'Salaon an mga mensahe',
+  'words_guide_pills_body':
+      'Pindoton an sarong kategorya para salaon an mga tataramon asin mensahe '
+      'hali sa saiyang mga aki, makuapo, o tugang.',
+  'words_guide_done': 'Nasabutan ko',
+  // ── Giya sa Pakikiramay: pribadong mensahe, komunidad, asin reply/react ───
+  'condolences_guide_private_title': 'Mensahe para ki Nanay',
+  'condolences_guide_private_body':
+      'Puwede kang magpadara nin pribadong mensahe para ki Nanay na an '
+      'pamilya Salvador sana an makakabasa.',
+  'condolences_guide_forum_title': 'Mga mensahe asin istorya',
+  'condolences_guide_forum_body':
+      'Ihiras an saimong istorya asin mga alaala. Mahihiling ini kan iba pang '
+      'naggagamit kaining app.',
+  'condolences_guide_react_title': 'Mag-reply asin mag-react',
+  'condolences_guide_react_body':
+      'Puwede kang mag-heart react asin tulos na mag-reply sa mga mensahe '
+      'kan iba.',
+  'condolences_guide_done': 'Nasabutan ko',
 };

@@ -16,9 +16,7 @@ Widget _harness({AppLanguage? language}) {
     // the HomeShell stack the touch lives in on real screens. The scope
     // measures them parent-side and hands the size to the touch.
     child: const MaterialApp(
-      home: Scaffold(
-        body: AbuloyTouchScope(child: SizedBox.expand()),
-      ),
+      home: Scaffold(body: AbuloyTouchScope(child: SizedBox.expand())),
     ),
   );
 }
@@ -78,9 +76,7 @@ void main() {
       // Real QR files are bundled: either the Image or the graceful
       // placeholder (if the bundle misses it) is acceptable.
       final hasQrImage = find
-          .byWidgetPredicate(
-            (w) => w is Image && w.image is AssetImage,
-          )
+          .byWidgetPredicate((w) => w is Image && w.image is AssetImage)
           .evaluate()
           .isNotEmpty;
       final hasPlaceholder = find
@@ -137,19 +133,15 @@ void main() {
       expect(find.byType(SnackBar), findsOneWidget);
     });
 
-    testWidgets('docks bottom-right by default', (tester) async {
+    testWidgets('docks top-right by default', (tester) async {
       await tester.pumpWidget(_harness());
       await tester.pump(const Duration(milliseconds: 100));
       final el = tester.element(find.byType(AbuloyTouch));
       final size = MediaQuery.sizeOf(el);
-      final padding = MediaQuery.paddingOf(el);
       final pos = touchPosition(tester);
       // closeTo: the dock point round-trips through fractions (tiny FP dust).
       expect(pos.left, closeTo(size.width - 20 - AbuloyTouch.size, 0.001));
-      expect(
-        pos.top,
-        closeTo(size.height - padding.bottom - 104 - AbuloyTouch.size, 0.001),
-      );
+      expect(pos.top, closeTo(AbuloyTouch.dockTopFor(size), 0.001));
     });
 
     testWidgets('drag moves it without opening the dialog', (tester) async {
@@ -181,11 +173,9 @@ void main() {
       );
     });
 
-    testWidgets('tracks 1:1 when events arrive between frames', (
-      tester,
-    ) async {
+    testWidgets('tracks 1:1 when events arrive between frames', (tester) async {
       // Regression test for the laggy drag: several pointer events can land
-      // before the next rebuild, and every delta must count — basing each
+      // before the next rebuild, and every delta must count â€” basing each
       // update on the last *built* position silently drops movement.
       // (The first move only engages the drag past touch slop, so its exact
       // contribution is excluded: commit it, then assert the next two rapid
@@ -211,23 +201,20 @@ void main() {
       // stack under the hero), because the spot was stored in pixels.
       // Fractions keep the relative spot on any stack size.
       final provider = LanguageProvider();
-      Widget sizedHarness(double w, double h) =>
-          ChangeNotifierProvider.value(
-            value: provider,
-            child: MaterialApp(
-              home: Scaffold(
-                body: Center(
-                  child: SizedBox(
-                    width: w,
-                    height: h,
-                    child: Stack(
-                      children: [AbuloyTouch(areaSize: Size(w, h))],
-                    ),
-                  ),
-                ),
+      Widget sizedHarness(double w, double h) => ChangeNotifierProvider.value(
+        value: provider,
+        child: MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: w,
+                height: h,
+                child: Stack(children: [AbuloyTouch(areaSize: Size(w, h))]),
               ),
             ),
-          );
+          ),
+        ),
+      );
       await tester.pumpWidget(sizedHarness(800, 600));
       await tester.pump(const Duration(milliseconds: 100));
       // Drag near the middle of the tall stack.

@@ -232,6 +232,12 @@ class _HomeShellState extends State<HomeShell> {
   // rect, so (like the Gallery) it opens the guide itself.
   final ValueNotifier<int> _familyGuideRequest = ValueNotifier<int>(0);
 
+  // Bumped by the top-bar `?` on the Words (Mga Salita) tab.
+  final ValueNotifier<int> _wordsGuideRequest = ValueNotifier<int>(0);
+
+  // Bumped by the top-bar `?` on the Condolences (Pakikiramay) tab.
+  final ValueNotifier<int> _condolencesGuideRequest = ValueNotifier<int>(0);
+
   late final List<ScrollController> _controllers;
 
   @override
@@ -270,10 +276,14 @@ class _HomeShellState extends State<HomeShell> {
       ),
       WordsPage(
         controller: _controllers[3],
+        activeTab: _activeTab,
+        guideRequests: _wordsGuideRequest,
         wordsController: widget.wordsController,
       ),
       CondolencesPage(
         controller: _controllers[4],
+        activeTab: _activeTab,
+        guideRequests: _condolencesGuideRequest,
         condolencesController: widget.condolencesController,
         forumController: widget.forumController,
       ),
@@ -281,15 +291,27 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   // The shared `?` in the top bar: replay the tour that belongs to the tab
-  // the visitor is on. The Gallery and Family tours need their controls
+  // the visitor is on. The Gallery, Family, and Words tours need their controls
   // measured, so those pages handle it; every other tab opens the homepage
   // tour.
   void _openGuideForActiveTab() {
+    if (widget.selectedTab == 4) {
+      _condolencesGuideRequest.value++;
+      return;
+    }
+    if (widget.selectedTab == 3) {
+      _wordsGuideRequest.value++;
+      return;
+    }
     switch (GuidePage.tourForTab(widget.selectedTab)) {
       case GuideTour.gallery:
         _galleryGuideRequest.value++;
       case GuideTour.family:
         _familyGuideRequest.value++;
+      case GuideTour.condolences:
+        _condolencesGuideRequest.value++;
+      case GuideTour.words:
+        _wordsGuideRequest.value++;
       case GuideTour.home:
         Navigator.of(context).push(
           fadeRoute(const GuidePage(), opaque: false),
@@ -303,6 +325,8 @@ class _HomeShellState extends State<HomeShell> {
     _activeTab.dispose();
     _galleryGuideRequest.dispose();
     _familyGuideRequest.dispose();
+    _wordsGuideRequest.dispose();
+    _condolencesGuideRequest.dispose();
     _storyOffset.dispose();
     _controllers[0].removeListener(_mirrorStoryOffset);
     for (final controller in _controllers) {

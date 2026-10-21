@@ -219,16 +219,25 @@ class _FamilyPageState extends State<FamilyPage> {
 
     // Bring the card on screen with room for the bubble under it, then
     // measure. Clearing first stops a stale hole from flashing mid-scroll.
-    final target = _memberKey.currentContext;
+    var target = _memberKey.currentContext;
+    if (target == null || !target.mounted) {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted || _guideOpen || widget.activeTab?.value != _familyTab) {
+        return;
+      }
+      target = _memberKey.currentContext;
+    }
     final onScreen = _memberRectOnScreen();
     final needsScroll =
-        target != null && target.mounted &&
+        target != null &&
+        target.mounted &&
         (onScreen == null || !_hasBubbleRoom(onScreen));
     _memberRect.value = needsScroll ? null : onScreen;
     if (needsScroll) {
+      if (!target.mounted) return;
       await Scrollable.ensureVisible(
         target,
-        alignment: 0,
+        alignment: 0.08,
         duration: const Duration(milliseconds: 320),
         curve: Curves.easeOutCubic,
       );
@@ -251,21 +260,20 @@ class _FamilyPageState extends State<FamilyPage> {
         .then((_) {
           if (!mounted) return;
           _guideOpen = false;
-          _memberRect.value = null;
         });
     // The scroll's last layout may land after the await above; publish again
     // over the next few frames so the hole still finds the card.
-    _refreshMemberRect(attempts: 2);
+    _refreshMemberRect(attempts: 6);
   }
 
-  /// Re-measures the lit card after the next frame, retrying a couple of
-  /// times while the list settles (the guide opens mid-scroll).
+  /// Re-measures the lit card after the next frame, retrying a few times
+  /// while the list or shell transition settles.
   void _refreshMemberRect({int attempts = 0}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_guideOpen) return;
       final rect = _memberRectOnScreen();
       if (rect != _memberRect.value) _memberRect.value = rect;
-      if (rect == null && attempts > 0) {
+      if (attempts > 0) {
         _refreshMemberRect(attempts: attempts - 1);
       }
     });
@@ -299,7 +307,12 @@ class _FamilyPageState extends State<FamilyPage> {
     );
     final screen = Offset.zero & MediaQuery.sizeOf(context);
     if (rect.top < 0 || rect.bottom > screen.height) return null;
-    return rect;
+    return Rect.fromLTRB(
+      rect.left - 8,
+      rect.top - 6,
+      rect.right + 8,
+      rect.bottom + 6,
+    );
   }
 
   /// Whether the guide bubble fits under [rect] without scrolling itself.
@@ -316,6 +329,7 @@ class _FamilyPageState extends State<FamilyPage> {
       body: SafeArea(
         child: ListView(
           controller: _pageController,
+          cacheExtent: 1200,
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 18),
           children: [
             const FamilyPageHeader(),

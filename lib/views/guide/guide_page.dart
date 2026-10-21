@@ -24,6 +24,12 @@ enum GuideTour {
 
   /// Family: a single hint pointing at a member card.
   family,
+
+  /// Words (Mga Salita): a single hint pointing at the filter pills.
+  words,
+
+  /// Condolences (Pakikiramay): private message, community stories, and reply/react.
+  condolences,
 }
 
 /// First-visit "spotlight" guide: the app is dimmed, one real part stays lit,
@@ -87,6 +93,23 @@ class GuidePage extends StatefulWidget {
   /// the hole glued to it if the list moves while the guide is open.
   final ValueListenable<Rect?>? familyMemberRect;
 
+  /// Global rect of the Words filter-pill row the tour points at.
+  final ValueListenable<Rect?>? wordsFilterPillsRect;
+
+  /// Global rect of the Condolences private message area.
+  final ValueListenable<Rect?>? condolencesPrivateMessageRect;
+
+  /// Global rect of the Condolences community forum header / share button.
+  final ValueListenable<Rect?>? condolencesForumHeaderRect;
+
+  /// Global rect of the Condolences reaction and reply action row.
+  final ValueListenable<Rect?>? condolencesActionsRect;
+
+  /// Callbacks when stops become visible so CondolencesPage can scroll to them.
+  final VoidCallback? onCondolencesPrivateMessageShown;
+  final VoidCallback? onCondolencesForumHeaderShown;
+  final VoidCallback? onCondolencesActionsShown;
+
   const GuidePage({
     super.key,
     this.tour = GuideTour.home,
@@ -97,6 +120,13 @@ class GuidePage extends StatefulWidget {
     this.onFeaturedCardShown,
     this.featuredCardRect,
     this.familyMemberRect,
+    this.wordsFilterPillsRect,
+    this.condolencesPrivateMessageRect,
+    this.condolencesForumHeaderRect,
+    this.condolencesActionsRect,
+    this.onCondolencesPrivateMessageShown,
+    this.onCondolencesForumHeaderShown,
+    this.onCondolencesActionsShown,
   });
 
   /// Which tour the shared top-bar `?` should replay while tab [tab] is
@@ -110,7 +140,7 @@ class GuidePage extends StatefulWidget {
 
   /// The dimming layer over the app. Deliberately translucent: the visitor
   /// should still recognise Home underneath, not stare at a black screen.
-  static const double scrimOpacity = 0.65;
+  static const double scrimOpacity = 0.85;
   static const Key scrimKey = Key('guide-scrim');
   static const Key spotlightScrimKey = Key('guide-spotlight-scrim');
   static const Key gallerySearchOutlineKey = Key(
@@ -123,8 +153,16 @@ class GuidePage extends StatefulWidget {
   static const Key galleryFeaturedOutlineKey = Key(
     'guide-gallery-featured-outline',
   );
-  static const Key familyMemberOutlineKey = Key(
-    'guide-family-member-outline',
+  static const Key familyMemberOutlineKey = Key('guide-family-member-outline');
+  static const Key wordsPillsOutlineKey = Key('guide-words-pills-outline');
+  static const Key condolencesPrivateMessageOutlineKey = Key(
+    'guide-condolences-private-message-outline',
+  );
+  static const Key condolencesForumHeaderOutlineKey = Key(
+    'guide-condolences-forum-header-outline',
+  );
+  static const Key condolencesActionsOutlineKey = Key(
+    'guide-condolences-actions-outline',
   );
 
   @override
@@ -132,17 +170,21 @@ class GuidePage extends StatefulWidget {
 }
 
 class _GuidePageState extends State<GuidePage> {
-  /// The tour-specific flag. The Gallery and Family tips have their own
-  /// keys, so a visitor who finished the homepage tour still sees them.
+  /// The tour-specific flag. The Gallery, Family, and Words tips have their
+  /// own keys, so a visitor who finished the homepage tour still sees them.
   GuideRepository get _repo => switch (widget.tour) {
     GuideTour.gallery => const GuideRepository.gallery(),
     GuideTour.family => const GuideRepository.family(),
+    GuideTour.words => const GuideRepository.words(),
+    GuideTour.condolences => const GuideRepository.condolences(),
     GuideTour.home => const GuideRepository(),
   };
 
   List<GuideStep> get _steps => switch (widget.tour) {
     GuideTour.gallery => galleryGuideSteps,
     GuideTour.family => familyGuideSteps,
+    GuideTour.words => wordsGuideSteps,
+    GuideTour.condolences => condolencesGuideSteps,
     GuideTour.home => guideSteps,
   };
 
@@ -199,6 +241,12 @@ class _GuidePageState extends State<GuidePage> {
         widget.onFilterPillsShown?.call();
       case GuideSpotlight.galleryFeaturedCard:
         widget.onFeaturedCardShown?.call();
+      case GuideSpotlight.condolencesPrivateMessage:
+        widget.onCondolencesPrivateMessageShown?.call();
+      case GuideSpotlight.condolencesCommunityForum:
+        widget.onCondolencesForumHeaderShown?.call();
+      case GuideSpotlight.condolencesReplyReact:
+        widget.onCondolencesActionsShown?.call();
       default:
         break;
     }
@@ -229,6 +277,8 @@ class _GuidePageState extends State<GuidePage> {
     final doneKey = switch (widget.tour) {
       GuideTour.gallery => 'gallery_guide_done',
       GuideTour.family => 'family_guide_done',
+      GuideTour.words => 'words_guide_done',
+      GuideTour.condolences => 'condolences_guide_done',
       GuideTour.home => 'guide_done',
     };
 
@@ -237,7 +287,11 @@ class _GuidePageState extends State<GuidePage> {
         ? lang.t('header_greeting', {'name': first})
         : null;
 
-    Widget buildDialogue({double? maxHeight, bool showArt = true}) => _Dialogue(
+    Widget buildDialogue({
+      double? maxHeight,
+      bool showArt = true,
+      bool showTopConnector = false,
+    }) => _Dialogue(
       art: step.art,
       title: lang.t(step.titleKey),
       body: lang.t(step.bodyKey),
@@ -249,6 +303,10 @@ class _GuidePageState extends State<GuidePage> {
       compact: compact,
       maxHeight: maxHeight,
       showArt: showArt,
+      showTopConnector: showTopConnector,
+      stepCount: steps.length,
+      activeStep: _step,
+      stepLabel: stepLabel,
     );
 
     final Widget body;
@@ -268,8 +326,7 @@ class _GuidePageState extends State<GuidePage> {
         child: _CutoutStep(
           rect: rect,
           outlineKey: outlineKey,
-          holeRadius: isSearch ? 14 : (isPills ? 12 : 18),
-          outlineRadius: isSearch ? 20 : (isPills ? 18 : 22),
+          holeRadius: isSearch ? 16 : (isPills ? 16 : 20),
           art: step.art,
           dialogueBuilder: buildDialogue,
           skipLabel: lang.t('guide_skip'),
@@ -308,8 +365,7 @@ class _GuidePageState extends State<GuidePage> {
         child: _CutoutStep(
           rect: rect,
           outlineKey: GuidePage.familyMemberOutlineKey,
-          holeRadius: 14,
-          outlineRadius: 20,
+          holeRadius: 18,
           art: step.art,
           dialogueBuilder: buildDialogue,
           skipLabel: lang.t('guide_skip'),
@@ -327,47 +383,118 @@ class _GuidePageState extends State<GuidePage> {
               valueListenable: memberRect,
               builder: (context, rect, _) => cutout(rect),
             );
+    } else if (widget.tour == GuideTour.words) {
+      Widget cutout(Rect? rect) => BlockSemantics(
+        child: _CutoutStep(
+          rect: rect,
+          outlineKey: GuidePage.wordsPillsOutlineKey,
+          holeRadius: 16,
+          art: step.art,
+          dialogueBuilder: buildDialogue,
+          skipLabel: lang.t('guide_skip'),
+          onSkip: _close,
+          stepLabel: stepLabel,
+          stepCount: steps.length,
+          activeStep: _step,
+        ),
+      );
+
+      final pillsRect = widget.wordsFilterPillsRect;
+      body = pillsRect == null
+          ? cutout(null)
+          : ValueListenableBuilder<Rect?>(
+              valueListenable: pillsRect,
+              builder: (context, rect, _) => cutout(rect),
+            );
+    } else if (widget.tour == GuideTour.condolences) {
+      final isPrivate =
+          step.spotlight == GuideSpotlight.condolencesPrivateMessage;
+      final isForum =
+          step.spotlight == GuideSpotlight.condolencesCommunityForum;
+      final outlineKey = isPrivate
+          ? GuidePage.condolencesPrivateMessageOutlineKey
+          : isForum
+              ? GuidePage.condolencesForumHeaderOutlineKey
+              : GuidePage.condolencesActionsOutlineKey;
+      final listenable = isPrivate
+          ? widget.condolencesPrivateMessageRect
+          : isForum
+              ? widget.condolencesForumHeaderRect
+              : widget.condolencesActionsRect;
+
+      Widget cutout(Rect? rect) => BlockSemantics(
+        child: _CutoutStep(
+          rect: rect,
+          outlineKey: outlineKey,
+          holeRadius: step.spotlight == GuideSpotlight.condolencesReplyReact ? 8 : 16,
+          art: step.art,
+          dialogueBuilder: buildDialogue,
+          skipLabel: lang.t('guide_skip'),
+          onSkip: _close,
+          stepLabel: stepLabel,
+          stepCount: steps.length,
+          activeStep: _step,
+        ),
+      );
+
+      body = listenable == null
+          ? cutout(null)
+          : ValueListenableBuilder<Rect?>(
+              valueListenable: listenable,
+              builder: (context, rect, _) => cutout(rect),
+            );
     } else {
-      body = ColoredBox(
-        key: GuidePage.scrimKey,
-        color: AppColors.charcoal.withValues(alpha: GuidePage.scrimOpacity),
-        child: switch (step.spotlight) {
-          GuideSpotlight.topBar => _TopBarStep(
-            art: step.art,
-            greeting: greeting,
-            helpTooltip: lang.t('guide_help_tooltip'),
-            dialogueBuilder: buildDialogue,
-            skipLabel: lang.t('guide_skip'),
-            onSkip: _close,
-            stepLabel: stepLabel,
-            stepCount: steps.length,
-            activeStep: _step,
+      body = Stack(
+        // Stretch every child to the route's full size so the dim layer can
+        // never take its size from the bubble above it.
+        fit: StackFit.expand,
+        children: [
+          ColoredBox(
+            key: GuidePage.scrimKey,
+            color: AppColors.charcoal.withValues(alpha: GuidePage.scrimOpacity),
           ),
-          GuideSpotlight.abuloy => _AbuloyStep(
-            art: step.art,
-            dialogueBuilder: buildDialogue,
-            skipLabel: lang.t('guide_skip'),
-            onSkip: _close,
-            stepLabel: stepLabel,
-            stepCount: steps.length,
-            activeStep: _step,
-          ),
-          GuideSpotlight.bottomNav => _NavStep(
-            art: step.art,
-            dialogueBuilder: buildDialogue,
-            skipLabel: lang.t('guide_skip'),
-            onSkip: _close,
-            stepLabel: stepLabel,
-            stepCount: steps.length,
-            activeStep: _step,
-          ),
-          // Gallery and Family stops never appear inside the homepage tour;
-          // those tours are built above, with their own cut-out scrim.
-          GuideSpotlight.gallerySearchBar ||
-          GuideSpotlight.galleryFilterPills ||
-          GuideSpotlight.galleryFeaturedCard ||
-          GuideSpotlight.familyMember => const SizedBox.shrink(),
-        },
+          switch (step.spotlight) {
+            GuideSpotlight.topBar => _TopBarStep(
+              art: step.art,
+              greeting: greeting,
+              helpTooltip: lang.t('guide_help_tooltip'),
+              dialogueBuilder: buildDialogue,
+              skipLabel: lang.t('guide_skip'),
+              onSkip: _close,
+              stepLabel: stepLabel,
+              stepCount: steps.length,
+              activeStep: _step,
+            ),
+            GuideSpotlight.abuloy => _AbuloyStep(
+              art: step.art,
+              dialogueBuilder: buildDialogue,
+              skipLabel: lang.t('guide_skip'),
+              onSkip: _close,
+              stepLabel: stepLabel,
+              stepCount: steps.length,
+              activeStep: _step,
+            ),
+            GuideSpotlight.bottomNav => _NavStep(
+              art: step.art,
+              dialogueBuilder: buildDialogue,
+              skipLabel: lang.t('guide_skip'),
+              onSkip: _close,
+              stepLabel: stepLabel,
+              stepCount: steps.length,
+              activeStep: _step,
+            ),
+            // Gallery, Family, and Words stops never appear inside the homepage
+            // tour; those tours are built above, with their own cut-out scrim.
+            GuideSpotlight.gallerySearchBar ||
+            GuideSpotlight.galleryFilterPills ||
+            GuideSpotlight.galleryFeaturedCard ||
+            GuideSpotlight.familyMember ||
+            GuideSpotlight.wordsFilterPills ||
+            GuideSpotlight.condolencesPrivateMessage ||
+            GuideSpotlight.condolencesCommunityForum ||
+            GuideSpotlight.condolencesReplyReact => const SizedBox.shrink(),
+          },
+        ],
       );
     }
 
@@ -388,7 +515,14 @@ class _GuidePageState extends State<GuidePage> {
         ),
         // Transparent so the route below (Home, Settings, or Gallery) shows
         // through the scrim. The route itself is pushed with `opaque: false`.
-        child: Scaffold(backgroundColor: Colors.transparent, body: body),
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          // Keep the dim layer edge to edge. With the default `true`, any
+          // bottom inset (an on-screen keyboard, for instance) would shrink
+          // the body and leave a bright strip of the app undimmed.
+          resizeToAvoidBottomInset: false,
+          body: body,
+        ),
       ),
     );
   }
@@ -450,24 +584,14 @@ class _LandscapeLayout extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 6),
-                _ProgressDots(
-                  count: stepCount,
-                  active: activeStep,
-                  semanticsLabel: stepLabel,
-                  showArrow: false,
-                ),
               ],
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) => Center(
-                child: dialogueBuilder(
-                  maxHeight: constraints.maxHeight,
-                  showArt: false,
-                ),
+            child: Center(
+              child: SingleChildScrollView(
+                child: dialogueBuilder(showArt: false),
               ),
             ),
           ),
@@ -525,31 +649,12 @@ class _TopBarStep extends StatelessWidget {
                     stepCount: stepCount,
                     activeStep: activeStep,
                   )
-                : LayoutBuilder(
-                    builder: (context, constraints) {
-                      return SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minHeight: math.max(0, constraints.maxHeight - 40),
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              dialogueBuilder(),
-                              const SizedBox(height: 6),
-                              _ProgressDots(
-                                count: stepCount,
-                                active: activeStep,
-                                semanticsLabel: stepLabel,
-                                showArrow: false,
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: dialogueBuilder(showTopConnector: true),
+                    ),
                   ),
           ),
         ),
@@ -558,8 +663,8 @@ class _TopBarStep extends StatelessWidget {
   }
 }
 
-/// Abuloy stop: the floating coin stays lit at its real dock — bottom-right,
-/// just above the nav — while Nanay's bubble sits above it.
+/// Abuloy stop: the floating coin stays lit at its real dock — next to
+/// Nanay's portrait — while Nanay's bubble sits beneath it with an arrow.
 class _AbuloyStep extends StatelessWidget {
   final GuideArt art;
   final _DialogueBuilder dialogueBuilder;
@@ -581,8 +686,19 @@ class _AbuloyStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
     final padding = MediaQuery.paddingOf(context);
-    final short = MediaQuery.sizeOf(context).height < 500;
+    final short = size.height < 500;
+    // Same dock as the live touch: next to Nanay's portrait on the right.
+    // The ring is 8px larger than the 60px coin on every side, so shifting
+    // it up by 8px leaves the coin itself on the docked spot.
+    final ringTop = AbuloyTouch.dockTopFor(size) - 8;
+    // A touch higher than the coin's bottom edge: the bubble and Nanay read as
+    // one group under the touch without crowding the hero copy behind them.
+    final dialogueTop = math.max(
+      0.0,
+      ringTop - padding.top + _HighlightedAbuloy.ringSize - 4,
+    );
 
     return Stack(
       children: [
@@ -597,63 +713,43 @@ class _AbuloyStep extends StatelessWidget {
                 stepLabel: stepLabel,
                 stepCount: stepCount,
                 activeStep: activeStep,
-                // Leave the bottom-right corner to the lit coin.
+                // Leave the right edge to the lit coin.
                 rightInset: _HighlightedAbuloy.ringSize + 8,
               ),
             ),
           )
         else
           SafeArea(
-            child: Column(
-              children: [
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      return SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minHeight: math.max(0, constraints.maxHeight - 24),
-                          ),
-                          child: Align(
-                            alignment: Alignment.bottomCenter,
-                            child: dialogueBuilder(),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 6),
-                _ProgressDots(
-                  count: stepCount,
-                  active: activeStep,
-                  semanticsLabel: stepLabel,
-                  showArrow: false,
-                ),
-                // Keep the controls above the nav. The coin floats to the
-                // right of this band, so the bubble can use the space beside it.
-                // The SafeArea already accounts for the bottom inset.
-                const SizedBox(height: 104 + 8),
-              ],
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(20, dialogueTop, 20, 16),
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: dialogueBuilder(),
+              ),
             ),
           ),
-        // The ring is 8px larger than the 60px touch on every side; offsetting
-        // it by the same amount leaves the coin exactly on its real dock.
         Positioned(
           right: 20 - 8,
-          bottom: padding.bottom + 104 - 8,
+          top: ringTop,
           width: _HighlightedAbuloy.ringSize,
           height: _HighlightedAbuloy.ringSize,
           child: const _HighlightedAbuloy(),
         ),
+        if (!short)
+          Positioned(
+            right: 36,
+            top: ringTop + _HighlightedAbuloy.ringSize + 4,
+            child: const _TourBouncingArrow(
+              pointingUp: true,
+            ),
+          ),
       ],
     );
   }
 }
 
-/// The same coin the app floats on every tab, ringed in dashed gold and
-/// lifted on a soft glow. Inert: the bubble's Next button moves the tour on.
+/// The same coin the app floats on every tab. Inert: the bubble's Next button
+/// moves the tour on.
 class _HighlightedAbuloy extends StatelessWidget {
   /// Ring diameter: the 60px [AbuloyTouchVisual] plus 8px breathing room.
   static const double ringSize = AbuloyTouch.size + 16;
@@ -662,43 +758,10 @@ class _HighlightedAbuloy extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IgnorePointer(
+    return const IgnorePointer(
       child: ExcludeSemantics(
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Container(
-              width: ringSize,
-              height: ringSize,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.gold.withValues(alpha: 0.35),
-                    blurRadius: 30,
-                    spreadRadius: 4,
-                  ),
-                  BoxShadow(
-                    color: AppColors.glowGold.withValues(alpha: 0.22),
-                    blurRadius: 14,
-                    spreadRadius: 1,
-                  ),
-                ],
-              ),
-            ),
-            const AbuloyTouchVisual(),
-            const Positioned.fill(
-              child: CustomPaint(
-                painter: _DashedRoundedBorderPainter(
-                  color: AppColors.gold,
-                  radius: ringSize / 2,
-                  strokeWidth: 2,
-                  dash: 6,
-                  gap: 4,
-                ),
-              ),
-            ),
-          ],
+        child: Center(
+          child: AbuloyTouchVisual(),
         ),
       ),
     );
@@ -761,16 +824,7 @@ class _NavStep extends StatelessWidget {
                     },
                   ),
           ),
-          if (!short) ...[
-            const SizedBox(height: 6),
-            _ProgressDots(
-              count: stepCount,
-              active: activeStep,
-              semanticsLabel: stepLabel,
-              showArrow: true,
-            ),
-            const SizedBox(height: 8),
-          ],
+          if (!short) ...[const _NavGuideArrow(), const SizedBox(height: 8)],
           const _HighlightedNav(),
           const SizedBox(height: 16),
         ],
@@ -789,16 +843,14 @@ class _CutoutStep extends StatelessWidget {
   /// cut-out.
   final Rect? rect;
 
-  /// Identifies the dashed outline so each stop has its own test key.
+  /// Identifies the cutout target so each stop has its own test key.
   final Key outlineKey;
 
-  /// Corner radius of the hole (matching the real control) and of the dashed
-  /// outline around it.
+  /// Corner radius of the hole (matching the real control).
   final double holeRadius;
-  final double outlineRadius;
 
-  /// A second control inside the lit area worth ringing (the gold Huling Araw
-  /// pill). Its rect arrives after the Gallery slides the row into place.
+  /// A second control inside the lit area (the gold Huling Araw pill). Its
+  /// rect arrives after the Gallery slides the row into place.
   final ValueListenable<Rect?>? extraHighlight;
   final Key? extraHighlightKey;
 
@@ -821,7 +873,6 @@ class _CutoutStep extends StatelessWidget {
     required this.stepCount,
     required this.activeStep,
     this.holeRadius = 14,
-    this.outlineRadius = 20,
     this.extraHighlight,
     this.extraHighlightKey,
   });
@@ -859,43 +910,14 @@ class _CutoutStep extends StatelessWidget {
             ),
           ),
         ),
-        // Soft gold glow hugging the hole.
         Positioned.fromRect(
           rect: rect.inflate(6),
           child: IgnorePointer(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(outlineRadius),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.gold.withValues(alpha: 0.24),
-                    blurRadius: 28,
-                    spreadRadius: 3,
-                  ),
-                ],
-              ),
-            ),
+            child: SizedBox.expand(key: outlineKey),
           ),
         ),
-        // Dashed gold outline just outside the control, same language as the
-        // lit top bar and nav.
-        Positioned.fromRect(
-          rect: rect.inflate(6),
-          child: IgnorePointer(
-            child: CustomPaint(
-              key: outlineKey,
-              painter: _DashedRoundedBorderPainter(
-                color: AppColors.gold,
-                radius: outlineRadius,
-                strokeWidth: 2,
-                dash: 6,
-                gap: 4,
-              ),
-            ),
-          ),
-        ),
-        // Second ring for a named control inside the lit area (the gold
-        // Huling Araw pill). Hidden until the Gallery reports its rect.
+        // Second target marker inside the lit area (the gold Huling Araw
+        // pill). Hidden until the Gallery reports its rect.
         if (extraHighlight != null)
           Positioned.fill(
             child: IgnorePointer(
@@ -908,31 +930,7 @@ class _CutoutStep extends StatelessWidget {
                     children: [
                       Positioned.fromRect(
                         rect: ring,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(14),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.gold.withValues(alpha: 0.30),
-                                blurRadius: 18,
-                                spreadRadius: 2,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Positioned.fromRect(
-                        rect: ring,
-                        child: CustomPaint(
-                          key: extraHighlightKey,
-                          painter: const _DashedRoundedBorderPainter(
-                            color: AppColors.gold,
-                            radius: 14,
-                            strokeWidth: 2.2,
-                            dash: 5,
-                            gap: 3,
-                          ),
-                        ),
+                        child: SizedBox.expand(key: extraHighlightKey),
                       ),
                     ],
                   );
@@ -973,23 +971,25 @@ class _CutoutStep extends StatelessWidget {
                             // of forcing the card to overflow.
                             final fitsBubble =
                                 dialogueMax >= _minDialogueHeight;
+                            final arrowLeft = (rect.center.dx - 20 - 14)
+                                .clamp(
+                                  0.0,
+                                  math.max(0.0, constraints.maxWidth - 28),
+                                )
+                                .toDouble();
                             return SingleChildScrollView(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  const Align(
-                                    alignment: Alignment.topRight,
+                                  Align(
+                                    alignment: Alignment.topLeft,
                                     child: Padding(
                                       padding: EdgeInsets.only(
-                                        right: 24,
-                                        bottom: 2,
+                                        left: arrowLeft,
+                                        bottom: 4,
                                       ),
-                                      child: CustomPaint(
-                                        size: Size(52, 30),
-                                        painter: _CurvedArrowPainter(
-                                          color: AppColors.gold,
-                                          flip: true,
-                                        ),
+                                      child: const _TourBouncingArrow(
+                                        pointingUp: true,
                                       ),
                                     ),
                                   ),
@@ -1004,13 +1004,6 @@ class _CutoutStep extends StatelessWidget {
                             );
                           },
                         ),
-                      ),
-                      const SizedBox(height: 6),
-                      _ProgressDots(
-                        count: stepCount,
-                        active: activeStep,
-                        semanticsLabel: stepLabel,
-                        showArrow: false,
                       ),
                     ],
                   ),
@@ -1034,13 +1027,6 @@ class _CutoutStep extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
                 child: dialogueBuilder(),
               ),
-            ),
-            const SizedBox(height: 6),
-            _ProgressDots(
-              count: stepCount,
-              active: activeStep,
-              semanticsLabel: stepLabel,
-              showArrow: false,
             ),
           ],
         ),
@@ -1085,9 +1071,9 @@ class _CutoutScrimPainter extends CustomPainter {
   }
 }
 
-/// The real brand bar, fully lit and outlined. It is a diagram: the language
-/// pill is live so visitors can try switching, while `?` and the gear are
-/// inert until the guide closes.
+/// The real brand bar, fully lit. It is a diagram: the language pill is live
+/// so visitors can try switching, while `?` and the gear are inert until the
+/// guide closes.
 class _LitTopBar extends StatelessWidget {
   final String? greeting;
   final String helpTooltip;
@@ -1096,55 +1082,86 @@ class _LitTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final topInset = MediaQuery.paddingOf(context).top;
-
     // Excluded from screen readers as a group: the bubble explains the two
     // controls, and this avoids announcing the inert help/settings buttons.
     return ExcludeSemantics(
-      child: Stack(
-        children: [
-          AppBrandBar(
-            greeting: greeting,
-            helpTooltip: helpTooltip,
-            onHelpTap: () {},
-            onSettingsTap: () {},
-          ),
-          Positioned(
-            left: 6,
-            right: 6,
-            top: topInset + 2,
-            height: 48,
-            child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.gold.withValues(alpha: 0.28),
-                      blurRadius: 20,
-                      spreadRadius: 2,
-                    ),
-                  ],
-                ),
-              ),
+      child: ColoredBox(
+        color: AppColors.charcoal,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(6, 8, 6, 2),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: AppBrandBar(
+              greeting: greeting,
+              helpTooltip: helpTooltip,
+              onHelpTap: () {},
+              onSettingsTap: () {},
             ),
           ),
-          Positioned(
-            left: 8,
-            right: 8,
-            top: topInset + 4,
-            height: 44,
-            child: const IgnorePointer(
-              child: CustomPaint(
-                painter: _DashedRoundedBorderPainter(
-                  color: AppColors.gold,
-                  radius: 14,
-                  strokeWidth: 1.8,
-                  dash: 7,
-                  gap: 4,
-                ),
-              ),
-            ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Bouncing pointer arrow that draws attention to the currently highlighted
+/// target. Loops a 6px vertical offset smoothly up and down.
+class _TourBouncingArrow extends StatefulWidget {
+  final bool pointingUp;
+
+  const _TourBouncingArrow({this.pointingUp = true});
+
+  @override
+  State<_TourBouncingArrow> createState() => _TourBouncingArrowState();
+}
+
+class _TourBouncingArrowState extends State<_TourBouncingArrow>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _bounceAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    _bounceAnim = Tween<double>(
+      begin: 0,
+      end: -6,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const cream = Color(0xFFF7EDE4);
+
+    return AnimatedBuilder(
+      animation: _bounceAnim,
+      builder: (context, child) {
+        final offset = widget.pointingUp
+            ? _bounceAnim.value
+            : -_bounceAnim.value;
+        return Transform.translate(offset: Offset(0, offset), child: child);
+      },
+      child: Icon(
+        widget.pointingUp
+            ? Icons.arrow_upward_rounded
+            : Icons.arrow_downward_rounded,
+        size: 28,
+        color: cream,
+        shadows: [
+          Shadow(color: AppColors.gold.withValues(alpha: 0.65), blurRadius: 10),
+          Shadow(
+            color: AppColors.goldLight.withValues(alpha: 0.45),
+            blurRadius: 4,
           ),
         ],
       ),
@@ -1152,37 +1169,11 @@ class _LitTopBar extends StatelessWidget {
   }
 }
 
-class _SkipButton extends StatelessWidget {
-  final String label;
-  final VoidCallback onPressed;
-
-  const _SkipButton({required this.label, required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: onPressed,
-      style: TextButton.styleFrom(
-        foregroundColor: AppColors.muted,
-        minimumSize: const Size(60, 56),
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        textStyle: const TextStyle(
-          fontFamily: 'Inter',
-          fontSize: 13.5,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.2,
-        ),
-      ),
-      child: Text(label),
-    );
-  }
-}
-
 // -- Nanay + speech bubble ------------------------------------------------
 /// Builds the bubble for a step, optionally capped to the height available in
 /// a short viewport. The landscape rail supplies the artwork separately.
-typedef _DialogueBuilder = Widget Function({double? maxHeight, bool showArt});
+typedef _DialogueBuilder =
+    Widget Function({double? maxHeight, bool showArt, bool showTopConnector});
 
 class _Dialogue extends StatelessWidget {
   final GuideArt art;
@@ -1196,6 +1187,10 @@ class _Dialogue extends StatelessWidget {
   final bool compact;
   final double? maxHeight;
   final bool showArt;
+  final bool showTopConnector;
+  final int stepCount;
+  final int activeStep;
+  final String stepLabel;
 
   const _Dialogue({
     required this.art,
@@ -1209,12 +1204,16 @@ class _Dialogue extends StatelessWidget {
     required this.compact,
     this.maxHeight,
     this.showArt = true,
+    this.showTopConnector = false,
+    required this.stepCount,
+    required this.activeStep,
+    required this.stepLabel,
   });
 
   @override
   Widget build(BuildContext context) {
-    // A more prominent vector figure so Nanay is expressive and clearly visible.
-    final artHeight = compact ? 230.0 : 320.0;
+    // A much more prominent vector figure so Nanay is expressive, vivid, and clearly visible.
+    final artHeight = compact ? 290.0 : 390.0;
 
     final bubble = _SpeechBubble(
       title: title,
@@ -1224,114 +1223,63 @@ class _Dialogue extends StatelessWidget {
       onBack: onBack,
       skipLabel: skipLabel,
       onSkip: onSkip,
-      compact: compact,
-      maxHeight: maxHeight,
+      stepCount: stepCount,
+      activeStep: activeStep,
+      stepLabel: stepLabel,
     );
 
     if (!showArt) {
       return Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 540),
+          constraints: const BoxConstraints(maxWidth: 280),
           child: bubble,
         ),
       );
     }
 
-    final plainBubble = _SpeechBubble(
-      title: title,
-      body: body,
-      nextLabel: nextLabel,
-      onNext: onNext,
-      onBack: onBack,
-      skipLabel: skipLabel,
-      onSkip: onSkip,
-      compact: compact,
-      maxHeight: maxHeight,
-      plain: true,
-    );
-    final artWidth = artHeight * 0.42;
+    final artWidth = artHeight * 0.44;
 
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 560),
-        child: Container(
-          margin: const EdgeInsets.only(top: 24),
-          padding: EdgeInsets.fromLTRB(compact ? 8 : 14, 10, 4, 6),
-          decoration: BoxDecoration(
-            color: AppColors.paper,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.charcoal.withValues(alpha: 0.30),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              ExcludeSemantics(
+        constraints: const BoxConstraints(maxWidth: 580),
+        child: Row(
+          crossAxisAlignment: showTopConnector
+              ? CrossAxisAlignment.start
+              : CrossAxisAlignment.end,
+          children: [
+            ExcludeSemantics(
+              child: Padding(
+                padding: EdgeInsets.only(top: showTopConnector ? 32 : 0),
                 child: SizedBox(
                   width: artWidth,
                   height: artHeight,
-                  child: Stack(
-                    clipBehavior: Clip.none,
+                  child: Image.asset(
+                    art.asset,
+                    fit: BoxFit.contain,
                     alignment: Alignment.bottomCenter,
-                    children: [
-                      // Soft beige arch behind Nanay.
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        top: artHeight * 0.18,
-                        bottom: 0,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: AppColors.goldLight.withValues(alpha: 0.35),
-                            borderRadius: BorderRadius.circular(artWidth),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        right: -6,
-                        bottom: artHeight * 0.12,
-                        child: Icon(
-                          Icons.eco_outlined,
-                          size: artWidth * 0.55,
-                          color: AppColors.gold.withValues(alpha: 0.28),
-                        ),
-                      ),
-                      Positioned(
-                        left: -4,
-                        bottom: 4,
-                        child: Icon(
-                          Icons.spa_outlined,
-                          size: artWidth * 0.4,
-                          color: AppColors.gold.withValues(alpha: 0.22),
-                        ),
-                      ),
-                      // Nanay steps slightly out of the card at the top.
-                      Positioned(
-                        left: -4,
-                        right: -4,
-                        top: -34,
-                        bottom: 4,
-                        child: Image.asset(
-                          art.asset,
-                          fit: BoxFit.contain,
-                          alignment: Alignment.bottomCenter,
-                          filterQuality: FilterQuality.medium,
-                          excludeFromSemantics: true,
-                        ),
-                      ),
-                    ],
+                    filterQuality: FilterQuality.medium,
+                    excludeFromSemantics: true,
                   ),
                 ),
               ),
-              const SizedBox(width: 6),
-              Expanded(child: plainBubble),
-            ],
-          ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: showTopConnector
+                  ? Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.only(top: 6, bottom: 4),
+                          child: _TourBouncingArrow(pointingUp: true),
+                        ),
+                        bubble,
+                      ],
+                    )
+                  : Align(alignment: Alignment.bottomLeft, child: bubble),
+            ),
+          ],
         ),
       ),
     );
@@ -1346,8 +1294,9 @@ class _SpeechBubble extends StatelessWidget {
   final VoidCallback? onBack;
   final String? skipLabel;
   final VoidCallback? onSkip;
-  final bool compact;
-  final double? maxHeight;
+  final int? stepCount;
+  final int? activeStep;
+  final String? stepLabel;
 
   const _SpeechBubble({
     required this.title,
@@ -1357,413 +1306,207 @@ class _SpeechBubble extends StatelessWidget {
     this.onBack,
     this.skipLabel,
     this.onSkip,
-    required this.compact,
-    this.maxHeight,
+    this.stepCount,
+    this.activeStep,
+    this.stepLabel,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Landscape / short viewports: shave the vertical gaps so a two-line
-    // title and the 56px action still leave a sliver for the body to scroll.
-    final dense = maxHeight != null;
-
-    final bodyText = Text(
-      body,
-      style: TextStyle(
-        fontFamily: 'Inter',
-        fontSize: compact ? 12.5 : 14.0,
-        height: 1.35,
-        color: AppColors.warmMid,
-      ),
-    );
+    final hasStepBadge =
+        stepCount != null && activeStep != null && stepLabel != null;
+    final isLast =
+        stepCount != null &&
+        activeStep != null &&
+        activeStep! >= stepCount! - 1;
 
     return Container(
-      constraints: maxHeight == null
-          ? null
-          : BoxConstraints(maxHeight: maxHeight!),
+      constraints: const BoxConstraints(maxWidth: 280),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.paper,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: AppColors.gold.withValues(alpha: 0.38),
-          width: 1.2,
-        ),
+        color: const Color(0xFFF7EDE4),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.charcoal.withValues(alpha: 0.28),
-            blurRadius: 20,
-            offset: const Offset(0, 6),
-          ),
-          BoxShadow(
-            color: AppColors.gold.withValues(alpha: 0.10),
-            blurRadius: 10,
-            spreadRadius: 1,
+            color: Colors.black.withValues(alpha: 0.26),
+            blurRadius: 26,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
-      child: Container(
-        margin: const EdgeInsets.all(2.5),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(19),
-          border: Border.all(
-            color: AppColors.gold.withValues(alpha: 0.16),
-            width: 0.8,
-          ),
-        ),
-        padding: EdgeInsets.fromLTRB(
-          compact ? 10 : 16,
-          dense ? 4 : 6,
-          compact ? 10 : 16,
-          dense ? 4 : 6,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (!dense && (onBack != null || !compact)) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  if (onBack != null)
-                    InkWell(
-                      onTap: onBack,
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        padding: const EdgeInsets.all(3.5),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.goldLight.withValues(alpha: 0.25),
-                          border: Border.all(
-                            color: AppColors.gold.withValues(alpha: 0.3),
-                            width: 0.8,
-                          ),
-                        ),
-                        child: const Icon(
-                          Icons.arrow_back_rounded,
-                          size: 13,
-                          color: AppColors.warmMid,
-                        ),
-                      ),
-                    )
-                  else if (!compact)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.goldLight.withValues(alpha: 0.35),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: AppColors.gold.withValues(alpha: 0.35),
-                          width: 0.6,
-                        ),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.auto_awesome,
-                            size: 9.5,
-                            color: AppColors.goldInk,
-                          ),
-                          SizedBox(width: 3.5),
-                          Text(
-                            'LOLA ANITA',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 8.5,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.0,
-                              color: AppColors.goldInk,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    const SizedBox.shrink(),
-                ],
-              ),
-              const SizedBox(height: 2),
-            ],
-            Semantics(
-              header: true,
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontFamily: 'PlayfairDisplay',
-                  fontSize: compact ? 16.0 : 19.0,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.2,
-                  height: 1.18,
-                  color: AppColors.textDark,
-                ),
-              ),
-            ),
-            SizedBox(height: dense ? 2 : 4),
-            if (maxHeight == null)
-              bodyText
-            else
-              Expanded(child: SingleChildScrollView(child: bodyText)),
-            SizedBox(height: dense ? 4 : 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (hasStepBadge || onBack != null) ...[
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                if (skipLabel != null && onSkip != null) ...[
-                  Flexible(
-                    child: _SkipButton(label: skipLabel!, onPressed: onSkip!),
-                  ),
-                  const SizedBox(width: 4),
-                ],
-                Flexible(
-                  child: SizedBox(
-                  height: 56,
-                  child: FilledButton(
-                    onPressed: onNext,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.warmDark,
-                      foregroundColor: AppColors.goldLight,
-                      elevation: 3,
-                      shadowColor: AppColors.warmDark.withValues(alpha: 0.4),
-                      side: BorderSide(
-                        color: AppColors.gold.withValues(alpha: 0.45),
-                        width: 1,
-                      ),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: compact ? 18 : 22,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                      textStyle: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: compact ? 13.5 : 14.5,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.2,
+                if (hasStepBadge)
+                  Semantics(
+                    label: stepLabel,
+                    child: ExcludeSemantics(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: const ShapeDecoration(
+                          color: Color(0xFF6B4A3A),
+                          shape: StadiumBorder(),
+                        ),
+                        child: Text(
+                          '${activeStep! + 1}/$stepCount',
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            height: 1.1,
+                            color: Colors.white,
+                          ),
+                        ),
                       ),
                     ),
-                    child: Text(
-                      nextLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                  )
+                else
+                  const SizedBox.shrink(),
+                if (onBack != null)
+                  InkWell(
+                    onTap: onBack,
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(4.0),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFFE5D9C8),
+                        border: Border.all(
+                          color: const Color(0xFFD2C1AC),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.arrow_back_rounded,
+                        size: 13,
+                        color: Color(0xFF2B1B14),
+                      ),
                     ),
                   ),
-                ),
-                ),
               ],
             ),
+            const SizedBox(height: 10),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Cream bubble with a left-pointing tail, drawn as one union so the border
-/// follows the tail cleanly instead of showing a seam.
-class _SpeechBubblePainter extends CustomPainter {
-  final Color fill;
-  final Color border;
-
-  const _SpeechBubblePainter({required this.fill, required this.border});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const bodyInset = 10.0;
-
-    final body = RRect.fromRectAndRadius(
-      Rect.fromLTWH(bodyInset, 0, size.width - bodyInset, size.height),
-      const Radius.circular(22),
-    );
-
-    final tailY = size.height * 0.4;
-    final tail = Path()
-      ..moveTo(bodyInset + 1, tailY - 10)
-      ..lineTo(0, tailY)
-      ..lineTo(bodyInset + 1, tailY + 10)
-      ..close();
-
-    final shape = Path.combine(
-      PathOperation.union,
-      Path()..addRRect(body),
-      tail,
-    );
-
-    canvas.drawPath(shape, Paint()..color = fill);
-    canvas.drawPath(
-      shape,
-      Paint()
-        ..color = border
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _SpeechBubblePainter oldDelegate) {
-    return oldDelegate.fill != fill || oldDelegate.border != border;
-  }
-}
-
-// -- Progress dots (+ the nav's hand-drawn arrow) -------------------------
-class _ProgressDots extends StatelessWidget {
-  final int count;
-  final int active;
-  final String semanticsLabel;
-  final bool showArrow;
-
-  const _ProgressDots({
-    required this.count,
-    required this.active,
-    required this.semanticsLabel,
-    required this.showArrow,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: semanticsLabel,
-      child: ExcludeSemantics(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: SizedBox(
-              height: 36,
-              width: double.infinity,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.warmDark.withValues(alpha: 0.88),
-                      borderRadius: BorderRadius.circular(99),
-                      border: Border.all(
-                        color: AppColors.gold.withValues(alpha: 0.35),
-                        width: 0.8,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.charcoal.withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        for (var i = 0; i < count; i++) ...[
-                          if (i > 0) const SizedBox(width: 8),
-                          _ProgressDot(active: i == active),
-                        ],
-                      ],
-                    ),
-                  ),
-                  if (showArrow)
-                    const Positioned(
-                      right: 26,
-                      top: 1,
-                      child: CustomPaint(
-                        size: Size(66, 34),
-                        painter: _CurvedArrowPainter(color: AppColors.gold),
-                      ),
-                    ),
-                ],
+          Semantics(
+            header: true,
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.2,
+                height: 1.2,
+                color: Color(0xFF2B1B14),
               ),
             ),
           ),
-        ),
+          const SizedBox(height: 6),
+          Text(
+            body,
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+              height: 1.35,
+              color: Color(0xFF6B5A52),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              if (!isLast && onSkip != null)
+                TextButton(
+                  onPressed: onSkip,
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF6B5A52),
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(0, 40),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    skipLabel ?? 'Skip',
+                    style: const TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF6B5A52),
+                    ),
+                  ),
+                )
+              else
+                const SizedBox.shrink(),
+              FilledButton(
+                onPressed: onNext,
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF6B4A3A),
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(0, 40),
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  shape: const StadiumBorder(),
+                  elevation: 2,
+                  shadowColor: Colors.black.withValues(alpha: 0.25),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  textStyle: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        nextLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(
+                      Icons.arrow_forward,
+                      size: 18,
+                      color: Colors.white,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
 
-class _ProgressDot extends StatelessWidget {
-  final bool active;
-
-  const _ProgressDot({required this.active});
+class _NavGuideArrow extends StatelessWidget {
+  const _NavGuideArrow();
 
   @override
   Widget build(BuildContext context) {
-    final width = active ? 20.0 : 8.0;
-    const height = 8.0;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 240),
-      curve: Curves.easeOutCubic,
-      width: width,
-      height: height,
-      decoration: BoxDecoration(
-        color: active ? AppColors.gold : AppColors.gold.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(99),
-        boxShadow: active
-            ? [
-                BoxShadow(
-                  color: AppColors.gold.withValues(alpha: 0.6),
-                  blurRadius: 8,
-                  spreadRadius: 1,
-                ),
-              ]
-            : null,
+    return const SizedBox(
+      height: 36,
+      width: double.infinity,
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Padding(
+          padding: EdgeInsets.only(top: 2),
+          child: _TourBouncingArrow(pointingUp: false),
+        ),
       ),
     );
-  }
-}
-
-class _CurvedArrowPainter extends CustomPainter {
-  final Color color;
-
-  /// True to rotate the arrow 180°, so it points up at the Gallery search bar
-  /// instead of down at the nav.
-  final bool flip;
-
-  const _CurvedArrowPainter({required this.color, this.flip = false});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.save();
-    if (flip) {
-      // Rotate around the centre so the same curve/arrowhead reads as an
-      // upward gesture towards the search field.
-      canvas.translate(size.width, size.height);
-      canvas.rotate(math.pi);
-    }
-
-    final end = Offset(size.width - 4, size.height - 4);
-    final path = Path()
-      ..moveTo(0, 4)
-      ..cubicTo(24, 2, size.width - 12, 10, end.dx, end.dy);
-
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.4
-      ..strokeCap = StrokeCap.round;
-
-    canvas.drawPath(path, paint);
-
-    // Arrowhead opening up-left, so the point lands on the nav.
-    final head = Path()
-      ..moveTo(end.dx - 9, end.dy - 6)
-      ..lineTo(end.dx, end.dy)
-      ..lineTo(end.dx - 2, end.dy - 11);
-    canvas.drawPath(
-      head,
-      paint
-        ..strokeWidth = 2.2
-        ..strokeJoin = StrokeJoin.round,
-    );
-
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant _CurvedArrowPainter oldDelegate) {
-    return oldDelegate.color != color || oldDelegate.flip != flip;
   }
 }
 
@@ -1774,8 +1517,7 @@ class _HighlightedNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // The copy sits at the real nav's exact position and size, so the dimmed
-    // real bar underneath lines up and never peeks out. The dashed outline and
-    // glow are drawn just outside those bounds.
+    // real bar underneath lines up and never peeks out.
     return IgnorePointer(
       child: ExcludeSemantics(
         child: Padding(
@@ -1783,98 +1525,13 @@ class _HighlightedNav extends StatelessWidget {
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 500),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Positioned(
-                    left: -6,
-                    top: -6,
-                    right: -6,
-                    bottom: -6,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(30),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.gold.withValues(alpha: 0.32),
-                            blurRadius: 30,
-                            spreadRadius: 3,
-                          ),
-                          BoxShadow(
-                            color: AppColors.glowGold.withValues(alpha: 0.16),
-                            blurRadius: 16,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  // Diagram only: the last button/Skip close the guide, then
-                  // the visitor uses the real bar.
-                  AppBottomNav(selectedIndex: 0, onTap: (_) {}),
-                  const Positioned(
-                    left: -6,
-                    top: -6,
-                    right: -6,
-                    bottom: -6,
-                    child: CustomPaint(
-                      painter: _DashedRoundedBorderPainter(
-                        color: AppColors.gold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              // Diagram only: the last button/Skip close the guide, then
+              // the visitor uses the real bar.
+              child: AppBottomNav(selectedIndex: 0, onTap: (_) {}),
             ),
           ),
         ),
       ),
     );
-  }
-}
-
-class _DashedRoundedBorderPainter extends CustomPainter {
-  final Color color;
-  final double radius;
-  final double strokeWidth;
-  final double dash;
-  final double gap;
-
-  const _DashedRoundedBorderPainter({
-    required this.color,
-    this.radius = 30,
-    this.strokeWidth = 2,
-    this.dash = 7,
-    this.gap = 5,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Rect.fromLTWH(1, 1, size.width - 2, size.height - 2);
-    final path = Path()
-      ..addRRect(RRect.fromRectAndRadius(rect, Radius.circular(radius)));
-
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
-
-    for (final metric in path.computeMetrics()) {
-      var distance = 0.0;
-      while (distance < metric.length) {
-        final end = math.min(distance + dash, metric.length);
-        canvas.drawPath(metric.extractPath(distance, end), paint);
-        distance = end + gap;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _DashedRoundedBorderPainter oldDelegate) {
-    return oldDelegate.color != color ||
-        oldDelegate.radius != radius ||
-        oldDelegate.strokeWidth != strokeWidth ||
-        oldDelegate.dash != dash ||
-        oldDelegate.gap != gap;
   }
 }

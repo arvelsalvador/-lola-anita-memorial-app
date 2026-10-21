@@ -62,6 +62,7 @@ class ForumPostCard extends StatefulWidget {
   final VoidCallback onRetrySend;
   /// Re-uploads an unsent (pendingSync) reply. Best-effort.
   final void Function(String replyId) onRetryReplySend;
+  final Key? actionsKey;
 
   const ForumPostCard({
     super.key,
@@ -83,6 +84,7 @@ class ForumPostCard extends StatefulWidget {
     this.onDeleteReply = _noReplyDelete,
     this.onRetrySend = _noRetrySend,
     this.onRetryReplySend = _noRetryReplySend,
+    this.actionsKey,
   });
 
   static void _noRetrySend() {}
@@ -774,11 +776,14 @@ class _ForumPostCardState extends State<ForumPostCard> {
 
             const SizedBox(height: 10),
 
-            // Simple text actions: heart Puso + count | divider | N replies.
+            KeyedSubtree(
+              key: widget.actionsKey,
+              child:
             // The like count (when > 0) opens the likers sheet.
             // Tapping replies expands the thread and opens the composer;
             // person-level Reply buttons handle @mentions.
             Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 InkWell(
                   onTap: () {
@@ -869,6 +874,7 @@ class _ForumPostCardState extends State<ForumPostCard> {
                 ),
               ],
             ),
+          ),
 
             if (showRepliesBlock) ...[
               const SizedBox(height: 14),

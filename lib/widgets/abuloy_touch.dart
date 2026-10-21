@@ -22,7 +22,7 @@ import 'package:nita/widgets/ornamental_card.dart';
 /// Must be placed directly inside a [Stack], with [areaSize] matching that
 /// stack's size (see [AbuloyTouchScope], or the Home shell which measures
 /// its stack with a parent-side LayoutBuilder). The touch positions itself
-/// relative to the stack — screen size would be wrong wherever the stack
+/// relative to the stack â€” screen size would be wrong wherever the stack
 /// doesn't fill the screen (e.g. under the expanded memorial hero).
 class AbuloyTouch extends StatefulWidget {
   const AbuloyTouch({super.key, required this.areaSize});
@@ -41,6 +41,17 @@ class AbuloyTouch extends StatefulWidget {
   /// Edge margin kept when clamping the dragged position.
   static const double margin = 8;
 
+  /// Where the touch's centre sits when docked, as a fraction of the
+  /// hosting stack's height. Positioned in the upper-right beside the page
+  /// title header so it stays clear of the top bar above and the search bar,
+  /// filter pills, and featured card below. The first-run guide uses the same
+  /// fraction so its diagram matches where the coin really sits.
+  static const double dockCenterFraction = 0.11;
+
+  /// Top offset of the docked touch for a hosting area of [area]'s size.
+  static double dockTopFor(Size area) =>
+      area.height * dockCenterFraction - size / 2;
+
   @override
   State<AbuloyTouch> createState() => _AbuloyTouchState();
 }
@@ -52,16 +63,16 @@ class _AbuloyTouchState extends State<AbuloyTouch>
         {
   /// Current position as a fraction (0..1) of the stack size. Null = docked
   /// default. Fractions keep the spot (e.g. the middle) stable when moving
-  /// between tabs whose stacks have different sizes — absolute pixels would
+  /// between tabs whose stacks have different sizes â€” absolute pixels would
   /// land somewhere else after clamping (seen on Tahanan vs Galeri).
   Offset? _fraction;
 
-  /// True while a drag is in flight — slightly deepens the shadow so the
+  /// True while a drag is in flight â€” slightly deepens the shadow so the
   /// visitor feels the lift.
   bool _dragging = false;
 
   /// Slow breathing pulse for the halo (0..1, eased). Runs until the dialog
-  /// is first opened, then freezes — the last frame simply becomes a static
+  /// is first opened, then freezes â€” the last frame simply becomes a static
   /// halo, so there is never a visible pop.
   late final AnimationController _pulse;
   late final Animation<double> _pulseAnim;
@@ -70,7 +81,7 @@ class _AbuloyTouchState extends State<AbuloyTouch>
   /// callbacks and [_openDialog] never fight over the controller.
   bool _pulseRunning = true;
 
-  /// True once the dialog was first opened — the pulse is then permanently
+  /// True once the dialog was first opened â€” the pulse is then permanently
   /// frozen and must not restart on app resume.
   bool _pulseFrozen = false;
 
@@ -108,7 +119,7 @@ class _AbuloyTouchState extends State<AbuloyTouch>
   }
 
   /// Freezes the pulse on first open; the frozen frame stays as a static
-  /// halo. Idempotent — later taps just open the dialog.
+  /// halo. Idempotent â€” later taps just open the dialog.
   void _openDialog(BuildContext context) {
     if (!_pulseFrozen) {
       _pulseFrozen = true;
@@ -118,14 +129,12 @@ class _AbuloyTouchState extends State<AbuloyTouch>
     showAbuloyDialog(context);
   }
 
-  Offset _defaultPosition(Size area, EdgeInsets padding) {
-    // Short strip (e.g. under the expanded memorial hero): dock at the top
-    // so the touch never covers the bottom nav's tap targets. Roomy area:
-    // dock bottom-right, just above the nav.
-    final top = area.height <= 220
-        ? AbuloyTouch.margin
-        : area.height - padding.bottom - 104 - AbuloyTouch.size;
-    return Offset(area.width - 20 - AbuloyTouch.size, top);
+  Offset _defaultPosition(Size area) {
+    // Dock top-right, a little below the middle of the content.
+    return Offset(
+      area.width - 20 - AbuloyTouch.size,
+      AbuloyTouch.dockTopFor(area),
+    );
   }
 
   Offset _toFraction(Offset px, Size area) => Offset(
@@ -162,12 +171,11 @@ class _AbuloyTouchState extends State<AbuloyTouch>
     // NOTE: Positioned must be returned directly (no LayoutBuilder between
     // it and the Stack) or Flutter throws a ParentDataWidget error. The
     // stack's size therefore arrives via [AbuloyTouch.areaSize], measured
-    // by a parent-side LayoutBuilder — MediaQuery screen size would be
+    // by a parent-side LayoutBuilder â€” MediaQuery screen size would be
     // wrong wherever the stack doesn't fill the screen.
     final area = widget.areaSize;
     final padding = MediaQuery.paddingOf(context);
-    final frac =
-        _fraction ?? _toFraction(_defaultPosition(area, padding), area);
+    final frac = _fraction ?? _toFraction(_defaultPosition(area), area);
     final pos = _clamp(_toPixels(frac, area), area, padding);
     return Positioned(
       left: pos.dx,
@@ -201,7 +209,7 @@ class _AbuloyTouchState extends State<AbuloyTouch>
           label: label,
           child: Tooltip(
             message: label,
-            // Only the visuals rebuild per pulse tick — position and
+            // Only the visuals rebuild per pulse tick â€” position and
             // gestures stay untouched.
             child: AnimatedBuilder(
               animation: _pulseAnim,
@@ -354,8 +362,8 @@ class AbuloyTouchVisual extends StatelessWidget {
 /// Wraps any page body so the assistive touch floats over it.
 
 /// Use for pushed routes (Settings, detail pages) that live outside the
-/// Home shell's stack — the five main tabs already carry [AbuloyTouch].
-/// Measures the stack with a parent-side LayoutBuilder (legal position —
+/// Home shell's stack â€” the five main tabs already carry [AbuloyTouch].
+/// Measures the stack with a parent-side LayoutBuilder (legal position â€”
 /// a LayoutBuilder *between* [AbuloyTouch] and its Stack would crash).
 class AbuloyTouchScope extends StatelessWidget {
   final Widget child;
@@ -383,7 +391,7 @@ Future<void> showAbuloyDialog(BuildContext context) {
   try {
     HapticFeedback.lightImpact().catchError((_) {});
   } catch (_) {
-    // Haptics unavailable on desktop — the dialog still opens.
+    // Haptics unavailable on desktop â€” the dialog still opens.
   }
   return showDialog<void>(
     context: context,

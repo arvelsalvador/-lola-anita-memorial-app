@@ -186,23 +186,19 @@ void main() {
       await tester.pumpWidget(app(lang));
       await tester.pump();
 
-      expect(find.text('Meet the top bar'), findsOneWidget);
-      expect(find.textContaining('language button'), findsOneWidget);
+      expect(find.text('This is your top bar'), findsOneWidget);
+      expect(find.textContaining('change the language'), findsOneWidget);
       expect(find.text('Next'), findsOneWidget);
       expect(find.text('Skip'), findsOneWidget);
+      expect(find.text('1/3'), findsOneWidget);
       expect(find.byType(AppBrandBar), findsOneWidget);
       expect(find.byType(LanguageToggle), findsOneWidget);
       expect(find.byType(AppBottomNav), findsNothing);
       expect(find.byType(Image), findsWidgets);
       expect(
         tester.getSize(find.widgetWithText(FilledButton, 'Next')).height,
-        greaterThanOrEqualTo(56),
-        reason: 'guide actions should be at least 56px tall',
-      );
-      expect(
-        tester.getSize(find.widgetWithText(TextButton, 'Skip')).height,
-        greaterThanOrEqualTo(56),
-        reason: 'Skip should be at least 56px tall',
+        closeTo(40, 1),
+        reason: 'guide actions should be 40px tall',
       );
       expect(tester.takeException(), isNull);
     });
@@ -238,10 +234,11 @@ void main() {
       expect(find.byType(AppBottomNav), findsOneWidget);
       expect(find.byType(AbuloyTouchVisual), findsNothing);
       expect(find.byType(AppBrandBar), findsNothing);
-      expect(find.text('Start exploring'), findsOneWidget);
+      expect(find.text('Done'), findsOneWidget);
+      expect(find.text('Skip'), findsNothing);
       expect(tester.takeException(), isNull);
 
-      await tester.tap(find.text('Start exploring'));
+      await tester.tap(find.text('Done'));
       await tester.pump();
 
       expect(await const GuideRepository().hasSeen(), isTrue);
@@ -264,14 +261,17 @@ void main() {
 
       final el = tester.element(find.byType(AbuloyTouchVisual));
       final size = MediaQuery.sizeOf(el);
-      final padding = MediaQuery.paddingOf(el);
       final topLeft = tester.getTopLeft(find.byType(AbuloyTouchVisual));
 
-      // Same dock as the live touch: right 20, above the nav (bottom 104).
+      // Same dock as the live touch: right 20, centre at the shared
+      // [AbuloyTouch.dockCenterFraction] of the screen height.
       expect(topLeft.dx, closeTo(size.width - 20 - AbuloyTouch.size, 0.001));
       expect(
         topLeft.dy,
-        closeTo(size.height - padding.bottom - 104 - AbuloyTouch.size, 0.001),
+        closeTo(
+          size.height * AbuloyTouch.dockCenterFraction - AbuloyTouch.size / 2,
+          0.001,
+        ),
       );
       expect(tester.takeException(), isNull);
     });
@@ -287,6 +287,7 @@ void main() {
       await tester.pumpWidget(app(lang));
       await tester.pump();
 
+      expect(find.text('Skip'), findsOneWidget);
       await tester.tap(find.text('Skip'));
       await tester.pump();
 
@@ -323,8 +324,9 @@ void main() {
       );
 
       await tester.tap(find.text('Open guide'));
-      await tester.pumpAndSettle();
-      expect(find.text('Meet the top bar'), findsOneWidget);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('This is your top bar'), findsOneWidget);
 
       await tester.tap(find.text('Next'));
       await tester.pump();
@@ -347,12 +349,13 @@ void main() {
       // Back again returns to the top-bar stop.
       await navigator.maybePop();
       await tester.pump();
-      expect(find.text('Meet the top bar'), findsOneWidget);
+      expect(find.text('This is your top bar'), findsOneWidget);
       expect(find.text('Abuloy, always within reach'), findsNothing);
 
       // Back on the first stop closes the guide.
       await navigator.maybePop();
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
       expect(find.byType(GuidePage), findsNothing);
       expect(await const GuideRepository().hasSeen(), isTrue);
       expect(tester.takeException(), isNull);
@@ -370,7 +373,7 @@ void main() {
       final scrim = tester.widget<ColoredBox>(find.byKey(GuidePage.scrimKey));
       expect(scrim.color.a, GuidePage.scrimOpacity);
       expect(scrim.color.a, lessThan(1.0));
-      expect(scrim.color.a, greaterThanOrEqualTo(0.5));
+      expect(scrim.color.a, greaterThanOrEqualTo(0.1));
       expect(tester.takeException(), isNull);
     });
 
@@ -398,14 +401,16 @@ void main() {
       final lang = LanguageProvider()..setLanguage(AppLanguage.english);
       await tester.pumpWidget(app(lang));
       await tester.pump();
-      expect(find.text('Meet the top bar'), findsOneWidget);
+      expect(find.text('This is your top bar'), findsOneWidget);
 
       await tester.tap(find.byType(LanguageToggle));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
       expect(find.text('Tagalog'), findsOneWidget);
 
       await tester.tap(find.text('Tagalog'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
 
       expect(find.text('Kilalanin ang bar sa itaas'), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -545,8 +550,8 @@ void main() {
 
       expect(find.text('Search the memories'), findsOneWidget);
       expect(find.text('Next'), findsOneWidget);
-      expect(find.text('Got it'), findsNothing);
       expect(find.text('Skip'), findsOneWidget);
+      expect(find.text('Got it'), findsNothing);
       expect(find.byKey(GuidePage.gallerySearchOutlineKey), findsOneWidget);
       expect(find.bySemanticsLabel('Step 1 of 3'), findsOneWidget);
       // No homepage chrome is rebuilt on the Gallery tour.
@@ -559,6 +564,8 @@ void main() {
 
       expect(find.text('Filter the memories'), findsOneWidget);
       expect(find.textContaining('Last Day'), findsOneWidget);
+      expect(find.text('Next'), findsOneWidget);
+      expect(find.text('Skip'), findsOneWidget);
       expect(find.text('Got it'), findsNothing);
       expect(find.byKey(GuidePage.galleryPillsOutlineKey), findsOneWidget);
       expect(find.byKey(GuidePage.gallerySearchOutlineKey), findsNothing);
@@ -572,6 +579,7 @@ void main() {
       expect(find.textContaining('slideshow'), findsOneWidget);
       expect(find.textContaining('music'), findsOneWidget);
       expect(find.text('Got it'), findsOneWidget);
+      expect(find.text('Skip'), findsNothing);
       expect(find.byKey(GuidePage.galleryFeaturedOutlineKey), findsOneWidget);
       expect(find.byKey(GuidePage.galleryPillsOutlineKey), findsNothing);
       expect(find.bySemanticsLabel('Step 3 of 3'), findsOneWidget);
@@ -881,6 +889,7 @@ void main() {
       expect(find.textContaining('personal information'), findsOneWidget);
       expect(find.text('Got it'), findsOneWidget);
       expect(find.text('Next'), findsNothing);
+      expect(find.text('Skip'), findsNothing);
       expect(find.bySemanticsLabel('Step 1 of 1'), findsOneWidget);
       expect(find.byKey(GuidePage.familyMemberOutlineKey), findsOneWidget);
       expect(tester.takeException(), isNull);

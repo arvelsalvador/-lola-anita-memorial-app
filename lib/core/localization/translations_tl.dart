@@ -778,4 +778,24 @@ const Map<String, String> translationsTl = {
       'Pindutin ang card ng isang miyembro para makita ang kanyang personal '
       'na impormasyon — ang kuwento, pamilya, at mga litrato niya.',
   'family_guide_done': 'Naintindihan ko',
+  // ── Gabay sa Mga Salita: mga filter pill ───────────────────────────────
+  'words_guide_pills_title': 'Salain ang mga mensahe',
+  'words_guide_pills_body':
+      'Pindutin ang isang kategorya para salain ang mga salita at mensahe '
+      'mula sa kanyang mga anak, apo, o kapatid.',
+  'words_guide_done': 'Naintindihan ko',
+  // ── Gabay sa Pakikiramay: pribadong mensahe, komunidad, at reply/react ────
+  'condolences_guide_private_title': 'Mensahe kay Nanay',
+  'condolences_guide_private_body':
+      'Maaari kang magpadala ng pribadong mensahe para kay Nanay na tanging ang '
+      'pamilya Salvador lamang ang makakabasa.',
+  'condolences_guide_forum_title': 'Mga mensahe at kuwento',
+  'condolences_guide_forum_body':
+      'Magbahagi ng iyong kuwento at alaala. Makikita ito ng iba pang mga '
+      'gumagamit ng app na ito.',
+  'condolences_guide_react_title': 'Mag-reply at mag-react',
+  'condolences_guide_react_body':
+      'Puwede kang mag-heart react at mabilisang mag-reply sa mga mensahe at '
+      'kuwento ng iba.',
+  'condolences_guide_done': 'Naintindihan ko',
 };

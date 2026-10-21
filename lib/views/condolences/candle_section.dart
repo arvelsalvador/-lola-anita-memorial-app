@@ -19,7 +19,13 @@ import 'package:nita/views/condolences/candle_video.dart';
 class CandleSection extends StatefulWidget {
   final CondolencesController condolencesController;
 
-  const CandleSection({super.key, required this.condolencesController});
+  final GlobalKey? privateMessageKey;
+
+  const CandleSection({
+    super.key,
+    required this.condolencesController,
+    this.privateMessageKey,
+  });
 
   @override
   State<CandleSection> createState() => _CandleSectionState();
@@ -314,8 +320,8 @@ class _CandleSectionState extends State<CandleSection> {
         // No second message box after lighting: thanks only.
         if (!lit) ...[
           const SizedBox(height: 16),
-          _PreLightMessageField(
-            controller: _messageController,
+          KeyedSubtree(key: widget.privateMessageKey, child: _PreLightMessageField(
+            controller: _messageController, ),
           ),
           const SizedBox(height: 8),
           Row(

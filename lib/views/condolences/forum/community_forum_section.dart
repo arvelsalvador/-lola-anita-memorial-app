@@ -16,7 +16,15 @@ import 'package:nita/views/condolences/forum/forum_post_card.dart';
 class CommunityForumSection extends StatefulWidget {
   final ForumController forumController;
 
-  const CommunityForumSection({super.key, required this.forumController});
+  final GlobalKey? forumHeaderKey;
+  final GlobalKey? firstPostActionsKey;
+
+  const CommunityForumSection({
+    super.key,
+    required this.forumController,
+    this.forumHeaderKey,
+    this.firstPostActionsKey,
+  });
 
   @override
   State<CommunityForumSection> createState() => _CommunityForumSectionState();
@@ -99,7 +107,7 @@ class _CommunityForumSectionState extends State<CommunityForumSection> {
 
   /// Returns the memoized card for [post], rebuilding it only when the
   /// post instance or a controller-derived flag changed.
-  Widget _cardFor(ForumController controller, ForumPost post) {
+  Widget _cardFor(ForumController controller, ForumPost post, {bool isFirst = false}) {
     final reported = controller.isReported(post.id);
     final own = controller.isOwnPost(post.id);
     final canEdit = controller.canEditPost(post.id);
@@ -113,19 +121,22 @@ class _CommunityForumSectionState extends State<CommunityForumSection> {
         ..write(controller.isOwnReply(r.id) ? '1' : '0')
         ..write(controller.canEditReply(post.id, r.id) ? '1' : '0');
     }
+    final actionsKey = isFirst ? widget.firstPostActionsKey : null;
     final cached = _cardCache[post.id];
     if (cached != null &&
         identical(cached.post, post) &&
         cached.reported == reported &&
         cached.own == own &&
         cached.canEdit == canEdit &&
-        cached.replySig == replySig.toString()) {
+        cached.replySig == replySig.toString() &&
+        cached.actionsKey == actionsKey) {
       return _wrapIfNew(cached.widget, post.id);
     }
     final card = RepaintBoundary(
       child: ForumPostCard(
         key: ValueKey(post.id),
         post: post,
+        actionsKey: actionsKey,
         onViewLikers: controller.likerNames,
         onReactionTap: (reactionType) =>
             controller.toggleReaction(post.id, reactionType),
@@ -178,6 +189,7 @@ class _CommunityForumSectionState extends State<CommunityForumSection> {
       own: own,
       canEdit: canEdit,
       replySig: replySig.toString(),
+      actionsKey: actionsKey,
     );
     return _wrapIfNew(card, post.id);
   }
@@ -207,6 +219,7 @@ class _CommunityForumSectionState extends State<CommunityForumSection> {
               title: lang.t('forum_title'),
               subtitle: lang.t('forum_subtitle'),
               live: controller.realtimeConnected,
+              buttonKey: widget.forumHeaderKey,
               onRetry: () {
                 controller.loadPosts();
                 controller.subscribeRealtime().catchError((_) {});
@@ -215,7 +228,6 @@ class _CommunityForumSectionState extends State<CommunityForumSection> {
                 CreatePostDialog.show(context, controller: controller);
               },
             ),
-
             const SizedBox(height: 16),
 
             // Posts Feed
@@ -300,8 +312,8 @@ class _CommunityForumSectionState extends State<CommunityForumSection> {
               )
             else ...[
               // Paginate: first paint builds max 20 cards, not 100.
-              for (final post in posts.take(_visibleCount))
-                _cardFor(controller, post),
+              for (final (index, post) in posts.take(_visibleCount).indexed)
+                _cardFor(controller, post, isFirst: index == 0),
               if (_visibleCount < posts.length)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
@@ -353,6 +365,7 @@ class _CachedCard {
   final bool own;
   final bool canEdit;
   final String replySig;
+  final Key? actionsKey;
 
   const _CachedCard({
     required this.post,
@@ -361,6 +374,7 @@ class _CachedCard {
     required this.own,
     required this.canEdit,
     required this.replySig,
+    this.actionsKey,
   });
 }
 
@@ -485,6 +499,7 @@ class _ForumHeader extends StatelessWidget {
   final bool live;
   final VoidCallback onRetry;
   final VoidCallback onShareTap;
+  final Key? buttonKey;
 
   const _ForumHeader({
     required this.title,
@@ -492,6 +507,7 @@ class _ForumHeader extends StatelessWidget {
     required this.live,
     required this.onRetry,
     required this.onShareTap,
+    this.buttonKey,
   });
 
   @override
@@ -585,7 +601,9 @@ class _ForumHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 14),
-        SizedBox(
+        KeyedSubtree(
+          key: buttonKey,
+          child: SizedBox(
           height: 52,
           child: OutlinedButton(
             onPressed: () {
@@ -621,6 +639,7 @@ class _ForumHeader extends StatelessWidget {
               ],
             ),
           ),
+        ),
         ),
       ],
     );

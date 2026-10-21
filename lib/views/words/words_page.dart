@@ -1,11 +1,15 @@
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/utils/image_decode.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/core/utils/display_utils.dart';
+import 'package:nita/core/utils/navigation.dart';
 import 'package:nita/controllers/words_controller.dart';
+import 'package:nita/data/guide/guide_repository.dart';
 import 'package:nita/models/words_model.dart';
+import 'package:nita/views/guide/guide_page.dart';
 import 'package:nita/widgets/ornamental_card.dart';
 import 'package:nita/widgets/gradient_avatar.dart';
 import 'package:nita/widgets/page_title_header.dart';
@@ -21,18 +25,185 @@ import 'package:nita/widgets/page_title_header.dart';
 class WordsPage extends StatefulWidget {
   final ScrollController? controller;
 
+  /// Reports the active tab index from the home shell, so the guide knows
+  /// when the Words tab (3) is actually open.
+  final ValueNotifier<int>? activeTab;
+
+  /// Bumped by the shell's top-bar `?` to replay the Words guide.
+  final ValueListenable<int>? guideRequests;
+
   /// Created by the home shell (composition root) and injected here — the
   /// view never constructs or owns the controller.
   final WordsController wordsController;
 
-  const WordsPage({super.key, this.controller, required this.wordsController});
+  const WordsPage({
+    super.key,
+    this.controller,
+    this.activeTab,
+    this.guideRequests,
+    required this.wordsController,
+  });
 
   @override
   State<WordsPage> createState() => _WordsPageState();
 }
 
 class _WordsPageState extends State<WordsPage> {
+  static const int _wordsTab = 3;
+
   QuoteGroup? _filter; // null = Lahat
+
+  /// Marks the filter-pills row, the guide's lit target.
+  final GlobalKey _filterPillsKey = GlobalKey();
+
+  /// Published to the guide so the hole stays glued to the filter pills row.
+  final ValueNotifier<Rect?> _filterPillsRect = ValueNotifier<Rect?>(null);
+
+  /// One-shot guard so the guide is scheduled at most once per page instance.
+  bool _guideCheckStarted = false;
+
+  /// True while the guide route is on screen.
+  bool _guideOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.activeTab?.addListener(_onActiveTabChanged);
+    widget.guideRequests?.addListener(_onGuideRequested);
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _maybeShowWordsGuide(),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant WordsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.activeTab, widget.activeTab)) {
+      oldWidget.activeTab?.removeListener(_onActiveTabChanged);
+      widget.activeTab?.addListener(_onActiveTabChanged);
+    }
+    if (!identical(oldWidget.guideRequests, widget.guideRequests)) {
+      oldWidget.guideRequests?.removeListener(_onGuideRequested);
+      widget.guideRequests?.addListener(_onGuideRequested);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.activeTab?.removeListener(_onActiveTabChanged);
+    widget.guideRequests?.removeListener(_onGuideRequested);
+    _filterPillsRect.dispose();
+    super.dispose();
+  }
+
+  void _onActiveTabChanged() {
+    if (widget.activeTab?.value == _wordsTab) _maybeShowWordsGuide();
+  }
+
+  void _onGuideRequested() => _maybeShowWordsGuide(replay: true);
+
+  void _maybeShowWordsGuide({bool replay = false}) {
+    if (_guideOpen) return;
+    if (!replay && _guideCheckStarted) return;
+    if (widget.activeTab?.value != _wordsTab) return;
+    _guideCheckStarted = true;
+
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _openWordsGuide(replay: replay),
+    );
+    WidgetsBinding.instance.scheduleFrame();
+  }
+
+  Future<void> _openWordsGuide({bool replay = false}) async {
+    if (!mounted || _guideOpen || widget.activeTab?.value != _wordsTab) {
+      return;
+    }
+
+    if (!replay) {
+      final seen = await const GuideRepository.words().hasSeen();
+      if (!mounted || seen || widget.activeTab?.value != _wordsTab) return;
+    }
+
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) {
+      if (!replay) _guideCheckStarted = false;
+      return;
+    }
+
+    // HomeShell resets the new tab's scroll offset and fades in on the frame
+    // after activeTab changes; wait for that frame so the scroll reset has
+    // already landed before measuring the filter pills row.
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted || _guideOpen || widget.activeTab?.value != _wordsTab) {
+      return;
+    }
+
+    final scrollController = widget.controller;
+    if (scrollController != null &&
+        scrollController.hasClients &&
+        scrollController.position.pixels > 0) {
+      scrollController.jumpTo(0);
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted || _guideOpen || widget.activeTab?.value != _wordsTab) {
+        return;
+      }
+    }
+
+    // Retry for a few frames if the pills row isn't laid out or on-screen yet.
+    var rect = _pillsRectOnScreen();
+    for (var i = 0; i < 6 && rect == null; i++) {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted || _guideOpen || widget.activeTab?.value != _wordsTab) {
+        return;
+      }
+      rect = _pillsRectOnScreen();
+    }
+    _filterPillsRect.value = rect;
+
+    _guideOpen = true;
+    Navigator.of(context)
+        .push(
+          fadeRoute(
+            GuidePage(
+              tour: GuideTour.words,
+              wordsFilterPillsRect: _filterPillsRect,
+            ),
+            opaque: false,
+          ),
+        )
+        .then((_) {
+          if (!mounted) return;
+          _guideOpen = false;
+        });
+    _refreshPillsRect(attempts: 6);
+  }
+
+  void _refreshPillsRect({int attempts = 0}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_guideOpen) return;
+      final rect = _pillsRectOnScreen();
+      if (rect != _filterPillsRect.value) _filterPillsRect.value = rect;
+      if (attempts > 0) {
+        _refreshPillsRect(attempts: attempts - 1);
+      }
+    });
+    WidgetsBinding.instance.scheduleFrame();
+  }
+
+  Rect? _pillsRectOnScreen() {
+    final box = _filterPillsKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return null;
+    final topLeft = box.localToGlobal(Offset.zero);
+    final rect = topLeft & box.size;
+    final screen = Offset.zero & MediaQuery.sizeOf(context);
+    if (rect.top < 0 || rect.bottom > screen.height) return null;
+    return Rect.fromLTRB(
+      rect.left - 10,
+      rect.top - 5,
+      rect.right + 10,
+      rect.bottom + 5,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,9 +232,14 @@ class _WordsPageState extends State<WordsPage> {
                 ),
                 const SizedBox(height: 18),
                 // ── Filter chips ───────────────────────────────────────
-                _FilterChips(
-                  active: _filter,
-                  onSelected: (group) => setState(() => _filter = group),
+                Center(
+                  child: KeyedSubtree(
+                    key: _filterPillsKey,
+                    child: _FilterChips(
+                      active: _filter,
+                      onSelected: (group) => setState(() => _filter = group),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 16),
               ],

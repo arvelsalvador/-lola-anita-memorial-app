@@ -37,6 +37,12 @@ class GuideRepository {
   /// tip, so visitors who dismissed the old tour still see the new hint once.
   static const String familySeenKey = 'family_guide_seen_v2';
 
+  /// Storage key for the Words (Mga Salita) tour (the single filter-pills hint).
+  static const String wordsSeenKey = 'words_guide_seen_v1';
+
+  /// Storage key for the Condolences (Pakikiramay) tour.
+  static const String condolencesSeenKey = 'condolences_guide_seen_v1';
+
   /// Which persisted flag this instance reads and writes.
   final String storageKey;
 
@@ -45,6 +51,10 @@ class GuideRepository {
   const GuideRepository.gallery() : storageKey = gallerySeenKey;
 
   const GuideRepository.family() : storageKey = familySeenKey;
+
+  const GuideRepository.words() : storageKey = wordsSeenKey;
+
+  const GuideRepository.condolences() : storageKey = condolencesSeenKey;
 
   /// True when the visitor has already seen (or skipped) this guide.
   Future<bool> hasSeen() async {

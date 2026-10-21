@@ -418,7 +418,7 @@ class _GalleryGridViewState extends State<GalleryGridView> {
       return;
     }
 
-    final rect = _controlRect(_searchBarKey);
+    final rect = _paddedControlRect(_searchBarKey, h: 6, v: 4);
     if (rect == null) {
       // The search bar is the first stop, so it has to be on screen before
       // the tour opens: scroll the grid back to the top, then measure again
@@ -450,7 +450,7 @@ class _GalleryGridViewState extends State<GalleryGridView> {
   /// guide with a hole in the wrong place.
   void _pushGalleryGuideWhenVisible({required bool replay, int attempts = 3}) {
     if (!mounted) return;
-    final rect = _controlRect(_searchBarKey);
+    final rect = _paddedControlRect(_searchBarKey, h: 6, v: 4);
     if (rect != null) {
       _pushGalleryGuide(rect);
       return;
@@ -480,6 +480,17 @@ class _GalleryGridViewState extends State<GalleryGridView> {
     return rect;
   }
 
+  Rect? _paddedControlRect(GlobalKey key, {double h = 6, double v = 4}) {
+    final raw = _controlRect(key);
+    if (raw == null) return null;
+    return Rect.fromLTRB(
+      raw.left - h,
+      raw.top - v,
+      raw.right + h,
+      raw.bottom + v,
+    );
+  }
+
   void _pushGalleryGuide(Rect searchBarRect) {
     if (!mounted) return;
     // Measure now: on phones and desktop the card is already on screen with
@@ -487,22 +498,33 @@ class _GalleryGridViewState extends State<GalleryGridView> {
     // instead of flashing the full-screen fallback while it waits for a
     // scroll.
     _featuredCardRect.value = _featuredRectOnScreen(_featuredCardKey);
-    Navigator.of(context).push(
-      fadeRoute(
-        GuidePage(
-          tour: GuideTour.gallery,
-          searchBarRect: searchBarRect,
-          // Null if the row is below the fold; the second stop then falls
-          // back to a full-screen scrim instead of a misplaced hole.
-          filterPillsRect: _controlRect(_filterPillsKey),
-          onFilterPillsShown: _revealFilterPills,
-          hulingArawRect: _hulingArawRect,
-          onFeaturedCardShown: _revealFeaturedCard,
-          featuredCardRect: _featuredCardRect,
-        ),
-        opaque: false,
-      ),
-    );
+    Navigator.of(context)
+        .push(
+          fadeRoute(
+            GuidePage(
+              tour: GuideTour.gallery,
+              searchBarRect: searchBarRect,
+              // Null if the row is below the fold; the second stop then falls
+              // back to a full-screen scrim instead of a misplaced hole.
+              filterPillsRect: _paddedControlRect(_filterPillsKey, h: 8, v: 4),
+              onFilterPillsShown: _revealFilterPills,
+              hulingArawRect: _hulingArawRect,
+              onFeaturedCardShown: _revealFeaturedCard,
+              featuredCardRect: _featuredCardRect,
+            ),
+            opaque: false,
+          ),
+        )
+        .then((_) => _resetFilterPillsScroll());
+  }
+
+  /// Returns the filter-pill row to its default start alignment so "Huling
+  /// Araw" stays at the end until the visitor scrolls sideways themselves.
+  void _resetFilterPillsScroll() {
+    if (!mounted || !_pillsScrollController.hasClients) return;
+    if (_pillsScrollController.position.pixels != 0) {
+      _pillsScrollController.jumpTo(0);
+    }
   }
 
   /// Vertical room the guide bubble needs under a lit control. A card lower
@@ -513,7 +535,7 @@ class _GalleryGridViewState extends State<GalleryGridView> {
   /// under the control for the guide bubble — the third stop then shows the
   /// full-screen fallback until the card has been scrolled up.
   Rect? _featuredRectOnScreen(GlobalKey key) {
-    final rect = _controlRect(key);
+    final rect = _paddedControlRect(key, h: 6, v: 5);
     if (rect == null) return null;
     final screenHeight = MediaQuery.sizeOf(context).height;
     return rect.bottom + _bubbleRoom <= screenHeight ? rect : null;

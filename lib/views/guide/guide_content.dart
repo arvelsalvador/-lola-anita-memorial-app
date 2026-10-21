@@ -28,6 +28,10 @@ enum GuideSpotlight {
   galleryFilterPills,
   galleryFeaturedCard,
   familyMember,
+  wordsFilterPills,
+  condolencesPrivateMessage,
+  condolencesCommunityForum,
+  condolencesReplyReact,
 }
 
 /// One stop in the first-visit tour.
@@ -130,3 +134,45 @@ const GuideStep familyMemberGuideStep = GuideStep(
 
 /// The Family tour — a single hint, so the visitor can get on with browsing.
 const List<GuideStep> familyGuideSteps = [familyMemberGuideStep];
+
+/// The Words (Mga Salita) tour's only stop: the filter pills row.
+const GuideStep wordsFilterPillsGuideStep = GuideStep(
+  art: GuideArt.pointUp,
+  titleKey: 'words_guide_pills_title',
+  bodyKey: 'words_guide_pills_body',
+  spotlight: GuideSpotlight.wordsFilterPills,
+);
+
+/// The Words tour — a single hint highlighting the category filter pills.
+const List<GuideStep> wordsGuideSteps = [wordsFilterPillsGuideStep];
+
+/// The Pakikiramay private-message stop.
+const GuideStep condolencesPrivateMessageStep = GuideStep(
+  art: GuideArt.heart,
+  titleKey: 'condolences_guide_private_title',
+  bodyKey: 'condolences_guide_private_body',
+  spotlight: GuideSpotlight.condolencesPrivateMessage,
+);
+
+/// The Pakikiramay community-forum stop.
+const GuideStep condolencesCommunityForumStep = GuideStep(
+  art: GuideArt.touchPhone,
+  titleKey: 'condolences_guide_forum_title',
+  bodyKey: 'condolences_guide_forum_body',
+  spotlight: GuideSpotlight.condolencesCommunityForum,
+);
+
+/// The Pakikiramay reply & react stop.
+const GuideStep condolencesReplyReactStep = GuideStep(
+  art: GuideArt.thumbsUp,
+  titleKey: 'condolences_guide_react_title',
+  bodyKey: 'condolences_guide_react_body',
+  spotlight: GuideSpotlight.condolencesReplyReact,
+);
+
+/// The Pakikiramay tour: private message, community stories, then reply & react.
+const List<GuideStep> condolencesGuideSteps = [
+  condolencesPrivateMessageStep,
+  condolencesCommunityForumStep,
+  condolencesReplyReactStep,
+];

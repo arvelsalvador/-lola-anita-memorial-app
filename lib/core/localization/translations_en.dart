@@ -703,10 +703,10 @@ const Map<String, String> translationsEn = {
   'guide_help_tooltip': 'How to use this app',
   'guide_settings_title': 'How to use this app',
   'guide_settings_desc': 'See the short guide again, any time.',
-  'guide_topbar_title': 'Meet the top bar',
+  'guide_topbar_title': 'This is your top bar',
   'guide_topbar_body':
-      'Tap the language button (TL / BC / EN) to switch languages. '
-      'The gear opens Settings.',
+      'Here you can see your name, change the language, get help, and '
+      'open Settings.',
   'guide_abuloy_title': 'Abuloy, always within reach',
   'guide_abuloy_body':
       'Tap the gold button anytime to see the GCash details for sending '
@@ -716,7 +716,7 @@ const Map<String, String> translationsEn = {
       'Tap any tab to jump between Home, Gallery, Family, Words, and '
       'Condolences. It is always here at the bottom.',
   'guide_next': 'Next',
-  'guide_done': 'Start exploring',
+  'guide_done': 'Done',
   'guide_step': 'Step {current} of {total}',
   'guide_skip': 'Skip',
   // ── Gallery guide: the search bar ──────────────────────────────────────
@@ -740,4 +740,24 @@ const Map<String, String> translationsEn = {
       'Tap any member card to see that person\'s personal information — '
       'their story, family, and photos.',
   'family_guide_done': 'Got it',
+  // ── Words guide: filter pills ──────────────────────────────────────────
+  'words_guide_pills_title': 'Filter the messages',
+  'words_guide_pills_body':
+      'Tap a category to filter the words and messages from her children, '
+      'grandchildren, or siblings.',
+  'words_guide_done': 'Got it',
+  // ── Pakikiramay guide: private message, community forum, and reply/react ──
+  'condolences_guide_private_title': 'Message for Nanay',
+  'condolences_guide_private_body':
+      'Send a private message to Nanay. Only the Salvador family can read the '
+      'messages sent here.',
+  'condolences_guide_forum_title': 'Stories and messages',
+  'condolences_guide_forum_body':
+      'Share your memories and stories here. Your message will be public and '
+      'visible to everyone using this app.',
+  'condolences_guide_react_title': 'Reply and react',
+  'condolences_guide_react_body':
+      'You can react with a heart and instantly reply to messages and stories '
+      'shared by others.',
+  'condolences_guide_done': 'Got it',
 };
