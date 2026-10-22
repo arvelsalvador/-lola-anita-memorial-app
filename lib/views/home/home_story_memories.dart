@@ -390,12 +390,10 @@ class MemoryCard extends StatelessWidget {
   }
 }
 
-/// The photo content for a memory's photo slot: the memory's own bundled
-/// asset when one is wired in ([assetPath], from MemoryItem.image), the
-/// soft gradient placeholder when it isn't. Shared by the card thumbnail
-/// and the full-screen preview so the Hero flight lands on exactly the
-/// same picture the thumbnail showed, at whatever size the destination
-/// needs.
+/// The photo content for a memory card's photo slot: the memory's own
+/// bundled asset when one is wired in ([assetPath], from MemoryItem.image),
+/// the soft gradient placeholder when it isn't. The full-screen preview
+/// lays the same asset out with [BoxFit.contain] instead (no crop).
 ///
 /// A missing asset must never take the layout down with it: the default
 /// load-failure widget is an unwrapped error string that overflows this
@@ -407,14 +405,12 @@ class _MemoryPhoto extends StatelessWidget {
   final double width;
   final double height;
   final BorderRadius borderRadius;
-  final double iconSize;
 
   const _MemoryPhoto({
     required this.assetPath,
     required this.width,
     required this.height,
     required this.borderRadius,
-    this.iconSize = 36,
   });
 
   @override
@@ -425,7 +421,6 @@ class _MemoryPhoto extends StatelessWidget {
         width: width,
         height: height,
         borderRadius: borderRadius,
-        iconSize: iconSize,
       );
     }
     return ClipRRect(
@@ -436,17 +431,16 @@ class _MemoryPhoto extends StatelessWidget {
         height: height,
         fit: BoxFit.cover,
         filterQuality: FilterQuality.high,
-        // Height-axis budget (not width): the card/preview slots are
-        // taller than they are wide while the photos are mostly
-        // landscape, so height is the cover-limiting axis. A width-only
-        // budget starves it (~2x upscale blur); decoding both axes
-        // would squash the aspect (exact-fill), so height-only it is.
+        // Height-axis budget (not width): the card slots are taller than
+        // they are wide while the photos are mostly landscape, so height
+        // is the cover-limiting axis. A width-only budget starves it
+        // (~2x upscale blur); decoding both axes would squash the aspect
+        // (exact-fill), so height-only it is.
         cacheHeight: ImageDecode.height(height, context),
         errorBuilder: (context, error, stackTrace) => _PhotoPlaceholder(
           width: width,
           height: height,
           borderRadius: borderRadius,
-          iconSize: iconSize,
         ),
       ),
     );
@@ -527,6 +521,11 @@ void _openMemoryPhotoPreview(
 /// MemoryCard, so the photo grows smoothly from its card position into
 /// the full-screen view instead of just cross-fading in. Tap anywhere,
 /// or the close button, to dismiss.
+///
+/// The photo keeps its own aspect ratio inside the screen: the destination
+/// used to be a square with [BoxFit.cover], which cut portrait photos off
+/// at the top/bottom (and landscape ones at the sides). It now fits the
+/// whole photo inside the available box with [BoxFit.contain].
 class _MemoryPhotoPreview extends StatelessWidget {
   final MemoryItem memory;
   final String heroTag;
@@ -534,7 +533,12 @@ class _MemoryPhotoPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final side = MediaQuery.sizeOf(context).width * 0.86;
+    final screen = MediaQuery.sizeOf(context);
+    // Leave room for the close button and breathing space around the photo.
+    final maxWidth = screen.width * 0.92;
+    final maxHeight = screen.height * 0.78;
+    final path = memory.image;
+
     return GestureDetector(
       onTap: () => Navigator.of(context).pop(),
       child: Scaffold(
@@ -543,14 +547,44 @@ class _MemoryPhotoPreview extends StatelessWidget {
           child: Stack(
             children: [
               Center(
-                child: Hero(
-                  tag: heroTag,
-                  child: _MemoryPhoto(
-                    assetPath: memory.image,
-                    width: side,
-                    height: side,
-                    borderRadius: BorderRadius.circular(12),
-                    iconSize: 64,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: maxWidth,
+                    maxHeight: maxHeight,
+                  ),
+                  child: Hero(
+                    tag: heroTag,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: path == null
+                          ? _PhotoPlaceholder(
+                              width: maxWidth,
+                              height: maxWidth,
+                              borderRadius: BorderRadius.circular(12),
+                              iconSize: 64,
+                            )
+                          : Image.asset(
+                              path,
+                              fit: BoxFit.contain,
+                              filterQuality: FilterQuality.high,
+                              // Width-axis budget: the image is laid out at
+                              // its aspect-correct size inside the box above,
+                              // so a width decode covers both orientations
+                              // without squashing the aspect (the old
+                              // square trick did that).
+                              cacheWidth: ImageDecode.width(
+                                maxWidth,
+                                context,
+                              ),
+                              errorBuilder: (context, error, stackTrace) =>
+                                  _PhotoPlaceholder(
+                                    width: maxWidth,
+                                    height: maxWidth,
+                                    borderRadius: BorderRadius.circular(12),
+                                    iconSize: 64,
+                                  ),
+                            ),
+                    ),
                   ),
                 ),
               ),
