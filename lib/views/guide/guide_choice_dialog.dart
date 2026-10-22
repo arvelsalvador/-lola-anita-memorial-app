@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/views/guide/guide_content.dart';
 
 /// Shows the guide-choice popup as a modal dialog with a dark scrim,
-/// cream ornamental card, waving mascot, and stacked Yes/No buttons.
+/// cream ornamental card, waving mascot on the left, left-aligned title & body,
+/// warm brown pill action button with arrow, and a top-right close button.
 ///
-/// Returns true if the user tapped "Yes, show me", false if "No, thanks".
+/// Returns true if the user tapped "Yes, show me", false if "No, thanks" or 'X'.
 Future<bool> showGuideChoiceDialog(BuildContext context) async {
   final result = await showGeneralDialog<bool>(
     context: context,
@@ -40,6 +40,8 @@ class _GuideChoiceDialogWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
+    final media = MediaQuery.sizeOf(context);
+    final isCompact = media.width < 400;
 
     return PopScope(
       canPop: false,
@@ -47,108 +49,225 @@ class _GuideChoiceDialogWidget extends StatelessWidget {
         child: Material(
           color: Colors.transparent,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 320),
+            constraints: const BoxConstraints(maxWidth: 540),
             child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24),
-              padding: const EdgeInsets.all(20),
+              margin: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: AppColors.cream,
-                borderRadius: BorderRadius.circular(20),
+                color: const Color(0xFFFAF6F0),
+                borderRadius: BorderRadius.circular(26),
                 border: Border.all(
-                  color: AppColors.gold.withValues(alpha: 0.45),
-                  width: 1.0,
+                  color: const Color(0xFFEADBCE),
+                  width: 1.2,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.gold.withValues(alpha: 0.22),
-                    blurRadius: 20,
-                    spreadRadius: 1,
-                  ),
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 24,
-                    offset: const Offset(0, 8),
+                    color: Colors.black.withValues(alpha: 0.18),
+                    blurRadius: 32,
+                    offset: const Offset(0, 12),
                   ),
                 ],
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Top waving mascot
-                  Center(
-                    child: Image.asset(
-                      GuideArt.wave.asset,
-                      height: 72,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Title
-                  Text(
-                    lang.t('guide_choice_title'),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textDark,
-                      height: 1.25,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Body
-                  Text(
-                    lang.t('guide_choice_body'),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 14,
-                      color: AppColors.muted,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Stacked full-width buttons
-                  SizedBox(
-                    height: 44,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.warmMid,
-                        foregroundColor: Colors.white,
-                        shape: const StadiumBorder(),
-                        elevation: 1,
-                        textStyle: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(26),
+                child: Stack(
+                  children: [
+                    // Decorative warm organic backdrop circle on the left
+                    Positioned(
+                      left: -20,
+                      top: 15,
+                      bottom: 5,
+                      width: isCompact ? 140 : 180,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF3E7DC).withValues(alpha: 0.85),
+                          borderRadius: const BorderRadius.all(
+                            Radius.elliptical(180, 220),
+                          ),
                         ),
                       ),
-                      child: Text(lang.t('guide_choice_yes')),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(false),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.muted,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                    ),
-                    child: Text(
-                      lang.t('guide_choice_no'),
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 14,
-                        color: AppColors.muted,
-                        fontWeight: FontWeight.w500,
+
+                    // Decorative subtle leaf motif at bottom left
+                    Positioned(
+                      left: 14,
+                      bottom: 14,
+                      child: Opacity(
+                        opacity: 0.45,
+                        child: Icon(
+                          Icons.spa_rounded,
+                          size: isCompact ? 28 : 34,
+                          color: const Color(0xFFC7AFA1),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+
+                    // Main content layout: Mascot on left, content & buttons on right
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        isCompact ? 10 : 18,
+                        isCompact ? 20 : 26,
+                        isCompact ? 16 : 24,
+                        isCompact ? 16 : 22,
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Left Mascot
+                          SizedBox(
+                            width: isCompact ? 115 : 160,
+                            child: Image.asset(
+                              GuideArt.wave.asset,
+                              height: isCompact ? 175 : 215,
+                              fit: BoxFit.contain,
+                              alignment: Alignment.bottomCenter,
+                            ),
+                          ),
+                          SizedBox(width: isCompact ? 10 : 18),
+
+                          // Right Column: Title, Body, Action buttons
+                          Expanded(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Title
+                                Text(
+                                  lang.t('guide_choice_title'),
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: isCompact ? 16 : 19.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFF2E1C14),
+                                    height: 1.2,
+                                    letterSpacing: -0.3,
+                                  ),
+                                ),
+                                SizedBox(height: isCompact ? 6 : 9),
+
+                                // Body
+                                Text(
+                                  lang.t('guide_choice_body'),
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: isCompact ? 12 : 13.5,
+                                    color: const Color(0xFF756257),
+                                    height: 1.4,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                ),
+                                SizedBox(height: isCompact ? 14 : 18),
+
+                                // Primary pill button with arrow
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: isCompact ? 42 : 46,
+                                  child: ElevatedButton(
+                                    onPressed: () =>
+                                        Navigator.of(context).pop(true),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF6B4536),
+                                      foregroundColor: Colors.white,
+                                      shape: const StadiumBorder(),
+                                      elevation: 2,
+                                      shadowColor:
+                                          Colors.black.withValues(alpha: 0.2),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            lang.t('guide_choice_yes'),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontFamily: 'Inter',
+                                              fontSize: isCompact ? 13.5 : 15,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        const Icon(
+                                          Icons.arrow_forward_rounded,
+                                          size: 18,
+                                          color: Colors.white,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+
+                                // Secondary text button
+                                Center(
+                                  child: TextButton(
+                                    onPressed: () =>
+                                        Navigator.of(context).pop(false),
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: const Color(0xFF756257),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 4,
+                                        horizontal: 12,
+                                      ),
+                                      minimumSize: const Size(0, 32),
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    child: Text(
+                                      lang.t('guide_choice_no'),
+                                      style: TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontSize: isCompact ? 12.5 : 13.5,
+                                        fontWeight: FontWeight.w500,
+                                        color: const Color(0xFF756257),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Top-right close button ('X')
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => Navigator.of(context).pop(false),
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEFE4D8),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: const Color(0xFFDCCFC3),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.close_rounded,
+                              size: 16,
+                              color: Color(0xFF5A443B),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -157,4 +276,3 @@ class _GuideChoiceDialogWidget extends StatelessWidget {
     );
   }
 }
-
