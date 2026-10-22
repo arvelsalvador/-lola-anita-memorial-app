@@ -199,14 +199,16 @@ class _MemberDetailSheet extends StatelessWidget {
 
             // ── Large portrait (taps open the full-screen viewer) ───
             // Same gold wreath that frames Nanay's portrait on the home
-            // hero, so a family member reads as part of the same memorial.
+            // hero, and the same 150px photo cap the hero uses — the art's
+            // fine pearls/filigree need that many pixels or they render
+            // visibly soft (the old 96px opening turned them to mush).
             Center(
               child: member.photoPath == null
                   ? _MemberPortrait(
                       member: member,
-                      size: 120,
+                      size: 150,
                       ringWidth: 1.6,
-                      initialsFontSize: 30,
+                      initialsFontSize: 36,
                     )
                   : Semantics(
                       button: true,
@@ -228,7 +230,7 @@ class _MemberDetailSheet extends StatelessWidget {
                             onTap: () =>
                                 showMemberPhotoViewer(context, member),
                             child: FramedMemorialPortrait(
-                              size: 96,
+                              size: 150,
                               photoAsset: member.photoPath!,
                               showGlow: false,
                             ),
