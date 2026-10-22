@@ -758,15 +758,8 @@ const Map<String, String> translationsEn = {
       'I\'ll show you around each page. You can open this guide any time with the ? button at the top.',
   'guide_choice_yes': 'Yes, show me',
   'guide_choice_no': 'No, thanks',
-  'family_guide_tree_title': 'Interactive family tree',
-  'family_guide_tree_body':
-      'Tap here to explore the full interactive family tree.',
-  'words_guide_card_title': 'Cherished memories',
-  'words_guide_card_body':
-      'Read heartfelt messages and memories shared by the family.',
   'settings_replay_guides_title': 'Replay all guides',
-  'settings_replay_guides_desc':
-      'Show interactive guides again on each page.',
+  'settings_replay_guides_desc': 'Show interactive guides again on each page.',
   'settings_replay_guides_snack':
       'Guides will appear again as you visit each page.',
 };

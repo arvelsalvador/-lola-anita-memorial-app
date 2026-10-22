@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:nita/core/localization/language_provider.dart';
+import 'package:nita/core/utils/guide_art_precache.dart';
 import 'package:nita/views/guide/guide_content.dart';
 
 /// Shows the guide-choice popup as a modal dialog with a dark scrim,
@@ -16,10 +17,7 @@ Future<bool> showGuideChoiceDialog(BuildContext context) async {
     barrierLabel: 'Guide choice',
     transitionDuration: const Duration(milliseconds: 250),
     transitionBuilder: (context, anim1, anim2, child) {
-      final curved = CurvedAnimation(
-        parent: anim1,
-        curve: Curves.easeOutBack,
-      );
+      final curved = CurvedAnimation(parent: anim1, curve: Curves.easeOutBack);
       return FadeTransition(
         opacity: anim1,
         child: ScaleTransition(
@@ -55,10 +53,7 @@ class _GuideChoiceDialogWidget extends StatelessWidget {
               decoration: BoxDecoration(
                 color: const Color(0xFFFAF6F0),
                 borderRadius: BorderRadius.circular(26),
-                border: Border.all(
-                  color: const Color(0xFFEADBCE),
-                  width: 1.2,
-                ),
+                border: Border.all(color: const Color(0xFFEADBCE), width: 1.2),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.18),
@@ -79,7 +74,9 @@ class _GuideChoiceDialogWidget extends StatelessWidget {
                       width: isCompact ? 140 : 180,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF3E7DC).withValues(alpha: 0.85),
+                          color: const Color(
+                            0xFFF3E7DC,
+                          ).withValues(alpha: 0.85),
                           borderRadius: const BorderRadius.all(
                             Radius.elliptical(180, 220),
                           ),
@@ -120,6 +117,8 @@ class _GuideChoiceDialogWidget extends StatelessWidget {
                               height: isCompact ? 175 : 215,
                               fit: BoxFit.contain,
                               alignment: Alignment.bottomCenter,
+                              gaplessPlayback: true,
+                              frameBuilder: guideArtFrameBuilder,
                             ),
                           ),
                           SizedBox(width: isCompact ? 10 : 18),
@@ -169,8 +168,9 @@ class _GuideChoiceDialogWidget extends StatelessWidget {
                                       foregroundColor: Colors.white,
                                       shape: const StadiumBorder(),
                                       elevation: 2,
-                                      shadowColor:
-                                          Colors.black.withValues(alpha: 0.2),
+                                      shadowColor: Colors.black.withValues(
+                                        alpha: 0.2,
+                                      ),
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 16,
                                       ),

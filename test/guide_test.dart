@@ -162,6 +162,17 @@ void main() {
       expect(member.art.asset, contains('assets/images/vector/'));
     });
 
+    test('the Words tour is a single filter-pills hint', () {
+      expect(wordsGuideSteps, hasLength(1));
+
+      final pills = wordsGuideSteps.single;
+      expect(pills.spotlight, GuideSpotlight.wordsFilterPills);
+      expect(pills.art, GuideArt.pointUp);
+      expect(pills.titleKey, 'words_guide_pills_title');
+      expect(pills.bodyKey, 'words_guide_pills_body');
+      expect(pills.art.asset, contains('assets/images/vector/'));
+    });
+
     test('the top-bar ? picks the tour for the tab that is open', () {
       expect(GuidePage.tourForTab(0), GuideTour.home);
       expect(GuidePage.tourForTab(1), GuideTour.gallery);

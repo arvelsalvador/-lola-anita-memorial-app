@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:nita/controllers/guide_controller.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
+import 'package:nita/core/utils/guide_art_precache.dart';
 import 'package:nita/core/utils/motion.dart';
 import 'package:nita/data/guide/guide_repository.dart';
 import 'package:nita/data/visitors/visitor_repository.dart';
@@ -341,7 +342,6 @@ class _GuidePageState extends State<GuidePage> {
       // bubble is talking; the lit control stays visible but inert.
       Widget cutout(Rect? rect) => BlockSemantics(
         child: _CutoutStep(
-
           rect: rect,
           outlineKey: outlineKey,
           holeRadius: isSearch ? 16 : (isPills ? 16 : 20),
@@ -382,11 +382,8 @@ class _GuidePageState extends State<GuidePage> {
       // publishes its rect before opening; the hole follows any later move.
       Widget cutout(Rect? rect) => BlockSemantics(
         child: _CutoutStep(
-
-          rect: step.spotlight == GuideSpotlight.familyMember ? rect : null,
-          outlineKey: step.spotlight == GuideSpotlight.familyMember
-              ? GuidePage.familyMemberOutlineKey
-              : const Key('guide-family-tree-outline'),
+          rect: rect,
+          outlineKey: GuidePage.familyMemberOutlineKey,
           holeRadius: 18,
           outlineRadius: 20,
           art: step.art,
@@ -409,11 +406,8 @@ class _GuidePageState extends State<GuidePage> {
     } else if (widget.tour == GuideTour.words) {
       Widget cutout(Rect? rect) => BlockSemantics(
         child: _CutoutStep(
-
-          rect: step.spotlight == GuideSpotlight.wordsFilterPills ? rect : null,
-          outlineKey: step.spotlight == GuideSpotlight.wordsFilterPills
-              ? GuidePage.wordsPillsOutlineKey
-              : const Key('guide-words-card-outline'),
+          rect: rect,
+          outlineKey: GuidePage.wordsPillsOutlineKey,
           holeRadius: 16,
           outlineRadius: 18,
           art: step.art,
@@ -441,17 +435,16 @@ class _GuidePageState extends State<GuidePage> {
       final outlineKey = isPrivate
           ? GuidePage.condolencesPrivateMessageOutlineKey
           : isForum
-              ? GuidePage.condolencesForumHeaderOutlineKey
-              : GuidePage.condolencesActionsOutlineKey;
+          ? GuidePage.condolencesForumHeaderOutlineKey
+          : GuidePage.condolencesActionsOutlineKey;
       final listenable = isPrivate
           ? widget.condolencesPrivateMessageRect
           : isForum
-              ? widget.condolencesForumHeaderRect
-              : widget.condolencesActionsRect;
+          ? widget.condolencesForumHeaderRect
+          : widget.condolencesActionsRect;
 
       Widget cutout(Rect? rect) => BlockSemantics(
         child: _CutoutStep(
-
           rect: rect,
           outlineKey: outlineKey,
           holeRadius: step.spotlight == GuideSpotlight.condolencesReplyReact
@@ -522,9 +515,7 @@ class _GuidePageState extends State<GuidePage> {
             GuideSpotlight.galleryFilterPills ||
             GuideSpotlight.galleryFeaturedCard ||
             GuideSpotlight.familyMember ||
-            GuideSpotlight.familyTreeCanvas ||
             GuideSpotlight.wordsFilterPills ||
-            GuideSpotlight.wordsCard ||
             GuideSpotlight.condolencesPrivateMessage ||
             GuideSpotlight.condolencesCommunityForum ||
             GuideSpotlight.condolencesReplyReact => const SizedBox.shrink(),
@@ -539,7 +530,7 @@ class _GuidePageState extends State<GuidePage> {
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) {
           _guideController?.isGuideOpen = false;
-    _repo.markSeen();
+          _repo.markSeen();
         } else if (_step > 0) {
           _goToStep(_step - 1);
         }
@@ -611,10 +602,7 @@ class _LandscapeLayout extends StatelessWidget {
                   // figure vanishes.
                   child: SizedBox.expand(
                     child: ExcludeSemantics(
-                      child: _AliveVector(
-                        art: art,
-                        fit: BoxFit.contain,
-                      ),
+                      child: _AliveVector(art: art, fit: BoxFit.contain),
                     ),
                   ),
                 ),
@@ -773,9 +761,7 @@ class _AbuloyStep extends StatelessWidget {
           Positioned(
             right: 36,
             top: ringTop + _HighlightedAbuloy.ringSize + 4,
-            child: const _TourBouncingArrow(
-              pointingUp: true,
-            ),
+            child: const _TourBouncingArrow(pointingUp: true),
           ),
       ],
     );
@@ -1143,8 +1129,7 @@ class _CutoutStep extends StatelessWidget {
                             );
                             final dialogue = dialogueBuilder(
                               maxHeight: fitsBubble ? dialogueMax : null,
-                              showArt:
-                                  fitsBubble && dialogueMax >= artHeight,
+                              showArt: fitsBubble && dialogueMax >= artHeight,
                             );
 
                             return Align(
@@ -1559,9 +1544,11 @@ class _Dialogue extends StatelessWidget {
   }
 }
 
-/// An animated wrapper for the vector illustration that gives it an entrance
-/// transition, gentle breathing idle motion, and cross-fades poses across steps.
-class _AliveVector extends StatefulWidget {
+/// An animated wrapper for the vector illustration: the artwork itself paints
+/// as soon as its frame is available (no artificial entrance delay, which used
+/// to make a cached pose appear noticeably after the speech bubble), and pose
+/// changes cross-fade through the [AnimatedSwitcher].
+class _AliveVector extends StatelessWidget {
   final GuideArt art;
   final double? width;
   final double? height;
@@ -1575,56 +1562,14 @@ class _AliveVector extends StatefulWidget {
   });
 
   @override
-  State<_AliveVector> createState() => _AliveVectorState();
-}
-
-class _AliveVectorState extends State<_AliveVector>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _entranceController;
-  late final Animation<double> _fadeAnim;
-  late final Animation<Offset> _slideAnim;
-
-  @override
-  void initState() {
-    super.initState();
-    final noAnim = animationsDisabled();
-
-    _entranceController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 340),
-    );
-    _fadeAnim = CurvedAnimation(
-      parent: _entranceController,
-      curve: Curves.easeOut,
-    );
-    _slideAnim = Tween<Offset>(
-      begin: const Offset(-0.06, 0.04),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _entranceController,
-      curve: Curves.easeOutCubic,
-    ));
-
-    if (noAnim) {
-      _entranceController.value = 1.0;
-    } else {
-      _entranceController.forward();
-    }
-  }
-
-  @override
-  void dispose() {
-    _entranceController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     Widget image = Image.asset(
-      widget.art.asset,
-      fit: widget.fit,
+      art.asset,
+      fit: fit,
       alignment: Alignment.bottomCenter,
       filterQuality: FilterQuality.medium,
+      gaplessPlayback: true,
+      frameBuilder: guideArtFrameBuilder,
       excludeFromSemantics: true,
     );
 
@@ -1632,23 +1577,10 @@ class _AliveVectorState extends State<_AliveVector>
       duration: const Duration(milliseconds: 240),
       switchInCurve: Curves.easeOut,
       switchOutCurve: Curves.easeIn,
-      child: KeyedSubtree(
-        key: ValueKey(widget.art),
-        child: image,
-      ),
+      child: KeyedSubtree(key: ValueKey(art), child: image),
     );
 
-    return SlideTransition(
-      position: _slideAnim,
-      child: FadeTransition(
-        opacity: _fadeAnim,
-        child: SizedBox(
-          width: widget.width,
-          height: widget.height,
-          child: image,
-        ),
-      ),
-    );
+    return SizedBox(width: width, height: height, child: image);
   }
 }
 
@@ -1658,10 +1590,7 @@ class _AnimatedSpeechBubble extends StatefulWidget {
   final Widget child;
   final int activeStep;
 
-  const _AnimatedSpeechBubble({
-    required this.child,
-    required this.activeStep,
-  });
+  const _AnimatedSpeechBubble({required this.child, required this.activeStep});
 
   @override
   State<_AnimatedSpeechBubble> createState() => _AnimatedSpeechBubbleState();
@@ -1694,15 +1623,13 @@ class _AnimatedSpeechBubbleState extends State<_AnimatedSpeechBubble>
         curve: const Interval(0.2, 1.0, curve: Curves.easeOutBack),
       ),
     );
-    _slideAnim = Tween<Offset>(
-      begin: const Offset(0, 0.06),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.2, 1.0, curve: Curves.easeOutCubic),
-      ),
-    );
+    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
+        .animate(
+          CurvedAnimation(
+            parent: _controller,
+            curve: const Interval(0.2, 1.0, curve: Curves.easeOutCubic),
+          ),
+        );
 
     if (noAnim) {
       _controller.value = 1.0;
@@ -1730,10 +1657,7 @@ class _AnimatedSpeechBubbleState extends State<_AnimatedSpeechBubble>
         ).animate(animation);
         return FadeTransition(
           opacity: animation,
-          child: SlideTransition(
-            position: slide,
-            child: child,
-          ),
+          child: SlideTransition(position: slide, child: child),
         );
       },
       child: KeyedSubtree(
@@ -1742,10 +1666,7 @@ class _AnimatedSpeechBubbleState extends State<_AnimatedSpeechBubble>
           opacity: _fadeAnim,
           child: SlideTransition(
             position: _slideAnim,
-            child: ScaleTransition(
-              scale: _scaleAnim,
-              child: widget.child,
-            ),
+            child: ScaleTransition(scale: _scaleAnim, child: widget.child),
           ),
         ),
       ),

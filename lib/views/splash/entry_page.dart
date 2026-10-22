@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:nita/controllers/guide_controller.dart';
 import 'package:nita/core/constants/app_constants.dart';
+import 'package:nita/core/utils/guide_art_precache.dart';
 import 'package:nita/views/guide/guide_choice_dialog.dart';
 import 'package:nita/views/home/home_page.dart';
 import 'package:nita/views/splash/visitor_gate_form.dart';
@@ -19,6 +20,18 @@ class EntryPage extends StatefulWidget {
 
 class _EntryPageState extends State<EntryPage> {
   bool _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // The splash already warms these, but keep the dialog safe when this page
+    // is opened on its own (deep test harness, future routes). Cache hits make
+    // the repeat call effectively free.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      precacheGuideArt(context);
+    });
+  }
 
   Future<void> _handleEntered() async {
     if (_submitting || !mounted) return;
@@ -38,10 +51,7 @@ class _EntryPageState extends State<EntryPage> {
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 400),
         pageBuilder: (context, animation, secondaryAnimation) =>
-            FadeTransition(
-          opacity: animation,
-          child: const HomePage(),
-        ),
+            FadeTransition(opacity: animation, child: const HomePage()),
       ),
     );
   }
@@ -72,9 +82,7 @@ class _EntryPageState extends State<EntryPage> {
                     padding: const EdgeInsets.all(24),
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 420),
-                      child: VisitorGateForm(
-                        onEntered: _handleEntered,
-                      ),
+                      child: VisitorGateForm(onEntered: _handleEntered),
                     ),
                   ),
                 ),
@@ -86,4 +94,3 @@ class _EntryPageState extends State<EntryPage> {
     );
   }
 }
-

@@ -28,9 +28,7 @@ enum GuideSpotlight {
   galleryFilterPills,
   galleryFeaturedCard,
   familyMember,
-  familyTreeCanvas,
   wordsFilterPills,
-  wordsCard,
   condolencesPrivateMessage,
   condolencesCommunityForum,
   condolencesReplyReact,
@@ -134,18 +132,7 @@ const GuideStep familyMemberGuideStep = GuideStep(
   spotlight: GuideSpotlight.familyMember,
 );
 
-/// The Family tour — a single hint, so the visitor can get on with browsing.
-const GuideStep familyTreeGuideStep = GuideStep(
-  art: GuideArt.touchPhone,
-  titleKey: 'family_guide_tree_title',
-  bodyKey: 'family_guide_tree_body',
-  spotlight: GuideSpotlight.familyTreeCanvas,
-);
-
-const List<GuideStep> familyGuideSteps = [
-  familyMemberGuideStep,
-  familyTreeGuideStep,
-];
+const List<GuideStep> familyGuideSteps = [familyMemberGuideStep];
 
 /// The Words (Mga Salita) tour's only stop: the filter pills row.
 const GuideStep wordsFilterPillsGuideStep = GuideStep(
@@ -155,18 +142,7 @@ const GuideStep wordsFilterPillsGuideStep = GuideStep(
   spotlight: GuideSpotlight.wordsFilterPills,
 );
 
-/// The Words tour — a single hint highlighting the category filter pills.
-const GuideStep wordsCardGuideStep = GuideStep(
-  art: GuideArt.heart,
-  titleKey: 'words_guide_card_title',
-  bodyKey: 'words_guide_card_body',
-  spotlight: GuideSpotlight.wordsCard,
-);
-
-const List<GuideStep> wordsGuideSteps = [
-  wordsFilterPillsGuideStep,
-  wordsCardGuideStep,
-];
+const List<GuideStep> wordsGuideSteps = [wordsFilterPillsGuideStep];
 
 /// The Pakikiramay private-message stop.
 const GuideStep condolencesPrivateMessageStep = GuideStep(

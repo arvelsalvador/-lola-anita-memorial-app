@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/constants/app_routes.dart';
 import 'package:nita/core/localization/language_provider.dart';
+import 'package:nita/core/utils/guide_art_precache.dart';
 import 'package:nita/core/utils/motion.dart';
 import 'package:nita/controllers/guide_controller.dart';
 import 'package:nita/views/home/home_page.dart';
@@ -61,7 +62,6 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   /// True once the splash clip's first frame is up; drives the legibility
   /// scrim so the painted fallback keeps its own look before then.
   bool _videoReady = false;
-
 
   /// Visitor gate state: required name + address, asked once per device.
   /// Returning visitors (saved locally) skip the form entirely.
@@ -126,6 +126,14 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
       _sequenceCtrl.forward();
     }
     _checkVisitor();
+
+    // Warm the guide artwork while the visitor is still on the splash, so the
+    // choice dialog and the guide can paint the mascot on their first frame
+    // instead of showing an empty slot while the PNG decodes.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      precacheGuideArt(context);
+    });
   }
 
   /// Remember-me: returning devices go straight to home on tap; new
@@ -156,13 +164,11 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     // for a new one — the latter appears via [showGate]).
   }
 
-
   /// Called by [SplashVideoBackdrop] once the clip's first frame is ready.
   void _onVideoReady() {
     if (!mounted || _videoReady) return;
     setState(() => _videoReady = true);
   }
-
 
   /// Splash tap: the visitor's first interaction. Remembered devices enter
   /// straight away; everyone else gets the name/address form. If the local
@@ -179,10 +185,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 400),
         pageBuilder: (context, animation, secondaryAnimation) =>
-            FadeTransition(
-          opacity: animation,
-          child: target,
-        ),
+            FadeTransition(opacity: animation, child: target),
       ),
     );
   }
@@ -515,7 +518,6 @@ class _NightVigilBackgroundPainter extends CustomPainter {
       oldDelegate.progress != progress;
 }
 
-
 /// The "touch to enter" hint, breathing slowly so it reads as an invitation
 /// rather than a caption over the moving clip.
 ///
@@ -579,7 +581,8 @@ class _BreathingTapHintState extends State<_BreathingTapHint>
       animation: _breath,
       builder: (context, child) {
         final t = _breath.value;
-        final alpha = _BreathingTapHint._restAlpha +
+        final alpha =
+            _BreathingTapHint._restAlpha +
             (_BreathingTapHint._peakAlpha - _BreathingTapHint._restAlpha) * t;
         final glow = 0.15 + 0.30 * t;
         return Transform.scale(
