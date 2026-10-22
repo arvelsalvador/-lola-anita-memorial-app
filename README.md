@@ -26,13 +26,17 @@ Free Supabase projects **pause after about 7 days without API activity**. While 
 - GitHub disables scheduled workflows after **60 days with no repository activity**; it sends an email first. Open **Actions** and click **Enable workflow** to resume.
 - If the check fails, the project is paused or a key changed. Restore the project in Supabase, then re-run the workflow.
 
-## Backups
+## Backups (free plan — manual)
 
-Three layers, cheapest first:
+**Free Supabase projects are not backed up automatically** (automatic daily backups are a Pro feature). Do this once a month, and before any risky change:
 
-1. **Supabase daily backups** — Dashboard → Database → Backups. Free plan keeps a short rolling window; restore from there for data loss.
-2. **Data export** — open the admin page → **Export** buttons copy visitors and private candle messages as CSV to the clipboard. Save one occasionally somewhere safe.
-3. **Schema snapshot** — the table/function/policy definitions live only in the dashboard. Run `supabase/schema_snapshot.sql` in the SQL Editor and save the resulting JSON as `supabase/schema_snapshot.json` (no personal data is included). Repeat after any schema change.
+1. **Data:** SQL Editor → run `supabase/data_export.sql` → **Download CSV** → save it privately under a dated name (e.g. `pakikiramay-data-2026-10-22.csv`). It contains names, addresses and messages — **never commit it**.
+2. **Schema:** run `supabase/schema_snapshot.sql` → download the JSON → save it as `supabase/schema_snapshot.json` (safe to commit; it contains no personal data). Repeat after any table/policy/function change.
+3. Keep both files in a private cloud folder or password manager.
+
+To restore into a new project: run the schema first, then re-import the data (ask for help — the export is JSON-per-row and restoring is scripted).
+
+The admin page also has **Export** buttons for visitors and private candle messages; those copy CSV to the clipboard and are handy for a quick copy, but they do not cover the public forum.
 
 ## Getting Started
 
