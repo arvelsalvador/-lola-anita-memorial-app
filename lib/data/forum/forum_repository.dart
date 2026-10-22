@@ -231,9 +231,12 @@ class ForumRepository {
     required String authorName,
     required String message,
   }) async {
-    final cleanName = authorName.trim().isEmpty ? 'Anonymous' : authorName.trim();
+    final rawName = authorName.trim();
+    final cleanName = rawName.isEmpty
+        ? 'Anonymous'
+        : (rawName.length > 50 ? rawName.substring(0, 50) : rawName);
     final cleanMessage = message.trim();
-    if (cleanMessage.isEmpty) return null;
+    if (cleanMessage.isEmpty || cleanMessage.length > 1000) return null;
     // Spam layer 2: blocklist — never store or send blocked content.
     if (SpamGuard.containsBlockedWords(cleanMessage)) return null;
 
@@ -253,23 +256,33 @@ class ForumRepository {
     final client = SupabaseConfig.safeClient();
     if (client != null) {
       try {
+        final deviceId = await ReactionIdentity.deviceId();
         // Auto-public: new rows are readable instantly because the
         // SELECT policy only allows `approved = true`. The flag is owned
         // by the database — `supabase/pakikiramay_security.sql` sets
         // `default true` on the column — so the client never sends it
         // (a client-chosen value would let anyone approve their row).
+        // `device_id` stamps ownership for self-edit/delete and rate
+        // limiting, and `.select('id, created_at')` avoids reading back
+        // `device_id` (which is hidden from public SELECT).
         final res = await client
             .from(messagesTable)
             .insert({
               'name': cleanName,
               'message': cleanMessage,
+              'device_id': deviceId,
             })
-            .select()
+            .select('id, created_at')
             .single()
             .timeout(AppTimeouts.remote);
 
         final realId = res['id']?.toString() ?? tempId;
-        newPost = newPost.copyWith(id: realId);
+        final rawAt = res['created_at'];
+        final realAt = rawAt is String ? DateTime.tryParse(rawAt) : null;
+        newPost = newPost.copyWith(
+          id: realId,
+          createdAt: realAt ?? newPost.createdAt,
+        );
       } catch (e) {
         debugPrint('ForumRepository post insert error: $e');
       }
@@ -307,11 +320,17 @@ class ForumRepository {
     required String message,
     String replyToName = '',
   }) async {
-    final cleanName = authorName.trim().isEmpty ? 'Anonymous' : authorName.trim();
+    final rawName = authorName.trim();
+    final cleanName = rawName.isEmpty
+        ? 'Anonymous'
+        : (rawName.length > 50 ? rawName.substring(0, 50) : rawName);
     final cleanMessage = message.trim();
-    if (cleanMessage.isEmpty) return null;
+    if (cleanMessage.isEmpty || cleanMessage.length > 1000) return null;
     // Spam layer 2: blocklist — never store or send blocked content.
     if (SpamGuard.containsBlockedWords(cleanMessage)) return null;
+    final rawReplyTo = replyToName.trim();
+    final cleanReplyTo =
+        rawReplyTo.length > 50 ? rawReplyTo.substring(0, 50) : rawReplyTo;
 
     final tempId = _tempId('reply');
     ForumReply newReply = ForumReply(
@@ -320,7 +339,7 @@ class ForumRepository {
       authorName: cleanName,
       message: cleanMessage,
       createdAt: DateTime.now(),
-      replyToName: replyToName.trim(),
+      replyToName: cleanReplyTo,
     );
 
     // Remote insert uses DB defaults for id/created_at (uuid mismatch fix).
@@ -330,7 +349,7 @@ class ForumRepository {
     final client = SupabaseConfig.safeClient();
     if (client != null && !isTempParent) {
       try {
-        final cleanReplyTo = replyToName.trim();
+        final deviceId = await ReactionIdentity.deviceId();
         Map<String, dynamic> res;
         try {
           res = await client
@@ -339,6 +358,7 @@ class ForumRepository {
                 'post_id': postId,
                 'author_name': cleanName,
                 'message': cleanMessage,
+                'device_id': deviceId,
                 if (cleanReplyTo.isNotEmpty) 'reply_to_name': cleanReplyTo,
               })
               .select('id, created_at')
@@ -352,6 +372,7 @@ class ForumRepository {
                 'post_id': postId,
                 'author_name': cleanName,
                 'message': cleanMessage,
+                'device_id': deviceId,
               })
               .select('id, created_at')
               .single()

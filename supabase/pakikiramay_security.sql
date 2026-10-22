@@ -9,8 +9,14 @@
 --
 --   After this script:
 --     * Everyone (anon key) can INSERT new rows and READ public content.
+--     * `device_id` is stamped on posts/replies/reactions for ownership and
+--       rate limiting, and is hidden from public SELECT so nobody can harvest
+--       another visitor's device_id to edit or delete their posts.
+--     * Server-side length limits, spam blocklist checks, and per-device
+--       rate limits block API-level spam and oversized payloads.
 --     * Nobody can UPDATE or DELETE any table row directly — those actions
---       go through PIN-verified server functions (security definer RPCs).
+--       go through PIN- or device-id-verified server functions
+--       (security definer RPCs).
 --     * The app's family PIN is now checked INSIDE the database, not just
 --       on the phone.
 --
@@ -19,9 +25,7 @@
 --   2. Replace the family PIN from the app's built-in default by running:
 --        update public.app_admin_secret
 --        set pin_hash = crypt('YOUR_NEW_6_DIGIT_PIN', gen_salt('bf'));
---   3. Deploy the matching app update (this repository). The app first
---      tries the new server functions and falls back to the old paths on
---      an unmigrated project, so order of deployment does not matter.
+--   3. Deploy the matching app update (this repository).
 --
 -- SAFE TO RE-RUN (idempotent): policy drops, `if not exists`, and
 -- `create or replace` throughout.
@@ -49,7 +53,7 @@ alter table public.app_admin_secret enable row level security;
 revoke all on public.app_admin_secret from anon, authenticated;
 
 -- ============================================================================
--- 2. New columns: device ownership for self-edit / self-delete
+-- 2. New columns & length constraints: device ownership + server spam limits
 -- ============================================================================
 -- New posts/replies are stamped with the device id that created them.
 -- Old rows keep '' (no owner) — their authors lose remote edit/delete,
@@ -58,6 +62,12 @@ alter table public.pakikiramay_messages
   add column if not exists device_id text not null default '';
 alter table public.pakikiramay_replies
   add column if not exists device_id text not null default '';
+alter table public.pakikiramay_replies
+  add column if not exists reply_to_name text not null default '';
+alter table public.pakikiramay_reactions
+  add column if not exists device_id text not null default '';
+alter table public.pakikiramay_reactions
+  add column if not exists reactor_name text not null default 'Anonymous';
 
 -- `approved` stops being set by the client. The database owns the default
 -- and any stray NULLs are cleaned up.
@@ -84,6 +94,261 @@ begin
             'alter column target_id type uuid using target_id::uuid';
   end if;
 end $$;
+
+-- Database-level length constraints (`NOT VALID` so existing rows never
+-- block the migration, while every new INSERT/UPDATE is enforced).
+-- `length(device_id) <= 100` here allows admin edits on legacy rows with
+-- `device_id = ''`; the INSERT policies below require a non-empty device_id.
+alter table public.pakikiramay_messages
+  drop constraint if exists pakikiramay_messages_length_check;
+alter table public.pakikiramay_messages
+  add constraint pakikiramay_messages_length_check check (
+    length(btrim(name)) between 1 and 50
+    and length(btrim(message)) between 1 and 1000
+    and length(device_id) <= 100
+  ) not valid;
+
+alter table public.pakikiramay_replies
+  drop constraint if exists pakikiramay_replies_length_check;
+alter table public.pakikiramay_replies
+  add constraint pakikiramay_replies_length_check check (
+    length(btrim(author_name)) between 1 and 50
+    and length(btrim(message)) between 1 and 1000
+    and coalesce(length(btrim(reply_to_name)), 0) <= 50
+    and length(device_id) <= 100
+  ) not valid;
+
+alter table public.pakikiramay_reactions
+  drop constraint if exists pakikiramay_reactions_length_check;
+alter table public.pakikiramay_reactions
+  add constraint pakikiramay_reactions_length_check check (
+    reaction_type = 'heart'
+    and length(btrim(reactor_name)) between 1 and 50
+    and length(device_id) <= 100
+  ) not valid;
+
+alter table public.pakikiramay_reports
+  drop constraint if exists pakikiramay_reports_length_check;
+alter table public.pakikiramay_reports
+  add constraint pakikiramay_reports_length_check check (
+    target_kind in ('post', 'reply')
+    and length(btrim(reason)) between 1 and 50
+    and coalesce(length(details), 0) <= 200
+    and length(btrim(reporter_device_id)) between 1 and 100
+    and length(btrim(reporter_name)) between 1 and 50
+  ) not valid;
+
+alter table public.candle_messages
+  drop constraint if exists candle_messages_length_check;
+alter table public.candle_messages
+  add constraint candle_messages_length_check check (
+    length(btrim(name)) between 1 and 50
+    and length(btrim(message)) between 1 and 500
+  ) not valid;
+
+alter table public.visitors
+  drop constraint if exists visitors_length_check;
+alter table public.visitors
+  add constraint visitors_length_check check (
+    length(btrim(name)) between 1 and 50
+    and length(btrim(address)) between 3 and 200
+    and coalesce(length(btrim(lang)), 0) <= 10
+  ) not valid;
+
+-- Deduplication & rate-limit indexes (one report per target+device, one
+-- reaction per target+type+device, and fast per-device cooldown lookups).
+create unique index if not exists pakikiramay_reports_target_device_uidx
+  on public.pakikiramay_reports (target_id, reporter_device_id)
+  where reporter_device_id <> '';
+
+create unique index if not exists pakikiramay_reactions_target_device_uidx
+  on public.pakikiramay_reactions (target_id, reaction_type, device_id)
+  where device_id <> '';
+
+create index if not exists pakikiramay_messages_device_created_idx
+  on public.pakikiramay_messages (device_id, created_at desc)
+  where device_id <> '';
+
+create index if not exists pakikiramay_replies_device_created_idx
+  on public.pakikiramay_replies (device_id, created_at desc)
+  where device_id <> '';
+
+create index if not exists pakikiramay_reports_device_created_idx
+  on public.pakikiramay_reports (reporter_device_id, created_at desc)
+  where reporter_device_id <> '';
+
+create index if not exists pakikiramay_reactions_device_created_idx
+  on public.pakikiramay_reactions (device_id, created_at desc)
+  where device_id <> '';
+
+-- ============================================================================
+-- 2b. Server-side spam blocklist + per-device rate-limit helpers
+-- ============================================================================
+-- Mirrors SpamGuard in the app so bypassing the UI still enforces the
+-- same word/link blocklist, length caps, and per-device cooldowns.
+-- Defined as SECURITY DEFINER because `device_id` is hidden from public
+-- SELECT (and `pakikiramay_reports`, `candle_messages`, `visitors` have
+-- no public SELECT at all).
+create or replace function public.pakikiramay_is_blocked_text(p_text text)
+returns boolean
+language sql immutable security definer
+set search_path = public, extensions
+as $$
+  select coalesce(p_text, '') ~* '(http://|https://|www\.|\.com|gcash|click here|free load)'
+      or coalesce(p_text, '') ~* '\m(putangina|putang|tangina|tarantado|gago|ulol|bobo|tanga|leche|pakshet|peste|hayop|fuck|shit|bitch|asshole|bastard|casino|crypto|investment|promo|claim)\M';
+$$;
+
+-- 1 post per 60s per device_id + 1..50 char name + 1..1000 char message.
+create or replace function public.pakikiramay_can_insert_message(
+  p_device_id text,
+  p_name text,
+  p_message text
+)
+returns boolean
+language sql stable security definer
+set search_path = public, extensions
+as $$
+  select p_device_id is not null
+     and length(btrim(p_device_id)) between 1 and 100
+     and p_name is not null
+     and length(btrim(p_name)) between 1 and 50
+     and p_message is not null
+     and length(btrim(p_message)) between 1 and 1000
+     and not public.pakikiramay_is_blocked_text(p_name)
+     and not public.pakikiramay_is_blocked_text(p_message)
+     and not exists (
+       select 1 from public.pakikiramay_messages m
+       where m.device_id = p_device_id
+         and m.created_at > now() - interval '60 seconds'
+     );
+$$;
+
+-- 1 reply per 20s per device_id + 1..50 char author + 1..1000 char message.
+create or replace function public.pakikiramay_can_insert_reply(
+  p_device_id text,
+  p_author_name text,
+  p_message text,
+  p_reply_to_name text
+)
+returns boolean
+language sql stable security definer
+set search_path = public, extensions
+as $$
+  select p_device_id is not null
+     and length(btrim(p_device_id)) between 1 and 100
+     and p_author_name is not null
+     and length(btrim(p_author_name)) between 1 and 50
+     and p_message is not null
+     and length(btrim(p_message)) between 1 and 1000
+     and coalesce(length(btrim(p_reply_to_name)), 0) <= 50
+     and not public.pakikiramay_is_blocked_text(p_author_name)
+     and not public.pakikiramay_is_blocked_text(p_message)
+     and not exists (
+       select 1 from public.pakikiramay_replies r
+       where r.device_id = p_device_id
+         and r.created_at > now() - interval '20 seconds'
+     );
+$$;
+
+-- Max 5 reports per 60s per reporter_device_id + length caps.
+-- Duplicate (target_id, reporter_device_id) is caught by the unique index
+-- above so the client still receives SQLSTATE 23505 ("already reported").
+create or replace function public.pakikiramay_can_insert_report(
+  p_target_id uuid,
+  p_target_kind text,
+  p_reason text,
+  p_details text,
+  p_device_id text,
+  p_reporter_name text
+)
+returns boolean
+language sql stable security definer
+set search_path = public, extensions
+as $$
+  select p_target_id is not null
+     and p_target_kind in ('post', 'reply')
+     and p_reason is not null
+     and length(btrim(p_reason)) between 1 and 50
+     and coalesce(length(p_details), 0) <= 200
+     and p_device_id is not null
+     and length(btrim(p_device_id)) between 1 and 100
+     and p_reporter_name is not null
+     and length(btrim(p_reporter_name)) between 1 and 50
+     and (
+       select count(*) from public.pakikiramay_reports r
+       where r.reporter_device_id = p_device_id
+         and r.created_at > now() - interval '60 seconds'
+     ) < 5;
+$$;
+
+-- Max 30 likes per 60s per device_id + length caps.
+create or replace function public.pakikiramay_can_insert_reaction(
+  p_target_id uuid,
+  p_reaction_type text,
+  p_device_id text,
+  p_reactor_name text
+)
+returns boolean
+language sql stable security definer
+set search_path = public, extensions
+as $$
+  select p_target_id is not null
+     and p_reaction_type = 'heart'
+     and p_device_id is not null
+     and length(btrim(p_device_id)) between 1 and 100
+     and p_reactor_name is not null
+     and length(btrim(p_reactor_name)) between 1 and 50
+     and (
+       select count(*) from public.pakikiramay_reactions r
+       where r.device_id = p_device_id
+         and r.created_at > now() - interval '60 seconds'
+     ) < 30;
+$$;
+
+-- 1 candle message per 60s per visitor name + 1..500 char message.
+create or replace function public.pakikiramay_can_insert_candle(
+  p_name text,
+  p_message text
+)
+returns boolean
+language sql stable security definer
+set search_path = public, extensions
+as $$
+  select p_name is not null
+     and length(btrim(p_name)) between 1 and 50
+     and p_message is not null
+     and length(btrim(p_message)) between 1 and 500
+     and not public.pakikiramay_is_blocked_text(p_name)
+     and not public.pakikiramay_is_blocked_text(p_message)
+     and not exists (
+       select 1 from public.candle_messages c
+       where lower(btrim(c.name)) = lower(btrim(p_name))
+         and c.created_at > now() - interval '60 seconds'
+     );
+$$;
+
+-- 1 visitor gate entry per 60s per name + 3..200 char address.
+create or replace function public.pakikiramay_can_insert_visitor(
+  p_name text,
+  p_address text,
+  p_lang text
+)
+returns boolean
+language sql stable security definer
+set search_path = public, extensions
+as $$
+  select p_name is not null
+     and length(btrim(p_name)) between 1 and 50
+     and p_address is not null
+     and length(btrim(p_address)) between 3 and 200
+     and coalesce(length(btrim(p_lang)), 0) <= 10
+     and not public.pakikiramay_is_blocked_text(p_name)
+     and not exists (
+       select 1 from public.visitors v
+       where lower(btrim(v.name)) = lower(btrim(p_name))
+         and v.created_at > now() - interval '60 seconds'
+     );
+$$;
 
 -- ============================================================================
 -- 3. Row Level Security lockdown of every Pakikiramay table
@@ -113,9 +378,17 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------- messages
+-- `device_id` is deliberately omitted from SELECT grants so nobody with
+-- the public anon key can read another visitor's device_id and impersonate
+-- them in pakikiramay_edit_message / pakikiramay_delete_message.
+-- INSERT is restricted to (name, message, device_id) so clients cannot
+-- spoof `id`, `created_at`, or `approved`.
 alter table public.pakikiramay_messages enable row level security;
 revoke all on public.pakikiramay_messages from anon, authenticated;
-grant select, insert on public.pakikiramay_messages to anon;
+grant select (id, name, message, approved, created_at)
+  on public.pakikiramay_messages to anon;
+grant insert (name, message, device_id)
+  on public.pakikiramay_messages to anon;
 
 create policy pakikiramay_messages_select
   on public.pakikiramay_messages for select to anon
@@ -123,15 +396,21 @@ create policy pakikiramay_messages_select
 
 create policy pakikiramay_messages_insert
   on public.pakikiramay_messages for insert to anon
-  with check (true);
+  with check (
+    public.pakikiramay_can_insert_message(device_id, name, message)
+  );
 
 -- UPDATE / DELETE: deliberately NO policy = nobody (not even the family)
 -- may do it directly. Family moderation uses the admin RPCs below.
 
 -- ----------------------------------------------------------------- replies
+-- `device_id` is hidden from public SELECT just like on messages.
 alter table public.pakikiramay_replies enable row level security;
 revoke all on public.pakikiramay_replies from anon, authenticated;
-grant select, insert on public.pakikiramay_replies to anon;
+grant select (id, post_id, author_name, message, reply_to_name, created_at)
+  on public.pakikiramay_replies to anon;
+grant insert (post_id, author_name, message, reply_to_name, device_id)
+  on public.pakikiramay_replies to anon;
 
 create policy pakikiramay_replies_select
   on public.pakikiramay_replies for select to anon
@@ -139,14 +418,25 @@ create policy pakikiramay_replies_select
 
 create policy pakikiramay_replies_insert
   on public.pakikiramay_replies for insert to anon
-  with check (true);
+  with check (
+    public.pakikiramay_can_insert_reply(
+      device_id,
+      author_name,
+      message,
+      reply_to_name
+    )
+  );
 
 -- --------------------------------------------------------------- reactions
--- Readable (public likes + names) and insertable. Unlike goes through
--- pakikiramay_unlike() so a leaked device id can't wipe random rows.
+-- Readable (public likes + names) and insertable, with `device_id` hidden
+-- from public SELECT so a visitor's device_id cannot be harvested from
+-- their likes either. Unlike goes through pakikiramay_unlike().
 alter table public.pakikiramay_reactions enable row level security;
 revoke all on public.pakikiramay_reactions from anon, authenticated;
-grant select, insert on public.pakikiramay_reactions to anon;
+grant select (id, target_id, reaction_type, reactor_name, created_at)
+  on public.pakikiramay_reactions to anon;
+grant insert (target_id, reaction_type, device_id, reactor_name)
+  on public.pakikiramay_reactions to anon;
 
 create policy pakikiramay_reactions_select
   on public.pakikiramay_reactions for select to anon
@@ -154,29 +444,54 @@ create policy pakikiramay_reactions_select
 
 create policy pakikiramay_reactions_insert
   on public.pakikiramay_reactions for insert to anon
-  with check (true);
+  with check (
+    public.pakikiramay_can_insert_reaction(
+      target_id,
+      reaction_type,
+      device_id,
+      reactor_name
+    )
+  );
 
 -- ------------------------------------------------------------------ reports
 -- Insert-only. Counts are read through pakikiramay_report_counts() so the
--- raw report text/details stay private.
+-- raw report text/details and reporter_device_id stay private.
 alter table public.pakikiramay_reports enable row level security;
 revoke all on public.pakikiramay_reports from anon, authenticated;
-grant insert on public.pakikiramay_reports to anon;
+grant insert (
+  target_id,
+  target_kind,
+  reason,
+  details,
+  reporter_device_id,
+  reporter_name
+) on public.pakikiramay_reports to anon;
 
 create policy pakikiramay_reports_insert
   on public.pakikiramay_reports for insert to anon
-  with check (true);
+  with check (
+    public.pakikiramay_can_insert_report(
+      target_id,
+      target_kind,
+      reason,
+      details,
+      reporter_device_id,
+      reporter_name
+    )
+  );
 
 -- ---------------------------------------------------------- candle_messages
 -- PRIVATE congratulations-by-candle: insert only. Family reads/edits via
 -- the candle admin RPCs.
 alter table public.candle_messages enable row level security;
 revoke all on public.candle_messages from anon, authenticated;
-grant insert on public.candle_messages to anon;
+grant insert (name, message) on public.candle_messages to anon;
 
 create policy candle_messages_insert
   on public.candle_messages for insert to anon
-  with check (true);
+  with check (
+    public.pakikiramay_can_insert_candle(name, message)
+  );
 
 -- ---------------------------------------------------------------- visitors
 -- The gate log: insert only, no public SELECT (addresses stay private).
@@ -184,11 +499,13 @@ create policy candle_messages_insert
 -- narrow RPCs below.
 alter table public.visitors enable row level security;
 revoke all on public.visitors from anon, authenticated;
-grant insert on public.visitors to anon;
+grant insert (name, address, lang) on public.visitors to anon;
 
 create policy visitors_insert
   on public.visitors for insert to anon
-  with check (true);
+  with check (
+    public.pakikiramay_can_insert_visitor(name, address, lang)
+  );
 
 -- ============================================================================
 -- 4. PIN verification helper (used by every admin function)
@@ -268,8 +585,7 @@ as $$
   limit coalesce(p_limit, 50)::integer;
 $$;
 
--- Like a post/reply (server dedupes nothing; the unique index stays in the
--- client's interest) is a plain INSERT — allowed by the insert policy.
+-- Like a post/reply is a plain INSERT — checked by pakikiramay_reactions_insert.
 
 create or replace function public.pakikiramay_unlike(
   p_target_id uuid,
@@ -313,7 +629,8 @@ declare v_count int;
 begin
   if p_message is null
      or length(btrim(p_message)) = 0
-     or length(btrim(p_message)) > 1000 then
+     or length(btrim(p_message)) > 1000
+     or public.pakikiramay_is_blocked_text(p_message) then
     return false;
   end if;
   update public.pakikiramay_messages
@@ -342,7 +659,8 @@ declare v_count int;
 begin
   if p_message is null
      or length(btrim(p_message)) = 0
-     or length(btrim(p_message)) > 1000 then
+     or length(btrim(p_message)) > 1000
+     or public.pakikiramay_is_blocked_text(p_message) then
     return false;
   end if;
   update public.pakikiramay_replies
@@ -369,10 +687,17 @@ set search_path = public, extensions
 as $$
 declare v_count int;
 begin
+  if p_id is null or p_device_id is null or length(btrim(p_device_id)) = 0 then
+    return false;
+  end if;
   delete from public.pakikiramay_replies
   where post_id = p_id
-    and device_id = p_device_id
-    and device_id <> '';
+    and exists (
+      select 1 from public.pakikiramay_messages m
+      where m.id = p_id
+        and m.device_id = p_device_id
+        and m.device_id <> ''
+    );
   delete from public.pakikiramay_messages
   where id = p_id
     and device_id = p_device_id
@@ -670,6 +995,7 @@ begin
     return false;
   end if;
   if p_name is null or length(btrim(p_name)) = 0
+     or length(btrim(p_name)) > 50
      or p_address is null
      or length(btrim(p_address)) < 3
      or length(btrim(p_address)) > 200 then

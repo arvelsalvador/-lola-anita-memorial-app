@@ -83,6 +83,10 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
       setState(() => _errorMessageKey = 'forum_require_content');
       return;
     }
+    if (content.length > 1000) {
+      setState(() => _errorMessageKey = 'forum_send_failed');
+      return;
+    }
     // Spam layer 2: blocklist before anything is sent or stored.
     if (SpamGuard.containsBlockedWords(content)) {
       setState(() => _errorMessageKey = 'forum_blocked_message');
@@ -216,6 +220,14 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
                   focusNode: _contentFocus,
                   maxLines: 5,
                   minLines: 3,
+                  maxLength: 1000,
+                  buildCounter: (
+                    _, {
+                    required currentLength,
+                    required isFocused,
+                    maxLength,
+                  }) =>
+                      null,
                   textCapitalization: TextCapitalization.sentences,
                   textInputAction: TextInputAction.newline,
                   style: const TextStyle(
@@ -233,6 +245,7 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
                     ),
                     border: InputBorder.none,
                     isDense: true,
+                    counterText: '',
                     contentPadding: EdgeInsets.zero,
                   ),
                 ),
