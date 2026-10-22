@@ -897,7 +897,9 @@ class _CutoutStep extends StatelessWidget {
   Widget build(BuildContext context) {
     final rect = this.rect;
     final size = MediaQuery.sizeOf(context);
-    final short = size.height < 500;
+    // The portrait art and bubble stack needs roughly 600px of height. Below
+    // that, use the landscape rail so the bubble's actions stay on screen.
+    final short = size.height < 600;
 
     if (rect == null) return _fallback(context);
 
@@ -1043,7 +1045,9 @@ class _CutoutStep extends StatelessWidget {
                           builder: (context, constraints) {
                             final compact =
                                 MediaQuery.sizeOf(context).width < 720;
-                            final artHeight = compact ? 180.0 : 240.0;
+                            final artHeight = compact
+                                ? _Dialogue.compactArtHeight
+                                : _Dialogue.wideArtHeight;
                             // Reserve the arrow row. Capping the bubble lets
                             // its copy scroll while Next/Got it stays above
                             // the fold on short phones.
@@ -1328,6 +1332,13 @@ typedef _DialogueBuilder =
     Widget Function({double? maxHeight, bool showArt, bool showTopConnector});
 
 class _Dialogue extends StatelessWidget {
+  /// The portrait figure's height on phones. Shared with [_CutoutStep] so the
+  /// guide only shows art when there is actually room for it.
+  static const double compactArtHeight = 240;
+
+  /// The portrait figure's height on wider screens.
+  static const double wideArtHeight = 390;
+
   final GuideArt art;
   final String title;
   final String body;
@@ -1367,7 +1378,7 @@ class _Dialogue extends StatelessWidget {
     // A much more prominent vector figure so Nanay is expressive, vivid, and
     // clearly visible. On phones the figure is kept smaller so the speech
     // bubble gets enough width for its actions and copy.
-    final artHeight = compact ? 240.0 : 390.0;
+    final artHeight = compact ? compactArtHeight : wideArtHeight;
 
     final bubble = _AnimatedSpeechBubble(
       activeStep: activeStep,

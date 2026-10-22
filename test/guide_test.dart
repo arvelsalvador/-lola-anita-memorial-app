@@ -635,6 +635,39 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('the Words guide fits a short desktop window', (tester) async {
+      tester.view.physicalSize = const Size(830, 515);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final pills = ValueNotifier<Rect?>(const Rect.fromLTWH(215, 55, 495, 85));
+      addTearDown(pills.dispose);
+      final lang = LanguageProvider()..setLanguage(AppLanguage.tagalog);
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider.value(
+          value: lang,
+          child: MaterialApp(
+            home: GuidePage(tour: GuideTour.words, wordsFilterPillsRect: pills),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final action = tester.getRect(find.byType(FilledButton));
+      expect(
+        action.top,
+        greaterThanOrEqualTo(0),
+        reason: 'the action should start on-screen',
+      );
+      expect(
+        action.bottom,
+        lessThanOrEqualTo(515),
+        reason: 'the action should not be cut off by the viewport',
+      );
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('the pills stop asks the Gallery to reveal Huling Araw', (
       tester,
     ) async {
