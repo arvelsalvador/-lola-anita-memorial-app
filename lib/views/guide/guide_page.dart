@@ -1157,10 +1157,14 @@ class _CutoutScrimPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final screen = Path()..addRect(Offset.zero & size);
-    final cutout = Path()
+    // Even-odd fill instead of Path.combine(difference): on Flutter web
+    // (CanvasKit/Skwasm) the difference op fails when the cutout is fully
+    // contained by the screen rect, turning the scrim into a full-screen
+    // cover (flutter/flutter#124675). Even-odd works on every renderer.
+    final scrim = Path()
+      ..fillType = PathFillType.evenOdd
+      ..addRect(Offset.zero & size)
       ..addRRect(RRect.fromRectAndRadius(hole, Radius.circular(radius)));
-    final scrim = Path.combine(PathOperation.difference, screen, cutout);
     canvas.drawPath(
       scrim,
       Paint()
