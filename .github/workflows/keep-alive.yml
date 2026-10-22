@@ -1,0 +1,70 @@
+# Keeps the free Supabase project from being paused for inactivity.
+#
+# Free Supabase projects pause after about 7 days without API requests.
+# When that happens the memorial still loads, but condolences, candles and
+# the admin page stop working until the project is restored by hand.
+#
+# This calls one read-only function twice a week (Mon + Thu), which is
+# enough to keep the project marked active.
+#
+# Run it manually any time: Actions -> "Keep Supabase awake" -> Run workflow.
+#
+# Note: GitHub disables scheduled workflows after 60 days with no activity
+# in the repository. If that happens GitHub emails you; open the Actions
+# tab and click "Enable workflow". Running it manually also works.
+
+name: Keep Supabase awake
+
+on:
+  schedule:
+    # 03:17 UTC = 11:17 AM in Manila. Twice a week for a safety margin.
+    - cron: '17 3 * * 1,4'
+  workflow_dispatch:
+  push:
+    # Lets this workflow test itself when the file changes, without
+    # running on every push to the app.
+    paths:
+      - '.github/workflows/keep-alive.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call a public read-only function
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "::error::Supabase secrets are missing. See README -> Connect Supabase."
+            exit 1
+          fi
+
+          url="${SUPABASE_URL%/}/rest/v1/rpc/pakikiramay_candle_count"
+          echo "Pinging ${url}"
+
+          response=$(curl --silent --show-error --fail-with-body \
+            --retry 3 --retry-delay 10 --max-time 30 \
+            -X POST "$url" \
+            -H "apikey: $SUPABASE_PUBLISHABLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_PUBLISHABLE_KEY" \
+            -H "Content-Type: application/json" \
+            -H "Content-Profile: public" \
+            -d '{}')
+
+          echo "Response: ${response}"
+
+          # A healthy call returns a bare number. Anything else means the
+          # project is paused, the function is missing, or the key changed.
+          case "$response" in
+            ''|*[!0-9]*)
+              echo "::error::Unexpected response from Supabase (project paused, function missing, or key rejected)."
+              exit 1
+              ;;
+          esac
+
+          echo "Supabase answered with candle count ${response} — the project is awake."
