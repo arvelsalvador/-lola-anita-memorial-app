@@ -597,6 +597,44 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('the Gallery guide keeps Skip and Next apart in Tagalog', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final lang = LanguageProvider()..setLanguage(AppLanguage.tagalog);
+      await tester.pumpWidget(
+        ChangeNotifierProvider.value(
+          value: lang,
+          child: const MaterialApp(
+            home: GuidePage(
+              tour: GuideTour.gallery,
+              searchBarRect: Rect.fromLTWH(16, 120, 328, 46),
+              filterPillsRect: Rect.fromLTWH(16, 186, 328, 48),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // The outline is a live dashed painter, not an invisible placeholder.
+      expect(
+        tester.widget(find.byKey(GuidePage.gallerySearchOutlineKey)),
+        isA<CustomPaint>(),
+      );
+
+      final skip = tester.getRect(find.widgetWithText(TextButton, 'Laktawan'));
+      final next = tester.getRect(find.widgetWithText(FilledButton, 'Susunod'));
+      expect(
+        skip.right + 8,
+        lessThanOrEqualTo(next.left),
+        reason: 'the action buttons need a clear gutter on narrow phones',
+      );
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('the pills stop asks the Gallery to reveal Huling Araw', (
       tester,
     ) async {

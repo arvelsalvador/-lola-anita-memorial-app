@@ -328,6 +328,7 @@ class _GuidePageState extends State<GuidePage> {
           rect: rect,
           outlineKey: outlineKey,
           holeRadius: isSearch ? 16 : (isPills ? 16 : 20),
+          outlineRadius: isSearch ? 20 : (isPills ? 18 : 22),
           art: step.art,
           dialogueBuilder: buildDialogue,
           skipLabel: lang.t('guide_skip'),
@@ -367,6 +368,7 @@ class _GuidePageState extends State<GuidePage> {
           rect: rect,
           outlineKey: GuidePage.familyMemberOutlineKey,
           holeRadius: 18,
+          outlineRadius: 20,
           art: step.art,
           dialogueBuilder: buildDialogue,
           skipLabel: lang.t('guide_skip'),
@@ -390,6 +392,7 @@ class _GuidePageState extends State<GuidePage> {
           rect: rect,
           outlineKey: GuidePage.wordsPillsOutlineKey,
           holeRadius: 16,
+          outlineRadius: 18,
           art: step.art,
           dialogueBuilder: buildDialogue,
           skipLabel: lang.t('guide_skip'),
@@ -427,7 +430,12 @@ class _GuidePageState extends State<GuidePage> {
         child: _CutoutStep(
           rect: rect,
           outlineKey: outlineKey,
-          holeRadius: step.spotlight == GuideSpotlight.condolencesReplyReact ? 8 : 16,
+          holeRadius: step.spotlight == GuideSpotlight.condolencesReplyReact
+              ? 8
+              : 16,
+          outlineRadius: step.spotlight == GuideSpotlight.condolencesReplyReact
+              ? 12
+              : 20,
           art: step.art,
           dialogueBuilder: buildDialogue,
           skipLabel: lang.t('guide_skip'),
@@ -848,6 +856,10 @@ class _CutoutStep extends StatelessWidget {
   /// Corner radius of the hole (matching the real control).
   final double holeRadius;
 
+  /// Corner radius of the dashed ring drawn just outside the hole. It should
+  /// echo the control's rounded corners rather than the hole's exact radius.
+  final double outlineRadius;
+
   /// A second control inside the lit area (the gold Huling Araw pill). Its
   /// rect arrives after the Gallery slides the row into place.
   final ValueListenable<Rect?>? extraHighlight;
@@ -872,6 +884,7 @@ class _CutoutStep extends StatelessWidget {
     required this.stepCount,
     required this.activeStep,
     this.holeRadius = 14,
+    this.outlineRadius = 20,
     this.extraHighlight,
     this.extraHighlightKey,
   });
@@ -929,14 +942,43 @@ class _CutoutStep extends StatelessWidget {
             ),
           ),
         ),
+        // Soft gold glow hugging the hole.
         Positioned.fromRect(
           rect: rect.inflate(6),
           child: IgnorePointer(
-            child: SizedBox.expand(key: outlineKey),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(outlineRadius),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.gold.withValues(alpha: 0.24),
+                    blurRadius: 28,
+                    spreadRadius: 3,
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
-        // Second target marker inside the lit area (the gold Huling Araw
-        // pill). Hidden until the Gallery reports its rect.
+        // Dashed gold outline just outside the control, same language as the
+        // lit top bar and nav.
+        Positioned.fromRect(
+          rect: rect.inflate(6),
+          child: IgnorePointer(
+            child: CustomPaint(
+              key: outlineKey,
+              painter: _DashedRoundedBorderPainter(
+                color: AppColors.gold,
+                radius: outlineRadius,
+                strokeWidth: 2,
+                dash: 6,
+                gap: 4,
+              ),
+            ),
+          ),
+        ),
+        // Second ring for a named control inside the lit area (the gold
+        // Huling Araw pill). Hidden until the Gallery reports its rect.
         if (extraHighlight != null)
           Positioned.fill(
             child: IgnorePointer(
@@ -949,7 +991,31 @@ class _CutoutStep extends StatelessWidget {
                     children: [
                       Positioned.fromRect(
                         rect: ring,
-                        child: SizedBox.expand(key: extraHighlightKey),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.gold.withValues(alpha: 0.30),
+                                blurRadius: 18,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Positioned.fromRect(
+                        rect: ring,
+                        child: CustomPaint(
+                          key: extraHighlightKey,
+                          painter: const _DashedRoundedBorderPainter(
+                            color: AppColors.gold,
+                            radius: 14,
+                            strokeWidth: 2.2,
+                            dash: 5,
+                            gap: 3,
+                          ),
+                        ),
                       ),
                     ],
                   );
@@ -1107,6 +1173,56 @@ class _CutoutScrimPainter extends CustomPainter {
   }
 }
 
+/// Paints a rounded, dashed outline used to ring the control a guide step is
+/// pointing at. The same gold dashed language is used around the "Huling Araw"
+/// pill and the lit navigation.
+class _DashedRoundedBorderPainter extends CustomPainter {
+  final Color color;
+  final double radius;
+  final double strokeWidth;
+  final double dash;
+  final double gap;
+
+  const _DashedRoundedBorderPainter({
+    required this.color,
+    this.radius = 30,
+    this.strokeWidth = 2,
+    this.dash = 7,
+    this.gap = 5,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Rect.fromLTWH(1, 1, size.width - 2, size.height - 2);
+    final path = Path()
+      ..addRRect(RRect.fromRectAndRadius(rect, Radius.circular(radius)));
+
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    for (final metric in path.computeMetrics()) {
+      var distance = 0.0;
+      while (distance < metric.length) {
+        final end = math.min(distance + dash, metric.length);
+        canvas.drawPath(metric.extractPath(distance, end), paint);
+        distance = end + gap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedRoundedBorderPainter oldDelegate) {
+    return oldDelegate.color != color ||
+        oldDelegate.radius != radius ||
+        oldDelegate.strokeWidth != strokeWidth ||
+        oldDelegate.dash != dash ||
+        oldDelegate.gap != gap;
+  }
+}
+
 /// The real brand bar, fully lit. It is a diagram: the language pill is live
 /// so visitors can try switching, while `?` and the gear are inert until the
 /// guide closes.
@@ -1248,8 +1364,10 @@ class _Dialogue extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // A much more prominent vector figure so Nanay is expressive, vivid, and clearly visible.
-    final artHeight = compact ? 290.0 : 390.0;
+    // A much more prominent vector figure so Nanay is expressive, vivid, and
+    // clearly visible. On phones the figure is kept smaller so the speech
+    // bubble gets enough width for its actions and copy.
+    final artHeight = compact ? 240.0 : 390.0;
 
     final bubble = _AnimatedSpeechBubble(
       activeStep: activeStep,
@@ -1261,6 +1379,7 @@ class _Dialogue extends StatelessWidget {
         onBack: onBack,
         skipLabel: skipLabel,
         onSkip: onSkip,
+        compact: compact,
         stepCount: stepCount,
         activeStep: activeStep,
         stepLabel: stepLabel,
@@ -1276,7 +1395,7 @@ class _Dialogue extends StatelessWidget {
       );
     }
 
-    final artWidth = artHeight * 0.44;
+    final artWidth = artHeight * (compact ? 0.42 : 0.44);
 
     return Center(
       child: ConstrainedBox(
@@ -1521,6 +1640,7 @@ class _SpeechBubble extends StatelessWidget {
   final VoidCallback? onBack;
   final String? skipLabel;
   final VoidCallback? onSkip;
+  final bool compact;
   final int? stepCount;
   final int? activeStep;
   final String? stepLabel;
@@ -1533,6 +1653,7 @@ class _SpeechBubble extends StatelessWidget {
     this.onBack,
     this.skipLabel,
     this.onSkip,
+    this.compact = false,
     this.stepCount,
     this.activeStep,
     this.stepLabel,
@@ -1663,51 +1784,60 @@ class _SpeechBubble extends StatelessWidget {
                   ),
                   child: Text(
                     skipLabel ?? 'Skip',
-                    style: const TextStyle(
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
                       fontFamily: 'Inter',
-                      fontSize: 14,
+                      fontSize: compact ? 13 : 14,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF6B5A52),
+                      color: const Color(0xFF6B5A52),
                     ),
                   ),
                 )
               else
                 const SizedBox.shrink(),
-              FilledButton(
-                onPressed: onNext,
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF6B4A3A),
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(0, 40),
-                  padding: const EdgeInsets.symmetric(horizontal: 18),
-                  shape: const StadiumBorder(),
-                  elevation: 2,
-                  shadowColor: Colors.black.withValues(alpha: 0.25),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  textStyle: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.1,
+              // Keep a gutter even when the bubble is at its narrowest, so
+              // Skip and Next can never touch.
+              const SizedBox(width: 12),
+              Flexible(
+                child: FilledButton(
+                  onPressed: onNext,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF6B4A3A),
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(0, 40),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: compact ? 12 : 18,
+                    ),
+                    shape: const StadiumBorder(),
+                    elevation: 2,
+                    shadowColor: Colors.black.withValues(alpha: 0.25),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    textStyle: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: compact ? 13 : 14,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.1,
+                    ),
                   ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        nextLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          nextLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Icon(
-                      Icons.arrow_forward,
-                      size: 18,
-                      color: Colors.white,
-                    ),
-                  ],
+                      SizedBox(width: compact ? 6 : 8),
+                      Icon(
+                        Icons.arrow_forward,
+                        size: compact ? 16 : 18,
+                        color: Colors.white,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
