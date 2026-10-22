@@ -15,11 +15,10 @@ void main() async {
   fvp.registerWith(
     options: {
       'platforms': ['windows', 'linux'],
-      // Windows safety: force FFmpeg software decoding for the candle clip.
-      // The default D3D11 hardware-decoder texture interop crashes the
-      // Flutter desktop engine on some Intel iGPUs (native 0xc0000005 in
-      // fvp.dll at startup, reported as "Lost connection to device").
-      // candle.mp4 is a tiny 200px medallion loop, so SW decode is cheap.
+      // Requires fvp >= 0.39.1 on Windows: 0.38.x crashed the native
+      // engine (access violation, reported as "Lost connection to
+      // device") when the first video texture was created.
+      // Software decoding is kept for the small candle/medallion loop.
       'video.decoders': ['FFmpeg'],
     },
   );

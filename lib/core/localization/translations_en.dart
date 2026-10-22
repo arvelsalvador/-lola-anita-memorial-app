@@ -2,7 +2,7 @@
 /// Keep this file's key set in sync with translations_tl.dart and
 /// translations_bi.dart — run LanguageProvider.debugCheckTranslationKeysMatch()
 /// after any edit to catch drift.
-const String _address = 'Purok 3, Barangay 7, Mercedes, Camarines Norte';
+const String _address = 'Mercedes, Camarines Norte';
 
 const Map<String, String> translationsEn = {
   'app_title': 'In Loving Memory',

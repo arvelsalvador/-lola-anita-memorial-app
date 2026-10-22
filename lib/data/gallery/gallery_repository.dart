@@ -62,10 +62,10 @@ class GalleryRepository {
     return group;
   }
 
-  /// TODO(family): all four `loc_*` keys currently resolve to the same
-  /// address string. Do not treat these as precise photo metadata until
-  /// the family labels which photo/event each location belongs to.
-  /// When that lands, replace this group-based fallback with per-photo data.
+  /// Privacy: every group intentionally resolves to the same generic
+  /// public location ("Mercedes, Camarines Norte") instead of precise
+  /// photo metadata. Keep it generic until the family explicitly labels
+  /// each photo/event.
   static String locationFor(GalleryGroup group) {
     if (group == GalleryGroup.bahay) return 'loc_bahay';
     if (group == GalleryGroup.celebrations) return 'loc_family_residence';
