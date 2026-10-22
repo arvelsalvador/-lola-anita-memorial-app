@@ -33,6 +33,7 @@ import 'package:nita/controllers/family_controller.dart';
 import 'package:nita/data/guide/guide_repository.dart';
 import 'package:nita/models/family_model.dart';
 import 'package:nita/views/guide/guide_page.dart';
+import 'package:nita/widgets/framed_memorial_portrait.dart';
 import 'package:nita/widgets/gradient_avatar.dart';
 import 'package:nita/widgets/ornament_divider.dart';
 import 'package:nita/widgets/ornamental_card.dart';

@@ -198,15 +198,44 @@ class _MemberDetailSheet extends StatelessWidget {
             ),
 
             // ── Large portrait (taps open the full-screen viewer) ───
+            // Same gold wreath that frames Nanay's portrait on the home
+            // hero, so a family member reads as part of the same memorial.
             Center(
-              child: _MemberPortrait(
-                member: member,
-                size: 120,
-                ringWidth: 1.6,
-                initialsFontSize: 30,
-                familyBorder: true,
-                onPhotoTap: () => showMemberPhotoViewer(context, member),
-              ),
+              child: member.photoPath == null
+                  ? _MemberPortrait(
+                      member: member,
+                      size: 120,
+                      ringWidth: 1.6,
+                      initialsFontSize: 30,
+                    )
+                  : Semantics(
+                      button: true,
+                      image: true,
+                      label: _familyText(
+                        lang,
+                        'family_sheet_view_photo',
+                        'View full photo',
+                      ),
+                      child: Tooltip(
+                        message: _familyText(
+                          lang,
+                          'family_sheet_view_photo',
+                          'View full photo',
+                        ),
+                        child: MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          child: GestureDetector(
+                            onTap: () =>
+                                showMemberPhotoViewer(context, member),
+                            child: FramedMemorialPortrait(
+                              size: 96,
+                              photoAsset: member.photoPath!,
+                              showGlow: false,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
             ),
             const SizedBox(height: 14),
 

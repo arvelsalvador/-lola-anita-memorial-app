@@ -248,27 +248,6 @@ class _MemberPortrait extends StatelessWidget {
   final Offset badgeOffset;
   final double initialsFontSize;
 
-  /// Draws the decorative Family_Border artwork over the portrait (used
-  /// by the member detail sheet). The artwork is a centered wreath on a
-  /// transparent 1536x1024 canvas whose drawn band spans ~0.54 of the
-  /// canvas width and ~0.635 of its height, so the overlay box is
-  /// expanded and cover-fitted until the wreath's outer edge encircles
-  /// the photo circle.
-  final bool familyBorder;
-
-  /// Opens the full-screen photo viewer when the portrait is tapped.
-  /// Wired only by the member detail sheet — card thumbnails leave it
-  /// null and stay non-tappable. Ignored for photo-less members, whose
-  /// initials tile never opens the viewer.
-  final VoidCallback? onPhotoTap;
-
-  static const String _familyBorderAsset =
-      'assets/images/editing_images/Family_Border.png';
-  static const double _familyBorderOverflowFactor = 0.22;
-  static const double _familyBorderPhotoScale = 0.75;
-  static const double _familyBorderVerticalShift =
-      -0.45; // fraction of `size`, shifts photo down
-
   const _MemberPortrait({
     required this.member,
     this.size = 88,
@@ -279,25 +258,16 @@ class _MemberPortrait extends StatelessWidget {
     this.badgeBorderWidth = 1.5,
     this.badgeOffset = const Offset(-1, -1),
     this.initialsFontSize = 22,
-    this.familyBorder = false,
-    this.onPhotoTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final lang = context.watch<LanguageProvider>();
     final initials = DisplayUtils.initialsOf(member.name);
 
-    // Family border mode uses a slightly larger photo circle and a tighter
-    // overlay expansion so the portrait sits more naturally in the wreath.
-    final double photoSize = familyBorder
-        ? size * _familyBorderPhotoScale
-        : size;
-
-    final Widget photoCircle = Container(
-      width: photoSize,
-      height: photoSize,
-      padding: EdgeInsets.all(familyBorder ? 1.6 : 3),
+    return Container(
+      width: size,
+      height: size,
+      padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: Colors.white,
@@ -313,82 +283,12 @@ class _MemberPortrait extends StatelessWidget {
                 member.photoPath!,
                 fit: BoxFit.cover,
                 filterQuality: FilterQuality.high,
-                cacheWidth: ImageDecode.width(photoSize, context),
+                cacheWidth: ImageDecode.width(size, context),
                 errorBuilder: (context, error, stackTrace) => _InitialsTile(
                   initials: initials,
                   fontSize: initialsFontSize,
                 ),
               ),
-      ),
-    );
-
-    // Tapping the portrait opens the full-screen viewer (sheet only —
-    // card thumbnails pass no callback). Photo-less members render the
-    // initials tile and stay non-tappable.
-    final bool tappable = onPhotoTap != null && member.photoPath != null;
-    final String viewPhotoLabel = _familyText(
-      lang,
-      'family_sheet_view_photo',
-      'View full photo',
-    );
-    final Widget portraitCircle = tappable
-        ? Semantics(
-            button: true,
-            image: true,
-            label: viewPhotoLabel,
-            child: Tooltip(
-              message: viewPhotoLabel,
-              child: MouseRegion(
-                cursor: SystemMouseCursors.click,
-                child: GestureDetector(onTap: onPhotoTap, child: photoCircle),
-              ),
-            ),
-          )
-        : photoCircle;
-
-    return SizedBox(
-      width: size,
-      height: size,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          if (familyBorder)
-            Align(
-              alignment: const Alignment(0, _familyBorderVerticalShift),
-              child: portraitCircle,
-            )
-          else
-            portraitCircle,
-          if (familyBorder)
-            Positioned(
-              left: -size * _familyBorderOverflowFactor,
-              top: -size * _familyBorderOverflowFactor,
-              right: -size * _familyBorderOverflowFactor,
-              bottom: -size * _familyBorderOverflowFactor,
-              child: IgnorePointer(
-                child: Image.asset(
-                  _familyBorderAsset,
-                  fit: BoxFit.cover,
-                  // DPR-budgeted decode (see ImageDecode): the wreath is
-                  // cover-fitted into a square box expanded to
-                  // ~1.44x the portrait size
-                  // (1 + 2 * _familyBorderOverflowFactor), so decoding
-                  // the bundled 1536x1024 (~6MB) for every sheet open
-                  // is waste — bounding to the box's logical width at
-                  // the device pixel ratio stays sharp on 2x/3x
-                  // screens, capped at 512px for future larger
-                  // call sites.
-                  cacheWidth: ImageDecode.width(
-                    size * (1 + 2 * _familyBorderOverflowFactor),
-                    context,
-                  ).clamp(0, 512).toInt(),
-                  filterQuality: FilterQuality.high,
-                  errorBuilder: (context, error, stackTrace) =>
-                      const SizedBox.shrink(),
-                ),
-              ),
-            ),
-        ],
       ),
     );
   }
