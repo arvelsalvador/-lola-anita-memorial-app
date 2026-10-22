@@ -44,6 +44,11 @@ test.txt
 .opencode/
 opencode.json
 
+# Supabase credentials for local runs (copy env.example.json to env.json).
+# The publishable key is public by design, but keeping it out of git history
+# matches the project's key-free policy.
+env.json
+
 # Symbolication related
 app.*.symbols
 

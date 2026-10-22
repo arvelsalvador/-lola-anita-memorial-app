@@ -35,10 +35,34 @@ jobs:
       # Download your packages (same as running it on your PC)
       - run: flutter pub get
 
+      # Fail loudly when the Supabase secrets are missing. Without this the
+      # build silently falls back to local-only mode and the published site
+      # looks "not connected" even though Supabase itself is healthy.
+      - name: Check Supabase secrets
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "::error::Missing SUPABASE_URL and/or SUPABASE_PUBLISHABLE_KEY."
+            echo "::error::Add them in repo Settings > Secrets and variables > Actions, then re-run this workflow."
+            exit 1
+          fi
+
       # Build the web version.
       # --base-href must match your repo name, so GitHub finds your files.
       # The repo name is filled in automatically below.
-      - run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+      # The Supabase values are baked in at build time (String.fromEnvironment
+      # in lib/core/constants/supabase_config.dart), so they must be passed here.
+      - name: Build web
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          flutter build web --release \
+            --base-href "/${{ github.event.repository.name }}/" \
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY"
 
       # Package the build/web folder so it can be published
       - uses: actions/upload-pages-artifact@v3

@@ -66,6 +66,25 @@ alter table public.pakikiramay_messages
   alter column approved set not null,
   alter column approved set default true;
 
+-- Early databases created `pakikiramay_reports.target_id` as `text` while
+-- every other id column is `uuid`, which makes the aggregate/admin RPCs
+-- fail with 42P13 ("return type mismatch in function declared to return
+-- record"). All real values are UUIDs — the app refuses to upload temp
+-- ids (msg-/reply-) — so normalizing the column is safe.
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'pakikiramay_reports'
+      and column_name = 'target_id'
+      and data_type = 'text'
+  ) then
+    execute 'alter table public.pakikiramay_reports '
+            'alter column target_id type uuid using target_id::uuid';
+  end if;
+end $$;
+
 -- ============================================================================
 -- 3. Row Level Security lockdown of every Pakikiramay table
 -- ============================================================================

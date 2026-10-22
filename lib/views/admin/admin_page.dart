@@ -145,11 +145,28 @@ class _ReportsAdminPageState extends State<_ReportsAdminPage> {
     }
   }
 
-  /// Human-readable load failure: offline vs permission vs unknown.
-  /// Repos return [] on failure, this only runs when Future.wait throws.
+  /// Human-readable load failure: not configured vs paused vs rejected key
+  /// vs offline vs permission. Repos return [] on failure, this only runs
+  /// when Future.wait throws.
   static String _describeLoadError(Object e) {
+    if (!SupabaseConfig.isConfigured) {
+      return 'Supabase is not configured in this build — everything stays '
+          'on this device. Add SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY, '
+          'then rebuild.';
+    }
     final msg = e.toString().toLowerCase();
-    if (!SupabaseConfig.isConfigured) return 'Supabase is not configured.';
+    if (msg.contains('paused')) {
+      return 'Supabase project is paused. Restore it in the Supabase '
+          'dashboard, then retry.';
+    }
+    if (msg.contains('401') ||
+        msg.contains('jwt') ||
+        msg.contains('api key') ||
+        msg.contains('invalid claim') ||
+        msg.contains('unauthorized')) {
+      return 'Supabase rejected the key (it may have expired or been '
+          'revoked). Update SUPABASE_PUBLISHABLE_KEY and redeploy.';
+    }
     if (msg.contains('socket') ||
         msg.contains('network') ||
         msg.contains('timeout') ||
@@ -160,9 +177,7 @@ class _ReportsAdminPageState extends State<_ReportsAdminPage> {
     if (msg.contains('permission') ||
         msg.contains('rls') ||
         msg.contains('policy') ||
-        msg.contains('401') ||
-        msg.contains('403') ||
-        msg.contains('unauthorized')) {
+        msg.contains('403')) {
       return 'No permission. Check Supabase SELECT policies.';
     }
     return 'Load failed: $e';
@@ -1390,6 +1405,9 @@ class _ReportsAdminPageState extends State<_ReportsAdminPage> {
     final filtered = dates.isActive || _query.trim().isNotEmpty;
     final isOffline =
         !SupabaseConfig.isConfigured || _loadErrorDetail.isNotEmpty;
+    final offlineNote = _loadErrorDetail.isNotEmpty
+        ? _loadErrorDetail
+        : 'Supabase is not connected — showing this device only.';
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1397,10 +1415,10 @@ class _ReportsAdminPageState extends State<_ReportsAdminPage> {
           Text(_adminText(textKey)),
           if (isOffline) ...[
             const SizedBox(height: 6),
-            const Text(
-              'Offline or no permission — pull to retry.',
+            Text(
+              offlineNote,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: AppColors.muted),
+              style: const TextStyle(fontSize: 12, color: AppColors.muted),
             ),
           ],
           if (filtered) ...[

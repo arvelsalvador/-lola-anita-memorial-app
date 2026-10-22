@@ -9,6 +9,17 @@
       "request": "launch",
       "type": "dart",
       "deviceId": "windows"
+    },
+    {
+      // Connects to the real Supabase project. Copy env.example.json to
+      // env.json first (env.json is git-ignored and never committed).
+      // Without env.json this config fails fast instead of silently
+      // running in local-only mode.
+      "name": "nita (Windows + Supabase)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "windows",
+      "toolArgs": ["--dart-define-from-file=env.json"]
     }
   ]
 }
