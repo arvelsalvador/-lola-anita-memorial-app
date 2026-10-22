@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:nita/core/constants/app_timeouts.dart';
 import 'package:nita/core/constants/supabase_config.dart';
 import 'package:nita/core/localization/language_provider.dart';
+import 'package:nita/controllers/guide_controller.dart';
 import 'package:nita/app.dart';
 
 void main() async {
@@ -56,5 +57,6 @@ void main() async {
       '--dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_...',
     );
   }
-  runApp(const LolaApp());
+  final guideController = await GuideController.create();
+  runApp(LolaApp(guideController: guideController));
 }

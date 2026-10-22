@@ -71,7 +71,7 @@ class _WordsPageState extends State<WordsPage> {
     widget.activeTab?.addListener(_onActiveTabChanged);
     widget.guideRequests?.addListener(_onGuideRequested);
     WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _maybeShowWordsGuide(),
+      (_) {},
     );
   }
 
@@ -97,7 +97,7 @@ class _WordsPageState extends State<WordsPage> {
   }
 
   void _onActiveTabChanged() {
-    if (widget.activeTab?.value == _wordsTab) _maybeShowWordsGuide();
+    // Managed by GuideController.
   }
 
   void _onGuideRequested() => _maybeShowWordsGuide(replay: true);

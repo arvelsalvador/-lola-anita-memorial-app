@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:nita/controllers/guide_controller.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/utils/image_decode.dart';
 import 'package:nita/core/localization/language_provider.dart';
@@ -18,7 +19,8 @@ class _SettingEntry {
   final Color iconColor;
   final String titleKey;
   final String descKey;
-  final WidgetBuilder page;
+  final WidgetBuilder? page;
+  final void Function(BuildContext context)? onTap;
 
   /// Whether the page needs the app to stay visible underneath. The guide
   /// dims it with a translucent scrim instead of a solid background.
@@ -29,7 +31,8 @@ class _SettingEntry {
     required this.iconColor,
     required this.titleKey,
     required this.descKey,
-    required this.page,
+    this.page,
+    this.onTap,
     this.translucent = false,
   });
 }
@@ -41,6 +44,24 @@ List<_SettingEntry> _entriesFor(
   VoidCallback? onViewFamily,
   ValueChanged<int>? onOpenTab,
 ) => [
+  _SettingEntry(
+    icon: Icons.replay_rounded,
+    iconColor: AppColors.gold,
+    titleKey: 'settings_replay_guides_title',
+    descKey: 'settings_replay_guides_desc',
+    onTap: (context) {
+      context.read<GuideController>().resetAll();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.read<LanguageProvider>().t('settings_replay_guides_snack'),
+          ),
+          duration: const Duration(seconds: 3),
+          backgroundColor: AppColors.warmDark,
+        ),
+      );
+    },
+  ),
   _SettingEntry(
     icon: Icons.menu_book_outlined,
     iconColor: AppColors.roseDeep,
@@ -290,12 +311,18 @@ class _SettingsPageState extends State<SettingsPage> {
                                             vertical: 4,
                                           ),
                                       horizontalTitleGap: 14,
-                                      onTap: () => Navigator.of(context).push(
-                                        fadeRoute(
-                                          entry.page(context),
-                                          opaque: !entry.translucent,
-                                        ),
-                                      ),
+                                      onTap: () {
+                                        if (entry.onTap != null) {
+                                          entry.onTap!(context);
+                                        } else if (entry.page != null) {
+                                          Navigator.of(context).push(
+                                            fadeRoute(
+                                              entry.page!(context),
+                                              opaque: !entry.translucent,
+                                            ),
+                                          );
+                                        }
+                                      },
                                     );
                                   },
                                 ),

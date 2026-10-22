@@ -10,6 +10,7 @@ import 'package:nita/core/utils/image_decode.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/core/utils/navigation.dart';
 import 'package:nita/core/ui/responsive.dart';
+import 'package:nita/controllers/guide_controller.dart';
 import 'package:nita/controllers/gallery_controller.dart';
 import 'package:nita/controllers/home_controller.dart';
 
@@ -32,7 +33,7 @@ import 'package:nita/widgets/ornament_divider.dart';
 import 'package:nita/widgets/ornamental_card.dart';
 import 'package:nita/widgets/section_label.dart';
 import 'package:nita/data/visitors/visitor_repository.dart';
-import 'package:nita/data/guide/guide_repository.dart';
+
 import 'package:nita/views/guide/guide_page.dart';
 
 part 'home_hero_header.dart';
@@ -75,10 +76,6 @@ class _HomePageState extends State<HomePage> {
   bool _gateChecked = false;
   bool _redirectingToSplash = false;
 
-  // First-run guide: checked once, after the gate resolves. The flag keeps
-  // rebuilds from scheduling a second route.
-  final GuideRepository _guideRepo = const GuideRepository();
-  bool _guideCheckStarted = false;
 
   @override
   void initState() {
@@ -93,6 +90,7 @@ class _HomePageState extends State<HomePage> {
   /// the gate itself never blocks (the form always lets them in).
   Future<void> _checkVisitorGate() async {
     bool remembered = false;
+
     try {
       remembered = await _visitorRepo.hasVisitor();
     } catch (_) {
@@ -114,26 +112,13 @@ class _HomePageState extends State<HomePage> {
       return;
     }
     setState(() => _gateChecked = true);
-    _maybeShowGuide();
+    // Guide auto-start is managed by GuideController in HomeShell.
   }
 
   /// Opens the illustrated guide once per device, after the gate has let the
   /// visitor in. Runs in a post-frame callback so it never pushes a route
   /// during build, and checks that Home is still the current route so a fast
   /// `?` tap (or a settings push) can't stack a second guide.
-  void _maybeShowGuide() {
-    if (_guideCheckStarted) return;
-    _guideCheckStarted = true;
-    _guideRepo.hasSeen().then((seen) {
-      if (!mounted || seen) return;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        final route = ModalRoute.of(context);
-        if (route != null && !route.isCurrent) return;
-        Navigator.of(context).push(fadeRoute(const GuidePage(), opaque: false));
-      });
-    });
-  }
 
   void _onTabChanged() {
     if (mounted) setState(() {});
@@ -247,6 +232,13 @@ class _HomeShellState extends State<HomeShell> {
     // Named listener so it can be removed in dispose — an anonymous
     // closure here would leak the ScrollController subscription.
     _controllers[0].addListener(_mirrorStoryOffset);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final guideController = context.read<GuideController>();
+      guideController.onStartGuide = _openTourForTabId;
+      guideController.setCurrentTab('home');
+      guideController.maybeAutoStart('home');
+    });
   }
 
   // Built fresh on every build() instead of cached once in initState, so
@@ -294,29 +286,39 @@ class _HomeShellState extends State<HomeShell> {
   // the visitor is on. The Gallery, Family, and Words tours need their controls
   // measured, so those pages handle it; every other tab opens the homepage
   // tour.
-  void _openGuideForActiveTab() {
-    if (widget.selectedTab == 4) {
-      _condolencesGuideRequest.value++;
-      return;
-    }
-    if (widget.selectedTab == 3) {
-      _wordsGuideRequest.value++;
-      return;
-    }
-    switch (GuidePage.tourForTab(widget.selectedTab)) {
-      case GuideTour.gallery:
+  String _tabIdFor(int index) => switch (index) {
+        0 => 'home',
+        1 => 'gallery',
+        2 => 'family',
+        3 => 'tribute',
+        4 => 'favorites',
+        _ => 'home',
+      };
+
+  void _openTourForTabId(String tabId) {
+    if (!mounted) return;
+    switch (tabId) {
+      case 'gallery':
         _galleryGuideRequest.value++;
-      case GuideTour.family:
+      case 'family':
         _familyGuideRequest.value++;
-      case GuideTour.condolences:
-        _condolencesGuideRequest.value++;
-      case GuideTour.words:
+      case 'tribute':
         _wordsGuideRequest.value++;
-      case GuideTour.home:
+      case 'favorites':
+        _condolencesGuideRequest.value++;
+      case 'home':
+      default:
         Navigator.of(context).push(
-          fadeRoute(const GuidePage(), opaque: false),
+          fadeRoute(const GuidePage(tour: GuideTour.home), opaque: false),
         );
     }
+  }
+
+  void _openGuideForActiveTab() {
+    final guideController = context.read<GuideController>();
+    final tabId = _tabIdFor(widget.selectedTab);
+    guideController.startManually(tabId);
+    return;
   }
 
   @override
@@ -351,6 +353,10 @@ class _HomeShellState extends State<HomeShell> {
         _storyVisitId++;
       }
       _activeTab.value = widget.selectedTab;
+      final tabId = _tabIdFor(widget.selectedTab);
+      final guideController = context.read<GuideController>();
+      guideController.setCurrentTab(tabId);
+      guideController.maybeAutoStart(tabId);
       // Duck the opacity with zero duration (an instant drop, not a fade),
       // then switch to an animated duration for the rise once the new
       // tab's scroll position has been reset — two different durations so
@@ -606,6 +612,7 @@ class _TopBarState extends State<_TopBar> {
 
   Future<void> _loadVisitor() async {
     String first = '';
+
     try {
       // No timeout here: SharedPreferences is local and fast, and a
       // timeout Timer breaks widget tests (fake_async pending-timer

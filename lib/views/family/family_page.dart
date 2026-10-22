@@ -142,7 +142,7 @@ class _FamilyPageState extends State<FamilyPage> {
     // The page mounts with the shell before the Family tab is ever opened, so
     // this only matters if the tab was already active at mount.
     WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _maybeShowFamilyGuide(),
+      (_) {},
     );
   }
 
@@ -179,7 +179,7 @@ class _FamilyPageState extends State<FamilyPage> {
   /// visitor ever opens the tab. The tab notifier is the real "opened Family"
   /// signal.
   void _onActiveTabChanged() {
-    if (widget.activeTab?.value == _familyTab) _maybeShowFamilyGuide();
+    // Managed by GuideController.
   }
 
   /// The top-bar `?` asked for the guide again. Unlike the first-visit path

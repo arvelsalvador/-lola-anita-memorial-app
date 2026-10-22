@@ -752,4 +752,21 @@ const Map<String, String> translationsEn = {
       'You can react with a heart and instantly reply to messages and stories '
       'shared by others.',
   'condolences_guide_done': 'Got it',
+  'splash_tap_continue': 'Tap to continue',
+  'guide_choice_title': 'Would you like me to guide you?',
+  'guide_choice_body':
+      'I\'ll show you around each page. You can open this guide any time with the ? button at the top.',
+  'guide_choice_yes': 'Yes, show me',
+  'guide_choice_no': 'No, thanks',
+  'family_guide_tree_title': 'Interactive family tree',
+  'family_guide_tree_body':
+      'Tap here to explore the full interactive family tree.',
+  'words_guide_card_title': 'Cherished memories',
+  'words_guide_card_body':
+      'Read heartfelt messages and memories shared by the family.',
+  'settings_replay_guides_title': 'Replay all guides',
+  'settings_replay_guides_desc':
+      'Show interactive guides again on each page.',
+  'settings_replay_guides_snack':
+      'Guides will appear again as you visit each page.',
 };

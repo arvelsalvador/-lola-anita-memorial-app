@@ -348,7 +348,7 @@ class _GalleryGridViewState extends State<GalleryGridView> {
     // The grid can mount after the Gallery tab is already active (the image
     // manifest may finish loading late), so try once on the first frame too.
     WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _maybeShowGalleryGuide(),
+      (_) {},
     );
     // One fixed shuffle order per page instance: the "Lahat na Larawan"
     // grid shows the photos in a mixed-up order instead of the sorted
@@ -374,7 +374,7 @@ class _GalleryGridViewState extends State<GalleryGridView> {
   /// before the visitor ever opens the tab. The tab notifier is the real
   /// "opened Gallery" signal.
   void _onActiveTabChanged() {
-    if (widget.activeTab?.value == 1) _maybeShowGalleryGuide();
+    // Managed by GuideController.
   }
 
   /// The top-bar `?` asked for the tour again. Unlike the first-visit path

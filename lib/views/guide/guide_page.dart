@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import 'package:nita/controllers/guide_controller.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/core/utils/motion.dart';
@@ -190,6 +191,20 @@ class _GuidePageState extends State<GuidePage> {
   };
 
   final VisitorRepository _visitorRepo = const VisitorRepository();
+  GuideController? _guideController;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _guideController = context.read<GuideController>();
+    _guideController?.isGuideOpen = true;
+  }
+
+  @override
+  void dispose() {
+    _guideController?.isGuideOpen = false;
+    super.dispose();
+  }
 
   int _step = 0;
 
@@ -256,6 +271,7 @@ class _GuidePageState extends State<GuidePage> {
   /// Persist first, then pop. `markSeen` swallows its own errors, so this
   /// never leaves the visitor stuck on a dead button.
   void _close() {
+    _guideController?.isGuideOpen = false;
     _repo.markSeen();
     if (Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
@@ -325,6 +341,7 @@ class _GuidePageState extends State<GuidePage> {
       // bubble is talking; the lit control stays visible but inert.
       Widget cutout(Rect? rect) => BlockSemantics(
         child: _CutoutStep(
+
           rect: rect,
           outlineKey: outlineKey,
           holeRadius: isSearch ? 16 : (isPills ? 16 : 20),
@@ -365,8 +382,11 @@ class _GuidePageState extends State<GuidePage> {
       // publishes its rect before opening; the hole follows any later move.
       Widget cutout(Rect? rect) => BlockSemantics(
         child: _CutoutStep(
-          rect: rect,
-          outlineKey: GuidePage.familyMemberOutlineKey,
+
+          rect: step.spotlight == GuideSpotlight.familyMember ? rect : null,
+          outlineKey: step.spotlight == GuideSpotlight.familyMember
+              ? GuidePage.familyMemberOutlineKey
+              : const Key('guide-family-tree-outline'),
           holeRadius: 18,
           outlineRadius: 20,
           art: step.art,
@@ -389,8 +409,11 @@ class _GuidePageState extends State<GuidePage> {
     } else if (widget.tour == GuideTour.words) {
       Widget cutout(Rect? rect) => BlockSemantics(
         child: _CutoutStep(
-          rect: rect,
-          outlineKey: GuidePage.wordsPillsOutlineKey,
+
+          rect: step.spotlight == GuideSpotlight.wordsFilterPills ? rect : null,
+          outlineKey: step.spotlight == GuideSpotlight.wordsFilterPills
+              ? GuidePage.wordsPillsOutlineKey
+              : const Key('guide-words-card-outline'),
           holeRadius: 16,
           outlineRadius: 18,
           art: step.art,
@@ -428,6 +451,7 @@ class _GuidePageState extends State<GuidePage> {
 
       Widget cutout(Rect? rect) => BlockSemantics(
         child: _CutoutStep(
+
           rect: rect,
           outlineKey: outlineKey,
           holeRadius: step.spotlight == GuideSpotlight.condolencesReplyReact
@@ -498,7 +522,9 @@ class _GuidePageState extends State<GuidePage> {
             GuideSpotlight.galleryFilterPills ||
             GuideSpotlight.galleryFeaturedCard ||
             GuideSpotlight.familyMember ||
+            GuideSpotlight.familyTreeCanvas ||
             GuideSpotlight.wordsFilterPills ||
+            GuideSpotlight.wordsCard ||
             GuideSpotlight.condolencesPrivateMessage ||
             GuideSpotlight.condolencesCommunityForum ||
             GuideSpotlight.condolencesReplyReact => const SizedBox.shrink(),
@@ -512,7 +538,8 @@ class _GuidePageState extends State<GuidePage> {
       canPop: _step == 0,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) {
-          _repo.markSeen();
+          _guideController?.isGuideOpen = false;
+    _repo.markSeen();
         } else if (_step > 0) {
           _goToStep(_step - 1);
         }
@@ -765,10 +792,45 @@ class _HighlightedAbuloy extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const IgnorePointer(
+    return IgnorePointer(
       child: ExcludeSemantics(
-        child: Center(
-          child: AbuloyTouchVisual(),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Soft gold lift so the coin reads as the spotlight target.
+            Container(
+              width: ringSize,
+              height: ringSize,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.gold.withValues(alpha: 0.35),
+                    blurRadius: 30,
+                    spreadRadius: 4,
+                  ),
+                  BoxShadow(
+                    color: AppColors.glowGold.withValues(alpha: 0.22),
+                    blurRadius: 14,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+            ),
+            const AbuloyTouchVisual(),
+            // Same gold dashed outline as the Gallery spotlight.
+            const Positioned.fill(
+              child: CustomPaint(
+                painter: _DashedRoundedBorderPainter(
+                  color: AppColors.gold,
+                  radius: ringSize / 2,
+                  strokeWidth: 2,
+                  dash: 6,
+                  gap: 4,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1249,14 +1311,58 @@ class _LitTopBar extends StatelessWidget {
         color: AppColors.charcoal,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(6, 8, 6, 2),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: AppBrandBar(
-              greeting: greeting,
-              helpTooltip: helpTooltip,
-              onHelpTap: () {},
-              onSettingsTap: () {},
-            ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: AppBrandBar(
+                  greeting: greeting,
+                  helpTooltip: helpTooltip,
+                  onHelpTap: () {},
+                  onSettingsTap: () {},
+                ),
+              ),
+              // Same soft gold glow + dashed ring used by the Gallery
+              // spotlight, sitting just outside the lit bar.
+              Positioned(
+                left: -4,
+                right: -4,
+                top: -4,
+                bottom: -4,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.gold.withValues(alpha: 0.26),
+                          blurRadius: 20,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const Positioned(
+                left: -4,
+                right: -4,
+                top: -4,
+                bottom: -4,
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    painter: _DashedRoundedBorderPainter(
+                      color: AppColors.gold,
+                      radius: 20,
+                      strokeWidth: 2,
+                      dash: 6,
+                      gap: 4,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1889,7 +1995,8 @@ class _HighlightedNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // The copy sits at the real nav's exact position and size, so the dimmed
-    // real bar underneath lines up and never peeks out.
+    // real bar underneath lines up and never peeks out. The dashed outline and
+    // glow are drawn just outside those bounds, matching the Gallery ring.
     return IgnorePointer(
       child: ExcludeSemantics(
         child: Padding(
@@ -1897,9 +2004,50 @@ class _HighlightedNav extends StatelessWidget {
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 500),
-              // Diagram only: the last button/Skip close the guide, then
-              // the visitor uses the real bar.
-              child: AppBottomNav(selectedIndex: 0, onTap: (_) {}),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Positioned(
+                    left: -6,
+                    top: -6,
+                    right: -6,
+                    bottom: -6,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(30),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.gold.withValues(alpha: 0.32),
+                            blurRadius: 30,
+                            spreadRadius: 3,
+                          ),
+                          BoxShadow(
+                            color: AppColors.glowGold.withValues(alpha: 0.16),
+                            blurRadius: 16,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Diagram only: the last button/Skip close the guide, then
+                  // the visitor uses the real bar.
+                  AppBottomNav(selectedIndex: 0, onTap: (_) {}),
+                  const Positioned(
+                    left: -6,
+                    top: -6,
+                    right: -6,
+                    bottom: -6,
+                    child: CustomPaint(
+                      painter: _DashedRoundedBorderPainter(
+                        color: AppColors.gold,
+                        strokeWidth: 2,
+                        dash: 6,
+                        gap: 4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

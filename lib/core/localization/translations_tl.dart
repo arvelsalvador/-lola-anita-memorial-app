@@ -790,4 +790,21 @@ const Map<String, String> translationsTl = {
       'Puwede kang mag-heart react at mabilisang mag-reply sa mga mensahe at '
       'kuwento ng iba.',
   'condolences_guide_done': 'Naintindihan ko',
+  'splash_tap_continue': 'Pindutin para magpatuloy',
+  'guide_choice_title': 'Gusto mo bang samahan kita?',
+  'guide_choice_body':
+      'Ituturo ko sa iyo ang bawat bahagi. Maaari mo ring buksan ang gabay na ito gamit ang ? button sa itaas.',
+  'guide_choice_yes': 'Oo, ituro mo',
+  'guide_choice_no': 'Hindi na',
+  'family_guide_tree_title': 'Interactive na family tree',
+  'family_guide_tree_body':
+      'Pindutin para makita ang buong interactive na family tree.',
+  'words_guide_card_title': 'Mahahalagang alaala',
+  'words_guide_card_body':
+      'Basahin ang mga taos-pusong mensahe at alaala ng pamilya.',
+  'settings_replay_guides_title': 'I-replay ang lahat ng gabay',
+  'settings_replay_guides_desc':
+      'Ipakita muli ang mga gabay sa bawat pahina.',
+  'settings_replay_guides_snack':
+      'Ipapakita muli ang mga gabay sa pagbisita sa bawat pahina.',
 };

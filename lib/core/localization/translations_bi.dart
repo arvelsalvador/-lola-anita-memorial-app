@@ -789,4 +789,21 @@ const Map<String, String> translationsBi = {
       'Puwede kang mag-heart react asin tulos na mag-reply sa mga mensahe '
       'kan iba.',
   'condolences_guide_done': 'Nasabutan ko',
+  'splash_tap_continue': 'Pinduton tang magpadagos',
+  'guide_choice_title': 'Gusto mo daw na ibahan taka?',
+  'guide_choice_body':
+      'Itutukdo ko saimo an lambang parte. Puwede mo man buksan an giyang ini gamit an ? button sa itaas.',
+  'guide_choice_yes': 'Iyo, itukdo mo',
+  'guide_choice_no': 'Dai na, salamat',
+  'family_guide_tree_title': 'Interactive na family tree',
+  'family_guide_tree_body':
+      'Pinduton para mahiling an bilog na interactive family tree.',
+  'words_guide_card_title': 'Mahahalagang alaala',
+  'words_guide_card_body':
+      'Basahon an mga udok sa pusong mensahe asin alaala kan pamilya.',
+  'settings_replay_guides_title': 'I-replay an gabos na giya',
+  'settings_replay_guides_desc':
+      'Ipahiling giraray an mga giya sa lambang pahina.',
+  'settings_replay_guides_snack':
+      'Ipapahiling giraray an mga giya sa pagbisita sa lambang pahina.',
 };

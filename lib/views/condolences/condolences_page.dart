@@ -76,7 +76,7 @@ class _CondolencesPageState extends State<CondolencesPage> {
     widget.activeTab?.addListener(_onActiveTabChanged);
     widget.guideRequests?.addListener(_onGuideRequested);
     WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _maybeShowCondolencesGuide(),
+      (_) {},
     );
   }
 
@@ -132,7 +132,7 @@ class _CondolencesPageState extends State<CondolencesPage> {
 
   void _onActiveTabChanged() {
     if (widget.activeTab?.value == _condolencesTab) {
-      _maybeShowCondolencesGuide();
+      // Managed by GuideController.
     }
   }
 

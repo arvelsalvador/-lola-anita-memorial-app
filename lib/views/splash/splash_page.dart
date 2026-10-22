@@ -7,9 +7,11 @@ import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/constants/app_routes.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/core/utils/motion.dart';
+import 'package:nita/controllers/guide_controller.dart';
+import 'package:nita/views/home/home_page.dart';
+import 'package:nita/views/splash/entry_page.dart';
 import 'package:nita/controllers/home_controller.dart';
 import 'package:nita/data/visitors/visitor_repository.dart';
-import 'package:nita/views/splash/visitor_gate_form.dart';
 import 'package:nita/widgets/app_brand_bar.dart';
 import 'package:nita/widgets/curved_memorial_header.dart';
 import 'package:nita/widgets/framed_memorial_portrait.dart';
@@ -60,10 +62,6 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   /// scrim so the painted fallback keeps its own look before then.
   bool _videoReady = false;
 
-  /// True once the splash has been tapped. The visitor form only appears
-  /// after that tap — the splash is always the first thing a visitor sees,
-  /// even on a brand-new device.
-  bool _gateRequested = false;
 
   /// Visitor gate state: required name + address, asked once per device.
   /// Returning visitors (saved locally) skip the form entirely.
@@ -72,7 +70,6 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   /// forces new visitors to re-enter every debug run.
   static const _alwaysAskInDebugForTesting = false;
   final VisitorRepository _visitorRepo = const VisitorRepository();
-  bool _checkingVisitor = true;
   bool _hasVisitor = false;
 
   @override
@@ -151,29 +148,14 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     }
     if (!mounted) return;
     setState(() {
-      _checkingVisitor = false;
       _hasVisitor = hasVisitor;
     });
     debugPrint('SplashGate: hasVisitor=$hasVisitor');
     // A tap landed while the check was still running: now that we know
     // which path applies, take it (home for a remembered visitor, form
     // for a new one — the latter appears via [showGate]).
-    if (_gateRequested && hasVisitor) _navigate();
   }
 
-  /// Debug-only: clears the remembered visitor so the gate can be
-  /// re-tested from a clean state. The button is compiled out of
-  /// release builds (see the kDebugMode guard at the call site).
-  Future<void> _resetVisitorForDebug() async {
-    try {
-      await _visitorRepo.clearVisitor();
-    } catch (_) {
-      // Prefs unavailable — nothing stored anyway.
-    }
-    debugPrint('SplashGate: visitor cleared (debug reset)');
-    if (!mounted) return;
-    setState(() => _hasVisitor = false);
-  }
 
   /// Called by [SplashVideoBackdrop] once the clip's first frame is ready.
   void _onVideoReady() {
@@ -181,36 +163,28 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     setState(() => _videoReady = true);
   }
 
-  void _onGateEntered() {
-    if (!mounted || _navigated) return;
-    setState(() => _hasVisitor = true);
-    _navigate();
-  }
 
   /// Splash tap: the visitor's first interaction. Remembered devices enter
   /// straight away; everyone else gets the name/address form. If the local
   /// prefs check is still in flight, the tap is recorded and the check
   /// decides which path to take when it resolves.
   void _onSplashTapped() {
-    if (!mounted || _navigated || _gateRequested) return;
-    setState(() => _gateRequested = true);
-    if (!_checkingVisitor && _hasVisitor) _navigate();
-  }
-
-  void _navigate() {
-    if (_navigated || !mounted) return;
-    // Gate: new visitors cannot proceed until the form is submitted.
-    // _onGateEntered flips _hasVisitor then calls here.
-    if (_checkingVisitor || !_hasVisitor) return;
-
-    final currentRoute = ModalRoute.of(context)?.settings.name;
-    if (currentRoute == AppRoutes.home) {
-      _navigated = true;
-      return;
-    }
-
+    if (!mounted || _navigated) return;
     _navigated = true;
-    Navigator.pushReplacementNamed(context, AppRoutes.home);
+    final guideController = context.read<GuideController>();
+    final hasEntered = guideController.hasEnteredInfo || _hasVisitor;
+    final Widget target = hasEntered ? const HomePage() : const EntryPage();
+
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 400),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            FadeTransition(
+          opacity: animation,
+          child: target,
+        ),
+      ),
+    );
   }
 
   @override
@@ -246,7 +220,6 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     // The form is a second step: it only exists after the splash is tapped
     // (and only once the local remember-me check has resolved). Returning
     // devices go straight to home instead (see _onSplashTapped).
-    final showGate = _gateRequested && !_checkingVisitor && !_hasVisitor;
     const grandmother = HomeController.grandmother;
 
     return Scaffold(
@@ -260,7 +233,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
             child: Semantics(
               label: lang.t('app_title'),
               button: true,
-              hint: showGate ? null : lang.t('splash_tap'),
+              hint: lang.t('splash_tap_continue'),
               child: GestureDetector(
                 onTap: _onSplashTapped,
                 behavior: HitTestBehavior.opaque,
@@ -326,76 +299,13 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
                                 quote: lang.t('splash_quote'),
                                 // While the gate is up, tapping does nothing —
                                 // the form is the only way in.
-                                tapHint: showGate ? '' : lang.t('splash_tap'),
+                                tapHint: lang.t('splash_tap_continue'),
                               ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                    if (showGate)
-                      Positioned.fill(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                AppColors.darkSoot.withValues(alpha: 0.94),
-                                AppColors.darkEmber.withValues(alpha: 0.84),
-                                AppColors.warmDark.withValues(alpha: 0.70),
-                              ],
-                            ),
-                          ),
-                          child: Stack(
-                            children: [
-                              // The gate sits directly on the video ground;
-                              // its own dark gradient above is the only scrim.
-                              SafeArea(
-                                child: Center(
-                                  child: SingleChildScrollView(
-                                    padding: const EdgeInsets.all(24),
-                                    child: ConstrainedBox(
-                                      constraints: const BoxConstraints(
-                                        maxWidth: 420,
-                                      ),
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          _GateCardEntrance(
-                                            child: VisitorGateForm(
-                                              onEntered: _onGateEntered,
-                                            ),
-                                          ),
-                                          // Temporary testing hook: debug builds only,
-                                          // stripped from release via kDebugMode.
-                                          if (kDebugMode) ...[
-                                            const SizedBox(height: 8),
-                                            TextButton(
-                                              onPressed: _resetVisitorForDebug,
-                                              style: TextButton.styleFrom(
-                                                foregroundColor:
-                                                    AppColors.paleGold,
-                                                textStyle: const TextStyle(
-                                                  fontFamily: 'Inter',
-                                                  fontSize: 11,
-                                                ),
-                                              ),
-                                              child: const Text(
-                                                'Reset visitor (debug)',
-                                              ),
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
                   ],
                 ),
               ),
@@ -605,31 +515,6 @@ class _NightVigilBackgroundPainter extends CustomPainter {
       oldDelegate.progress != progress;
 }
 
-/// One-shot entrance for the gate card: fades in while rising 18px.
-/// Keeps the form feeling alive without an endless motion loop.
-class _GateCardEntrance extends StatelessWidget {
-  const _GateCardEntrance({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    if (animationsDisabled()) return child;
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: const Duration(milliseconds: 650),
-      curve: Curves.easeOutCubic,
-      builder: (context, value, child) => Opacity(
-        opacity: value,
-        child: Transform.translate(
-          offset: Offset(0, (1 - value) * 18),
-          child: child,
-        ),
-      ),
-      child: child,
-    );
-  }
-}
 
 /// The "touch to enter" hint, breathing slowly so it reads as an invitation
 /// rather than a caption over the moving clip.
@@ -648,7 +533,7 @@ class _BreathingTapHint extends StatefulWidget {
 
   /// Rest and peak values for the breath. Rest stays well above invisible so
   /// the hint never fully disappears between beats.
-  static const _restAlpha = 0.55;
+  static const _restAlpha = 0.40;
   static const _peakAlpha = 1.0;
 
   @override
@@ -659,7 +544,7 @@ class _BreathingTapHintState extends State<_BreathingTapHint>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1600),
+    duration: const Duration(milliseconds: 1400),
   );
 
   /// Eased 0..1 breath, shared by alpha, glow and scale.

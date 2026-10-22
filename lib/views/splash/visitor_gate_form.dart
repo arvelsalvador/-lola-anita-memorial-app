@@ -100,7 +100,9 @@ class _VisitorGateFormState extends State<VisitorGateForm> {
     final addressErrorKey = VisitorRepository.validateAddress(
       _addressController.text,
     );
-    final isValid = nameErrorKey == null && addressErrorKey == null;
+    final hasText = _nameController.text.trim().isNotEmpty &&
+        _addressController.text.trim().isNotEmpty;
+    final isValid = hasText && nameErrorKey == null && addressErrorKey == null;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
