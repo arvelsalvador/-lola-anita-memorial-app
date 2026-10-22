@@ -328,28 +328,7 @@ class _GalleryLightboxState extends State<GalleryLightbox> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            const Text(
-                              '   •   ',
-                              style: TextStyle(color: Colors.white38),
-                            ),
-                            const Icon(
-                              Icons.calendar_today_rounded,
-                              size: 12,
-                              color: AppColors.goldLight,
-                            ),
-                            const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                lang.t(item.date ?? 'date_1'),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
+
                           ],
                         ),
                       ],

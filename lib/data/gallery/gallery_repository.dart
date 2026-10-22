@@ -63,22 +63,14 @@ class GalleryRepository {
   }
 
   /// TODO(family): all four `loc_*` keys currently resolve to the same
-  /// address string, and `date_1..4` are unlabeled placeholders assigned
-  /// per-group below. Do not treat these as precise photo metadata until
-  /// the family labels which photo/event each date/location belongs to.
+  /// address string. Do not treat these as precise photo metadata until
+  /// the family labels which photo/event each location belongs to.
   /// When that lands, replace this group-based fallback with per-photo data.
   static String locationFor(GalleryGroup group) {
     if (group == GalleryGroup.bahay) return 'loc_bahay';
     if (group == GalleryGroup.celebrations) return 'loc_family_residence';
     if (group == GalleryGroup.family) return 'loc_batangas_province';
     return 'loc_lipa';
-  }
-
-  static String dateFor(GalleryGroup group) {
-    if (group == GalleryGroup.bahay) return 'date_2';
-    if (group == GalleryGroup.celebrations) return 'date_3';
-    if (group == GalleryGroup.family) return 'date_4';
-    return 'date_1';
   }
 
   /// Map raw asset paths to display items.
@@ -89,7 +81,6 @@ class GalleryRepository {
         path: path,
         group: group,
         location: locationFor(group),
-        date: dateFor(group),
       );
     }).toList();
   }

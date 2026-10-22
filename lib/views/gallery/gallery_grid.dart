@@ -682,11 +682,8 @@ class _GalleryGridViewState extends State<GalleryGridView> {
     final lang = context.read<LanguageProvider>();
     return byGroup.where((item) {
       final group = lang.t(item.group.key).toLowerCase();
-      final date = lang.t(item.date ?? 'date_1').toLowerCase();
       final location = lang.t(item.location ?? 'loc_lipa').toLowerCase();
-      return group.contains(query) ||
-          date.contains(query) ||
-          location.contains(query);
+      return group.contains(query) || location.contains(query);
     }).toList();
   }
 
@@ -974,45 +971,6 @@ class _PhotoCard extends StatelessWidget {
                               ),
                             ],
                           ),
-                        ),
-                      ),
-                    if (!locked)
-                      Positioned(
-                        left: 10,
-                        right: 10,
-                        bottom: 10,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.calendar_today_rounded,
-                                  size: 9,
-                                  color: AppColors.goldLight,
-                                ),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    lang.t(item.date ?? 'date_1'),
-                                    style: const TextStyle(
-                                      fontSize: 9,
-                                      color: AppColors.paper,
-                                      fontWeight: FontWeight.w500,
-                                      shadows: [
-                                        Shadow(
-                                          color: AppColors.viewerBackground,
-                                          blurRadius: 4,
-                                        ),
-                                      ],
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
                         ),
                       ),
                   ],

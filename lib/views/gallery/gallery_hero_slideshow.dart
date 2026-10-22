@@ -162,22 +162,6 @@ class _HeroSlideshowCardState extends State<HeroSlideshowCard>
                                 color: AppColors.copper,
                               ),
                             ),
-                            const SizedBox(height: 6),
-                            AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 400),
-                              child: Text(
-                                lang.t(item.date ?? 'date_1'),
-                                key: ValueKey('date_$_heroIndex'),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 19,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.warmDark,
-                                ),
-                              ),
-                            ),
                           ],
                         ),
                       ),

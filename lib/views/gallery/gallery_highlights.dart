@@ -331,8 +331,7 @@ class _HighlightSlideshowState extends State<HighlightSlideshow> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '${lang.t(item.location ?? 'loc_lipa')}  •  '
-                            '${lang.t(item.date ?? 'date_1')}',
+                            lang.t(item.location ?? 'loc_lipa'),
                             style: const TextStyle(
                               color: AppColors.paper,
                               fontSize: 11,

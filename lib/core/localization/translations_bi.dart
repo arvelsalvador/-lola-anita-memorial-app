@@ -642,14 +642,6 @@ const Map<String, String> translationsBi = {
   'loc_bahay': _address,
   'loc_family_residence': _address,
   'loc_batangas_province': _address,
-  'date_1':
-      'Marso 12, 2018', // TODO: label which gallery photo/event this date belongs to
-  'date_2':
-      'Agosto 21, 2011', // TODO: label which gallery photo/event this date belongs to
-  'date_3':
-      'Mayo 14, 2019', // TODO: label which gallery photo/event this date belongs to
-  'date_4':
-      'Disyembre 25, 2020', // TODO: label which gallery photo/event this date belongs to
   // ── Community Forum & Messages ───────────────────────────────────────
   'forum_title': 'Mga Mensahe asin Istorya',
   'forum_subtitle': 'Mga pagromdom hale sa gabos',
