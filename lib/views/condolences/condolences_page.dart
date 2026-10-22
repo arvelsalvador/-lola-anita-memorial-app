@@ -60,6 +60,7 @@ class _CondolencesPageState extends State<CondolencesPage> {
 
   bool _guideCheckStarted = false;
   bool _guideOpen = false;
+  bool _measureScheduled = false;
 
   @override
   void initState() {
@@ -71,6 +72,7 @@ class _CondolencesPageState extends State<CondolencesPage> {
       _forumController = ForumController();
       _ownsController = true;
     }
+    widget.controller?.addListener(_onPageScrolled);
     widget.activeTab?.addListener(_onActiveTabChanged);
     widget.guideRequests?.addListener(_onGuideRequested);
     WidgetsBinding.instance.addPostFrameCallback(
@@ -81,6 +83,10 @@ class _CondolencesPageState extends State<CondolencesPage> {
   @override
   void didUpdateWidget(covariant CondolencesPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.controller, widget.controller)) {
+      oldWidget.controller?.removeListener(_onPageScrolled);
+      widget.controller?.addListener(_onPageScrolled);
+    }
     if (!identical(oldWidget.activeTab, widget.activeTab)) {
       oldWidget.activeTab?.removeListener(_onActiveTabChanged);
       widget.activeTab?.addListener(_onActiveTabChanged);
@@ -93,6 +99,7 @@ class _CondolencesPageState extends State<CondolencesPage> {
 
   @override
   void dispose() {
+    widget.controller?.removeListener(_onPageScrolled);
     widget.activeTab?.removeListener(_onActiveTabChanged);
     widget.guideRequests?.removeListener(_onGuideRequested);
     _privateMessageRect.dispose();
@@ -102,6 +109,25 @@ class _CondolencesPageState extends State<CondolencesPage> {
       _forumController.dispose();
     }
     super.dispose();
+  }
+
+  void _onPageScrolled() {
+    if (!_guideOpen || _measureScheduled) return;
+    _measureScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _measureScheduled = false;
+      if (!mounted || !_guideOpen) return;
+      _updateActiveGuideRects();
+    });
+  }
+
+  void _updateActiveGuideRects() {
+    final pm = _privateMessageRectOnScreen();
+    if (pm != _privateMessageRect.value) _privateMessageRect.value = pm;
+    final fh = _forumButtonRectOnScreen();
+    if (fh != _forumHeaderRect.value) _forumHeaderRect.value = fh;
+    final ac = _actionsRectOnScreen();
+    if (ac != _actionsRect.value) _actionsRect.value = ac;
   }
 
   void _onActiveTabChanged() {
@@ -130,17 +156,16 @@ class _CondolencesPageState extends State<CondolencesPage> {
     final topLeft = box.localToGlobal(Offset.zero);
     final rect = topLeft & box.size;
     final screen = Offset.zero & MediaQuery.sizeOf(context);
-    if (rect.top < 0 || rect.bottom > screen.height) return null;
+    if (rect.bottom <= 0 || rect.top >= screen.height) return null;
     return rect;
   }
 
   Future<void> _revealPrivateMessage() async {
-    final scrollController = widget.controller;
-    if (scrollController != null &&
-        scrollController.hasClients &&
-        scrollController.position.pixels > 0) {
-      await scrollController.animateTo(
-        0,
+    final ctx = _privateMessageKey.currentContext;
+    if (ctx != null && ctx.mounted) {
+      await Scrollable.ensureVisible(
+        ctx,
+        alignment: 0.1,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOutCubic,
       );
@@ -166,11 +191,11 @@ class _CondolencesPageState extends State<CondolencesPage> {
   }
 
   Future<void> _revealActions() async {
-    final ctx = _actionsKey.currentContext;
+    final ctx = _actionsKey.currentContext ?? _forumHeaderKey.currentContext;
     if (ctx != null && ctx.mounted) {
       await Scrollable.ensureVisible(
         ctx,
-        alignment: 0.15,
+        alignment: 0.1,
         duration: const Duration(milliseconds: 320),
         curve: Curves.easeOutCubic,
       );
@@ -203,7 +228,7 @@ class _CondolencesPageState extends State<CondolencesPage> {
   }
 
   Rect? _actionsRectOnScreen() {
-    final raw = _rectOnScreen(_actionsKey);
+    final raw = _rectOnScreen(_actionsKey) ?? _rectOnScreen(_forumHeaderKey);
     if (raw == null) return null;
     return Rect.fromLTRB(
       raw.left - 14,
@@ -234,14 +259,31 @@ class _CondolencesPageState extends State<CondolencesPage> {
       return;
     }
 
-    final scrollController = widget.controller;
-    if (scrollController != null &&
-        scrollController.hasClients &&
-        scrollController.position.pixels > 0) {
-      scrollController.jumpTo(0);
-      await WidgetsBinding.instance.endOfFrame;
-      if (!mounted || _guideOpen || widget.activeTab?.value != _condolencesTab) {
-        return;
+    final target = _privateMessageKey.currentContext;
+    if (target != null && target.mounted) {
+      final onScreen = _privateMessageRectOnScreen();
+      if (onScreen == null || onScreen.bottom > MediaQuery.sizeOf(context).height - 100) {
+        await Scrollable.ensureVisible(
+          target,
+          alignment: 0.1,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+        );
+        await WidgetsBinding.instance.endOfFrame;
+        if (!mounted || _guideOpen || widget.activeTab?.value != _condolencesTab) {
+          return;
+        }
+      }
+    } else {
+      final scrollController = widget.controller;
+      if (scrollController != null &&
+          scrollController.hasClients &&
+          scrollController.position.pixels > 0) {
+        scrollController.jumpTo(0);
+        await WidgetsBinding.instance.endOfFrame;
+        if (!mounted || _guideOpen || widget.activeTab?.value != _condolencesTab) {
+          return;
+        }
       }
     }
 
@@ -254,6 +296,10 @@ class _CondolencesPageState extends State<CondolencesPage> {
       rect = _privateMessageRectOnScreen();
     }
     _privateMessageRect.value = rect;
+
+    // Pre-measure other stops if they happen to be on screen already.
+    _forumHeaderRect.value = _forumButtonRectOnScreen();
+    _actionsRect.value = _actionsRectOnScreen();
 
     _guideOpen = true;
     if (!mounted) return;

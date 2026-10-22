@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
+import 'package:nita/core/utils/motion.dart';
 import 'package:nita/data/guide/guide_repository.dart';
 import 'package:nita/data/visitors/visitor_repository.dart';
 import 'package:nita/views/guide/guide_content.dart';
@@ -575,11 +576,9 @@ class _LandscapeLayout extends StatelessWidget {
                   // figure vanishes.
                   child: SizedBox.expand(
                     child: ExcludeSemantics(
-                      child: Image.asset(
-                        art.asset,
+                      child: _AliveVector(
+                        art: art,
                         fit: BoxFit.contain,
-                        filterQuality: FilterQuality.medium,
-                        excludeFromSemantics: true,
                       ),
                     ),
                   ),
@@ -884,9 +883,29 @@ class _CutoutStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rect = this.rect;
-    final short = MediaQuery.sizeOf(context).height < 500;
+    final size = MediaQuery.sizeOf(context);
+    final short = size.height < 500;
 
     if (rect == null) return _fallback(context);
+
+    final topPadding = MediaQuery.paddingOf(context).top;
+    final spaceBelow = size.height - rect.bottom - 24;
+    final spaceAbove = rect.top - topPadding - 24;
+    final placeAbove = spaceBelow < 220 && spaceAbove > spaceBelow;
+
+    final contentPadding = placeAbove
+        ? EdgeInsets.fromLTRB(
+            20,
+            topPadding + 8,
+            20,
+            math.max(8.0, size.height - rect.top + 16),
+          )
+        : EdgeInsets.fromLTRB(
+            20,
+            math.min(size.height - 40, rect.bottom + 16),
+            20,
+            8,
+          );
 
     return Stack(
       children: [
@@ -940,7 +959,7 @@ class _CutoutStep extends StatelessWidget {
           ),
         Positioned.fill(
           child: Padding(
-            padding: EdgeInsets.fromLTRB(20, rect.bottom + 16, 20, 8),
+            padding: contentPadding,
             child: short
                 ? _LandscapeLayout(
                     art: art,
@@ -977,29 +996,46 @@ class _CutoutStep extends StatelessWidget {
                                   math.max(0.0, constraints.maxWidth - 28),
                                 )
                                 .toDouble();
-                            return SingleChildScrollView(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Align(
-                                    alignment: Alignment.topLeft,
-                                    child: Padding(
-                                      padding: EdgeInsets.only(
-                                        left: arrowLeft,
-                                        bottom: 4,
-                                      ),
-                                      child: const _TourBouncingArrow(
-                                        pointingUp: true,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  dialogueBuilder(
-                                    maxHeight: fitsBubble ? dialogueMax : null,
-                                    showArt:
-                                        fitsBubble && dialogueMax >= artHeight,
-                                  ),
-                                ],
+                            final arrow = Align(
+                              alignment: Alignment.topLeft,
+                              child: Padding(
+                                padding: EdgeInsets.only(
+                                  left: arrowLeft,
+                                  top: placeAbove ? 4 : 0,
+                                  bottom: placeAbove ? 0 : 4,
+                                ),
+                                child: _TourBouncingArrow(
+                                  pointingUp: !placeAbove,
+                                ),
+                              ),
+                            );
+                            final dialogue = dialogueBuilder(
+                              maxHeight: fitsBubble ? dialogueMax : null,
+                              showArt:
+                                  fitsBubble && dialogueMax >= artHeight,
+                            );
+
+                            return Align(
+                              alignment: placeAbove
+                                  ? Alignment.bottomCenter
+                                  : Alignment.topCenter,
+                              child: SingleChildScrollView(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: placeAbove
+                                      ? [
+                                          dialogue,
+                                          const SizedBox(height: 4),
+                                          arrow,
+                                        ]
+                                      : [
+                                          arrow,
+                                          const SizedBox(height: 4),
+                                          dialogue,
+                                        ],
+                                ),
                               ),
                             );
                           },
@@ -1215,17 +1251,20 @@ class _Dialogue extends StatelessWidget {
     // A much more prominent vector figure so Nanay is expressive, vivid, and clearly visible.
     final artHeight = compact ? 290.0 : 390.0;
 
-    final bubble = _SpeechBubble(
-      title: title,
-      body: body,
-      nextLabel: nextLabel,
-      onNext: onNext,
-      onBack: onBack,
-      skipLabel: skipLabel,
-      onSkip: onSkip,
-      stepCount: stepCount,
+    final bubble = _AnimatedSpeechBubble(
       activeStep: activeStep,
-      stepLabel: stepLabel,
+      child: _SpeechBubble(
+        title: title,
+        body: body,
+        nextLabel: nextLabel,
+        onNext: onNext,
+        onBack: onBack,
+        skipLabel: skipLabel,
+        onSkip: onSkip,
+        stepCount: stepCount,
+        activeStep: activeStep,
+        stepLabel: stepLabel,
+      ),
     );
 
     if (!showArt) {
@@ -1250,16 +1289,10 @@ class _Dialogue extends StatelessWidget {
             ExcludeSemantics(
               child: Padding(
                 padding: EdgeInsets.only(top: showTopConnector ? 32 : 0),
-                child: SizedBox(
+                child: _AliveVector(
+                  art: art,
                   width: artWidth,
                   height: artHeight,
-                  child: Image.asset(
-                    art.asset,
-                    fit: BoxFit.contain,
-                    alignment: Alignment.bottomCenter,
-                    filterQuality: FilterQuality.medium,
-                    excludeFromSemantics: true,
-                  ),
                 ),
               ),
             ),
@@ -1280,6 +1313,200 @@ class _Dialogue extends StatelessWidget {
                   : Align(alignment: Alignment.bottomLeft, child: bubble),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// An animated wrapper for the vector illustration that gives it an entrance
+/// transition, gentle breathing idle motion, and cross-fades poses across steps.
+class _AliveVector extends StatefulWidget {
+  final GuideArt art;
+  final double? width;
+  final double? height;
+  final BoxFit fit;
+
+  const _AliveVector({
+    required this.art,
+    this.width,
+    this.height,
+    this.fit = BoxFit.contain,
+  });
+
+  @override
+  State<_AliveVector> createState() => _AliveVectorState();
+}
+
+class _AliveVectorState extends State<_AliveVector>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _entranceController;
+  late final Animation<double> _fadeAnim;
+  late final Animation<Offset> _slideAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    final noAnim = animationsDisabled();
+
+    _entranceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 340),
+    );
+    _fadeAnim = CurvedAnimation(
+      parent: _entranceController,
+      curve: Curves.easeOut,
+    );
+    _slideAnim = Tween<Offset>(
+      begin: const Offset(-0.06, 0.04),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _entranceController,
+      curve: Curves.easeOutCubic,
+    ));
+
+    if (noAnim) {
+      _entranceController.value = 1.0;
+    } else {
+      _entranceController.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _entranceController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    Widget image = Image.asset(
+      widget.art.asset,
+      fit: widget.fit,
+      alignment: Alignment.bottomCenter,
+      filterQuality: FilterQuality.medium,
+      excludeFromSemantics: true,
+    );
+
+    image = AnimatedSwitcher(
+      duration: const Duration(milliseconds: 240),
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeIn,
+      child: KeyedSubtree(
+        key: ValueKey(widget.art),
+        child: image,
+      ),
+    );
+
+    return SlideTransition(
+      position: _slideAnim,
+      child: FadeTransition(
+        opacity: _fadeAnim,
+        child: SizedBox(
+          width: widget.width,
+          height: widget.height,
+          child: image,
+        ),
+      ),
+    );
+  }
+}
+
+/// An animated wrapper for the speech bubble dialog bar with a staggered entrance
+/// (scale + rise + fade) and smooth step-to-step cross transitions.
+class _AnimatedSpeechBubble extends StatefulWidget {
+  final Widget child;
+  final int activeStep;
+
+  const _AnimatedSpeechBubble({
+    required this.child,
+    required this.activeStep,
+  });
+
+  @override
+  State<_AnimatedSpeechBubble> createState() => _AnimatedSpeechBubbleState();
+}
+
+class _AnimatedSpeechBubbleState extends State<_AnimatedSpeechBubble>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _fadeAnim;
+  late final Animation<double> _scaleAnim;
+  late final Animation<Offset> _slideAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    final noAnim = animationsDisabled();
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    );
+
+    _fadeAnim = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.2, 1.0, curve: Curves.easeOut),
+    );
+    _scaleAnim = Tween<double>(begin: 0.93, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.2, 1.0, curve: Curves.easeOutBack),
+      ),
+    );
+    _slideAnim = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.2, 1.0, curve: Curves.easeOutCubic),
+      ),
+    );
+
+    if (noAnim) {
+      _controller.value = 1.0;
+    } else {
+      _controller.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 260),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (child, animation) {
+        final slide = Tween<Offset>(
+          begin: const Offset(0.04, 0),
+          end: Offset.zero,
+        ).animate(animation);
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: slide,
+            child: child,
+          ),
+        );
+      },
+      child: KeyedSubtree(
+        key: ValueKey(widget.activeStep),
+        child: FadeTransition(
+          opacity: _fadeAnim,
+          child: SlideTransition(
+            position: _slideAnim,
+            child: ScaleTransition(
+              scale: _scaleAnim,
+              child: widget.child,
+            ),
+          ),
         ),
       ),
     );

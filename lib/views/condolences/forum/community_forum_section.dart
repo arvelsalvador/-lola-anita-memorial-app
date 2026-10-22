@@ -295,17 +295,20 @@ class _CommunityForumSectionState extends State<CommunityForumSection> {
                 ),
               )
             else if (posts.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
-                child: Center(
-                  child: Text(
-                    lang.t('forum_empty_state'),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 13.5,
-                      fontStyle: FontStyle.italic,
-                      color: AppColors.warmMid,
+              KeyedSubtree(
+                key: widget.firstPostActionsKey,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+                  child: Center(
+                    child: Text(
+                      lang.t('forum_empty_state'),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 13.5,
+                        fontStyle: FontStyle.italic,
+                        color: AppColors.warmMid,
+                      ),
                     ),
                   ),
                 ),

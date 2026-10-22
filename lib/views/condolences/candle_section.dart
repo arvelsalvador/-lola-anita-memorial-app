@@ -410,9 +410,12 @@ class _CandleSectionState extends State<CandleSection> {
         // After lighting: thanks only, no second message box, then the
         // names-only remembering list (offline hides it).
         if (lit) ...[
-          _RememberingList(
-            controller: controller,
-            onRetry: _loadRemote,
+          KeyedSubtree(
+            key: widget.privateMessageKey,
+            child: _RememberingList(
+              controller: controller,
+              onRetry: _loadRemote,
+            ),
           ),
         ],
       ],
