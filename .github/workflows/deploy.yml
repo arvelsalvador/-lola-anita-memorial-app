@@ -43,11 +43,20 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: |
-          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
-            echo "::error::Missing SUPABASE_URL and/or SUPABASE_PUBLISHABLE_KEY."
-            echo "::error::Add them in repo Settings > Secrets and variables > Actions, then re-run this workflow."
+          missing=0
+          if [ -z "$SUPABASE_URL" ]; then
+            echo "::error::SUPABASE_URL is empty or was not found."
+            missing=1
+          fi
+          if [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "::error::SUPABASE_PUBLISHABLE_KEY is empty or was not found."
+            missing=1
+          fi
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::Add them in Settings > Secrets and variables > Actions (repository secrets), then re-run this workflow."
             exit 1
           fi
+          echo "Both Supabase secrets are present (values hidden)."
 
       # Build the web version.
       # --base-href must match your repo name, so GitHub finds your files.
