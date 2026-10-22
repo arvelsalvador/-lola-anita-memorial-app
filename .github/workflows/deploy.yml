@@ -68,10 +68,30 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: |
+          # Lengths only — never print secret values.
+          echo "SUPABASE_URL length=${#SUPABASE_URL}"
+          echo "SUPABASE_PUBLISHABLE_KEY length=${#SUPABASE_PUBLISHABLE_KEY}"
+          case "$SUPABASE_URL" in
+            *$'\n'*) echo "::error::SUPABASE_URL contains a newline — the secret value has more than just the URL." ;;
+          esac
+          case "$SUPABASE_PUBLISHABLE_KEY" in
+            *$'\n'*) echo "::error::SUPABASE_PUBLISHABLE_KEY contains a newline." ;;
+          esac
+          flutter --version
+          set +e
           flutter build web --release \
             --base-href "/${{ github.event.repository.name }}/" \
             --dart-define=SUPABASE_URL="$SUPABASE_URL" \
-            --dart-define=SUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY"
+            --dart-define=SUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" 2>&1 | tee "$RUNNER_TEMP/build.log"
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            # Surface the real error as a public annotation (the step log
+            # itself needs a GitHub login to read).
+            tail -n 25 "$RUNNER_TEMP/build.log" | while IFS= read -r line; do
+              [ -n "$line" ] && echo "::error::build: $line"
+            done
+            exit "$status"
+          fi
 
       # Package the build/web folder so it can be published
       - uses: actions/upload-pages-artifact@v3
