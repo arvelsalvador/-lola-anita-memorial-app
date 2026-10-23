@@ -59,9 +59,9 @@ void main() {
     expect(provider.t('nav_home'), 'Tahanan');
     provider.setLanguage(AppLanguage.english);
     expect(provider.t('nav_home'), 'Home');
-    expect(provider.t('story_quote'), contains('kitchen'));
+    expect(provider.t('story_quote'), 'Wise and God-fearing');
     provider.setLanguage(AppLanguage.bicol);
     expect(provider.t('nav_home'), 'Harong');
-    expect(provider.t('story_quote'), contains('kusina'));
+    expect(provider.t('story_quote'), 'Madunong asin may takot sa Diyos');
   });
 }

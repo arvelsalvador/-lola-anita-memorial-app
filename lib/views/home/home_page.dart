@@ -224,6 +224,7 @@ class _HomeShellState extends State<HomeShell> {
   final ValueNotifier<int> _condolencesGuideRequest = ValueNotifier<int>(0);
 
   late final List<ScrollController> _controllers;
+  GuideController? _guideController;
 
   @override
   void initState() {
@@ -235,7 +236,16 @@ class _HomeShellState extends State<HomeShell> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final guideController = context.read<GuideController>();
+      _guideController = guideController;
       guideController.onStartGuide = _openTourForTabId;
+      // The guide finishes through one shared path. Register each tab's main
+      // vertical controller so that path can return the page to the top.
+      guideController
+        ..registerScrollController('home', _controllers[0])
+        ..registerScrollController('gallery', _controllers[1])
+        ..registerScrollController('family', _controllers[2])
+        ..registerScrollController('tribute', _controllers[3])
+        ..registerScrollController('favorites', _controllers[4]);
       guideController.setCurrentTab('home');
       guideController.maybeAutoStart('home');
     });
@@ -331,6 +341,15 @@ class _HomeShellState extends State<HomeShell> {
     _condolencesGuideRequest.dispose();
     _storyOffset.dispose();
     _controllers[0].removeListener(_mirrorStoryOffset);
+    final guideController = _guideController;
+    if (guideController != null) {
+      guideController
+        ..unregisterScrollController('home', _controllers[0])
+        ..unregisterScrollController('gallery', _controllers[1])
+        ..unregisterScrollController('family', _controllers[2])
+        ..unregisterScrollController('tribute', _controllers[3])
+        ..unregisterScrollController('favorites', _controllers[4]);
+    }
     for (final controller in _controllers) {
       controller.dispose();
     }

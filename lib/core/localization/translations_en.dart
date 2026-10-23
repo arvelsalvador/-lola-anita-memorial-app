@@ -165,13 +165,14 @@ const Map<String, String> translationsEn = {
   'candle_virtual': 'Virtual candle lit in her memory',
   'no_images':
       'No images found in gallery.\nTry a full restart after adding images.',
-  'story_quote':
-      'The kitchen is where love becomes flavor. Cook with both hands and an open heart.',
+  'story_quote': 'Wise and God-fearing',
   'story_quote_attribution': 'Nanay Nita, as she always said',
   'story_about':
       'Lola Anita Daiz Lumbao lived 85 years full of grace, laughter, and steadfast faith. '
-      'She was a loving wife, a nurturing mother, and the heart of a family spanning three generations. '
-      'Her hands were never idle cooking, sewing, or folded in prayer and her home was always open.\n\n'
+      'She was a loving wife, a nurturing mother, and the heart of a family spanning three generations.\n\n'
+      'She was also a businesswoman. Raising pigs was their main livelihood, and because of the pigs and her hard work, she was able to raise all her children even without her husband. '
+      'Her hands were always busy: caring, cleaning, cooking, and doing the laundry, including her skill and speed in folding clothes. '
+      'Praying every night became her weapon to live a long life.\n\n'
       'She believed deeply that family was life\'s greatest treasure, and she gave everything to build a home filled with love.',
   'story_favorites':
       'Nanay\'s Favorites and Habits:\n'
@@ -184,11 +185,12 @@ const Map<String, String> translationsEn = {
   'timeline_birth_title': 'The Birth',
   'timeline_birth_desc':
       'Third of seven siblings, born in the province she loved. '
-      'Her childhood there shaped the warmth she carried all her life.',
+      'Her childhood shaped how brave she is today. '
+      'She successfully survived the devastation brought by the Japanese during that time.',
   'timeline_marriage_title': 'The Wedding',
   'timeline_marriage_desc':
       '54 years together. They raised six children and loved each other endlessly. '
-      'Ten years apart in age, their love bridged the years.',
+      'There is a ten-year age gap between her and her husband.',
   'timeline_first_apo_title': 'First Child',
   'timeline_first_apo_desc':
       'She became a mother for the first time. '
@@ -203,20 +205,19 @@ const Map<String, String> translationsEn = {
       'Her love remains in the hearts of her family.',
   'memory_1_title': 'Her Home',
   'memory_1_body':
-      'Her house was the heart of our family the door always open, every corner a memory. '
-      'It was where her warmth simply lived.',
+      'Her house was the center and heart of the family, a simple, peaceful place full of memories, with the narra tree that always bloomed with yellow flowers, which she and her husband planted together when he was still alive.',
   'memory_2_title': 'This Is Nanay',
   'memory_2_body':
-      'She was small in stature but carried the warmth of our whole home. '
-      'In her smile and eyes we saw a love words could never hold.',
+      'She was small and simple, but you felt safe and cared for when you were with her. '
+      'You would never go hungry; she would always make you her favorite coffee and biscuits, tell you stories of her memories from when she was young, and more.',
   'memory_3_title': "Nanay's Kiss",
   'memory_3_body':
-      'She kissed every grandchild on the forehead a blessing. '
-      'Those kisses taught us to love without asking anything back.',
-  'memory_4_title': 'We Never Left Her Side',
+      'She kissed everyone she loved in life on the head or forehead. '
+      'That kiss became the symbol of her true love.',
+  'memory_4_title': 'Caring for Her',
   'memory_4_body':
-      'When illness came, it was our turn to hold her hands. '
-      'We took turns caring and praying she was never alone until the end.',
+      'When her various illnesses came, we never left her side. '
+      'We did everything to ease her pain — always at the hospital, with medicine, and watching over her until her last moment.',
   'memory_5_title': 'Strong Through the Pain',
   'memory_5_body':
       'Even as her body grew weak, she never showed defeat. '
@@ -227,8 +228,9 @@ const Map<String, String> translationsEn = {
       'Her smile that day is our favorite picture of her joy.',
   'memory_7_title': 'Her Passing',
   'memory_7_body':
-      'She passed away quietly internal bleeding in her pancreas. '
-      'She is not truly gone: she lives in our laughter, prayers, and home.',
+      'She left quietly due to three months of internal bleeding in her body. '
+      'She was one of the strongest and bravest women I have ever known, but she is not gone. '
+      'She continues to live in the hearts of our family.',
   'memories_subtitle': 'Moments we will never forget',
   'memories_count': '{count} memories',
   'memories_photos_in_gallery': '{count} photos in Gallery',
@@ -594,6 +596,7 @@ const Map<String, String> translationsEn = {
   'gallery_highlights_title': 'Featured memories',
   'gallery_curated_memory': 'Curated memory',
   'gallery_play_all': 'Play all',
+  'gallery_tap_to_play': 'Tap to play',
   'gallery_photos': 'photos',
   'gallery_all_photos_label': 'All Photos',
   'gallery_search_hint': 'Search photos',
@@ -714,12 +717,12 @@ const Map<String, String> translationsEn = {
   // ── Gallery guide: the search bar ──────────────────────────────────────
   'gallery_guide_search_title': 'Search the memories',
   'gallery_guide_search_body':
-      'Type a place, a date, or a word — the photos below narrow down as '
+      'Type a place, a date, or a word. The photos below narrow down as '
       'you type.',
   'gallery_guide_pills_title': 'Filter the memories',
   'gallery_guide_pills_body':
       'Tap a category to narrow the photos. The gold Last Day pill holds '
-      'the final-day photos — light a candle to open them.',
+      'the final-day photos. Light a candle to open them.',
   'gallery_guide_featured_title': 'Play the memories',
   'gallery_guide_featured_body':
       'Tap the featured card to play a slideshow of her photos with music. '
@@ -729,7 +732,7 @@ const Map<String, String> translationsEn = {
   // ── Family guide: one member card ──────────────────────────────────────
   'family_guide_member_title': 'Tap a family member',
   'family_guide_member_body':
-      'Tap any member card to see that person\'s personal information — '
+      'Tap any member card to see that person\'s personal information: '
       'their story, family, and photos.',
   'family_guide_done': 'Got it',
   // ── Words guide: filter pills ──────────────────────────────────────────

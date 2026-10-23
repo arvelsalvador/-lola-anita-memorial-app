@@ -172,13 +172,14 @@ const Map<String, String> translationsBi = {
   'candle_virtual': 'Virtual na kandila na sinindihan sa saiyang alaala',
   'no_images':
       'Mayong mga ladawan sa galeriya.\nSubaron an bilog na pag-restart pakadugang nin mga ladawan.',
-  'story_quote':
-      'An kusina iyo kun saen an pagkamoot nagigin namit. Magluto gamit an duwang kamot asin bukas na puso.',
+  'story_quote': 'Madunong asin may takot sa Diyos',
   'story_quote_attribution': 'Nanay Nita, arog kan dati niyang sinasabi',
   'story_about':
       'Si Lola Anita Daiz Lumbao nabuhay nin 85 na taon na may biyaya, katawa, asin matibay na pagtubod. '
-      'Saro siyang mamomoton na agom, maingat na ina, asin puso kan pamilyang umabot sa tulong henerasyon. '
-      'Dai nagpapahingalo an saiyang mga kamot nagluluto, nagtatahi, o nakatupi sa pag-ampo asin an saiyang harong pirmeng bukas.\n\n'
+      'Saro siyang mamomoton na agom, maingat na ina, asin puso kan pamilyang umabot sa tulong henerasyon.\n\n'
+      'Saro man siyang negosyante. An pag-ataman nin orig an panginot nindang negosyo, asin huli sa orig asin sa saiyang sipag, napadakula niya an gabos niyang mga aki minsan mayo an saiyang agom. '
+      'Pirme abala an saiyang mga kamot: pag-ataman, paglinig, pagluto, asin paglaba, kaiba na an husay asin rikas niya sa pagtitiklop nin mga bado. '
+      'An pagpamibi gabos na banggi an naging armas niya tanganing mabuhay nin halawig.\n\n'
       'Hararom an saiyang pagtubod na an pamilya iyo an pinakamahalagang kayamanan, asin itinao niya an gabos tanganing magtugdok nin harong na pano nin pagkamoot.',
   'story_favorites':
       'Mga Paborito asin Gawi ni Nanay:\n'
@@ -191,11 +192,12 @@ const Map<String, String> translationsBi = {
   'timeline_birth_title': 'An Pagkamundag',
   'timeline_birth_desc':
       'Ikatolo sa pitong magturugang, ipinangaki sa probinsya na namomotan niya. '
-      'Duman siya nagdakula na pano nin kaogmahan asin pagkamoot.',
+      'An pagkadakula niya an naghubog kan saiyang tapang ngonyan. '
+      'Matrayumpo niyang nalampasan an pananalasa kan mga Hapon kaidto.',
   'timeline_marriage_title': 'An Kasal',
   'timeline_marriage_desc':
       '54 na taon na magkaibanan. Magkairibanan sindang nagpadakula nin anom na aki asin nagkamutan nin daing katapusan. '
-      'Sampung taon an agwat kan saindang edad, alagad daing kasagkoran an saindang pagkamoot.',
+      'Sampung taon an agwat kan edad niya asin kan saiyang agom.',
   'timeline_first_apo_title': 'Enot na Aki',
   'timeline_first_apo_desc':
       'Nagin Nanay siya sa enot na pagkakataon. '
@@ -210,20 +212,19 @@ const Map<String, String> translationsBi = {
       'An saiyang pagkamoot dai mawawara sa puso kan saiyang pamilya.',
   'memory_1_title': 'An Saiyang Harong',
   'memory_1_body':
-      'An harong niya an puso kan pamilya pirme bukas, lambang sukol may alaala. '
-      'Duman mi naaraman kun saen nakaistar an saiyang init.',
+      'An saiyang harong iyo an sentro asin puso kan pamilya, sarong simple, matuninong, asin pano nin alaala, kaiba an kahoy na nara na pirme namumurak nin dilaw na burak, na sabay nindang itinanim kan saiyang agom kan buhay pa.',
   'memory_2_title': 'An Saiyang Pagkatao',
   'memory_2_body':
-      'Sadit sana siya, alagad dala an bilog na init kan harong. '
-      'An saiyang ngisi asin mata may dai maipapaabot na pagkamoot.',
+      'Sadit asin simple sana siya, alagad namamatean mo na ligtas asin inaataman ka kun kaiba mo siya. '
+      'Dai ka gayod magugutom, pirme niyang ipagtitimpla an paborito niyang kape asin biskuwit, magkukuwento nin mga alaala niya kan siya aki pa, asin iba pa.',
   'memory_3_title': 'Halok ni Nanay',
   'memory_3_body':
-      'Hinahalok niya an lambang apo sa mortal arog nin basbas. '
-      'Sa halok na idto naaraman mi magmoot na dai naghahagad nin balos.',
-  'memory_4_title': 'Dai Kami Naghale Saiya',
+      'Hinahalokan niya an gabos na namomotan niya sa buhay sa payo o sa angog. '
+      'An halok na idto an nagsisirbing simbolo kan saiyang tunay na pagkamoot.',
+  'memory_4_title': 'Pag-ataman',
   'memory_4_body':
-      'Kan dumating an helang, kami an nagkapot kan saiyang mga kamot. '
-      'Saro-saro kaming nag-ataman asin nagpamibi dai siya nag-isa.',
+      'Kan dumating an manlaen-laen niyang helang, dai mi siya pinabayaan. '
+      'Ginibo mi an gabos tanganing mawara an saiyang kulog, pirme sa ospital, bulong, asin pagbantay sagkod sa saiyang huring saglit.',
   'memory_5_title': 'Matatag sa Sakit',
   'memory_5_body':
       'Maski naghahale an kusog kan saiyang hawak, dai ipinaheling an pagkadaog. '
@@ -234,8 +235,9 @@ const Map<String, String> translationsBi = {
       'An ngisi niya dai masasalidahan; paborito mi siya.',
   'memory_7_title': 'An Saiyang Pagpanaw',
   'memory_7_body':
-      'Malipoton siyang nagliwat panlaog na pagdugo sa pancreas. '
-      'Dai siya nawara: nabubuhay sa taw, pamibi, asin harong mi.',
+      'Tahimik siyang nagliwat huli sa 3 bulan na pagdugo sa laog kan saiyang hawak. '
+      'Saro siya sa pinakamatibay asin pinakamatapang na babae na nakilala ko, alagad dai siya nawara. '
+      'Padagos siyang nabubuhay sa puso kan samuyang pamilya.',
   'memories_subtitle': 'Mga sandaling dai malilingawan',
   'memories_count': '{count} na alaala',
   'memories_photos_in_gallery': '{count} ladawan sa Galeriya',
@@ -621,6 +623,7 @@ const Map<String, String> translationsBi = {
   'gallery_highlights_title': 'Mga Tampok na Alaala',
   'gallery_curated_memory': 'Piling pagromdom',
   'gallery_play_all': 'I-play gabos',
+  'gallery_tap_to_play': 'Pindota para i-play',
   'gallery_photos': 'mga ladawan',
   'gallery_all_photos_label': 'Gabos na Ladawan',
   'gallery_search_hint': 'Maghanap nin ladawan',
@@ -750,13 +753,13 @@ const Map<String, String> translationsBi = {
   // ── Giya sa Galeriya: an search bar ───────────────────────────────────
   'gallery_guide_search_title': 'Hanapon an mga alaala',
   'gallery_guide_search_body':
-      'I-type an lugar, petsa, o tataramon — tulos nagkukuro an mga '
+      'I-type an lugar, petsa, o tataramon. Tulos nagkukuro an mga '
       'ladawan sa ibaba mientras nagta-type ka.',
   'gallery_guide_pills_title': 'Salaon an mga alaala',
   'gallery_guide_pills_body':
       'Pindoton an sarong kategorya para salaon an mga ladawan. An bulawan '
-      'na Huring Aldaw na pill igwa kan mga ladawan kan huring aldaw — '
-      'magsindi nin kandila para mabuksan.',
+      'na Huring Aldaw na pill igwa kan mga ladawan kan huring aldaw. '
+      'Magsindi nin kandila para mabuksan.',
   'gallery_guide_featured_title': 'Helingon an mga alaala',
   'gallery_guide_featured_body':
       'Pindoton an featured card para mag-play nin slideshow kan saiyang mga '
@@ -767,7 +770,7 @@ const Map<String, String> translationsBi = {
   'family_guide_member_title': 'Pindoton an sarong miyembro',
   'family_guide_member_body':
       'Pindoton an card kan sarong miyembro para mahiling an saiyang personal '
-      'na impormasyon — an istorya, pamilya, asin mga ladawan niya.',
+      'na impormasyon: an istorya, pamilya, asin mga ladawan niya.',
   'family_guide_done': 'Nasabutan ko',
   // ── Giya sa Mga Tataramon: mga filter pill ─────────────────────────────
   'words_guide_pills_title': 'Salaon an mga mensahe',

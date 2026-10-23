@@ -237,7 +237,7 @@ void main() {
     expect(find.byType(HomePage), findsOneWidget);
 
     // The Story tab shows the Tagalog quote by default.
-    expect(storyQuote('Ang kusina ay kung saan'), findsOneWidget);
+    expect(storyQuote('Marunong at Diyos'), findsOneWidget);
 
     // Switch to English via the language toggle. Fixed-duration pumps only
     // (the gallery spinners animate forever, so pumpAndSettle would time out).
@@ -249,10 +249,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     // The same quote is now in English.
-    expect(
-      storyQuote('The kitchen is where love becomes flavor'),
-      findsOneWidget,
-    );
+    expect(storyQuote('Wise and God-fearing'), findsOneWidget);
 
     // The memories on the home page follow too — English items.
     await expectMemoriesTitle(tester, 'Her Home');
@@ -279,7 +276,7 @@ void main() {
     await passGate(tester);
 
     // Home/Story tab
-    expect(storyQuote('Ang kusina ay kung saan'), findsOneWidget);
+    expect(storyQuote('Marunong at Diyos'), findsOneWidget);
 
     // Memories section on the home tab
     await expectMemoriesTitle(tester, 'Ang Kanyang Tahanan');
@@ -334,10 +331,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     // Home/Story tab
-    expect(
-      storyQuote('The kitchen is where love becomes flavor'),
-      findsOneWidget,
-    );
+    expect(storyQuote('Wise and God-fearing'), findsOneWidget);
 
     // Memories section on the home tab
     await expectMemoriesTitle(tester, 'Her Home');
@@ -380,7 +374,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     // Story quote in Bicol.
-    expect(storyQuote('An kusina iyo kun saen'), findsOneWidget);
+    expect(storyQuote('Madunong asin may takot sa Diyos'), findsOneWidget);
 
     // Memories section on the home tab in Bicol.
     await expectMemoriesTitle(tester, 'An Saiyang Harong');

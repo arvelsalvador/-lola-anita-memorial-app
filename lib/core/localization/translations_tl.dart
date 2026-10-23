@@ -170,13 +170,14 @@ const Map<String, String> translationsTl = {
   'candle_virtual': 'Virtual na kandila na nakasindi sa kanyang alaala',
   'no_images':
       'Walang mga larawan sa galeri.\nSubukan ang buong pag-restart pagkatapos magdagdag ng mga larawan.',
-  'story_quote':
-      'Ang kusina ay kung saan ang pagmamahal ay nagiging lasa. Magluto gamit ang dalawang kamay at bukas na puso.',
+  'story_quote': 'Marunong at Diyos',
   'story_quote_attribution': 'Nanay Nita, palaging sinasabi',
   'story_about':
       'Si Lola Anita Daiz Lumbao ay namuhay ng 85 taon na may biyaya, halakhak, at matibay na pananampalataya. '
-      'Isa siyang mapagmahal na asawa, mapag-arugang ina, at puso ng pamilyang umaabot sa tatlong henerasyon. '
-      'Laging abala ang kanyang mga kamay nagluluto, nananahi, o nakatiklop sa panalangin at ang kanyang tahanan ay laging bukas.\n\n'
+      'Isa siyang mapagmahal na asawa, mapag-arugang ina, at puso ng pamilyang umaabot sa tatlong henerasyon.\n\n'
+      'Isa rin siyang negosyante. Ang pag-aalaga ng baboy ang pangunahin nilang negosyo, at dahil sa baboy at sa kanyang sipag, napalaki niya ang lahat ng kanyang mga anak nang wala ang kanyang asawa. '
+      'Laging abala ang kanyang mga kamay: pag-aaruga, paglilinis, pagluluto, at paglalaba, kasama na ang husay at bilis niya sa pagtitiklop ng mga damit. '
+      'Ang pagdarasal gabi-gabi ang naging sandata niya upang mamuhay nang matagal.\n\n'
       'Malalim ang kanyang paniniwala na ang pamilya ang pinakamahalagang yaman, at ibinigay niya ang lahat upang bumuo ng tahanang puno ng pagmamahal.',
   'story_favorites':
       'Mga Paborito at Gawi ni Nanay:\n'
@@ -189,11 +190,12 @@ const Map<String, String> translationsTl = {
   'timeline_birth_title': 'Ang Pagsilang',
   'timeline_birth_desc':
       'Ikatlo sa pitong magkakapatid, ipinanganak sa probinsyang mahal niya. '
-      'Ang kabataan niya roon ang humubog sa init na dala niya habang buhay.',
+      'Ang kabataan niya ang humubog kung gaano siya katapang ngayon. '
+      'Matagumpay niyang nalagpasan ang pananalasa ng mga Hapon noong panahon.',
   'timeline_marriage_title': 'Ang Kasal',
   'timeline_marriage_desc':
       '54 na taon ng pagsasama. Magkasama nilang pinalaki ang anim na anak at nagmahalan ng walang hanggan. '
-      'Sampung taon ang agwat ng kanilang edad, ngunit walang hangganan ang kanilang pagmamahal.',
+      'Sampung taon ang agwat ng edad niya at ng kanyang asawa, ngunit walang hangganan ang kanilang pagmamahal.',
   'timeline_first_apo_title': 'Unang Anak',
   'timeline_first_apo_desc':
       'Naging Nanay siya sa unang pagkakataon. '
@@ -208,20 +210,18 @@ const Map<String, String> translationsTl = {
       'Ang pagmamahal niya ay mananatili sa puso ng kanyang pamilya.',
   'memory_1_title': 'Ang Kanyang Tahanan',
   'memory_1_body':
-      'Ang kanyang bahay ang puso ng pamilya, laging bukas, bawat sulok puno ng alaala. '
-      'Doon nakatira ang kanyang init.',
+      'Ang kanyang bahay ay ang sentro at puso ng pamilya, isang simple, mapayapa, at puno ng ala-ala, kasama ang puno ng nara na laging namumulaklak ng dilaw na bulaklak, na sabay nilang itinanim ng kanyang asawa noong nabubuhay pa.',
   'memory_2_title': 'Ganyan si Nanay',
   'memory_2_body':
-      'Maliit lang siya, pero taglay ang init ng tahanan. '
-      'Sa ngiti at mga mata niya nakikita ang pagmamahal.',
+      'Maliit at simple lang siya, ngunit ramdam mong ligtas at alaga ka kapag kasama mo siya. '
+      'Hinding-hindi ka magugutom, laging ipagtitimpla ka ng paborito niyang kape at biskwit, magkukuwento ng mga ala-ala niya noong siya ay bata pa, at iba pa.',
   'memory_3_title': 'Halik ni Nanay',
   'memory_3_body':
-      'Hinahalikan niya ang bawat apo sa noo, parang basbas. '
-      'Sa halik na iyon natutong magmahal nang walang kapalit.',
-  'memory_4_title': 'Hindi Namin Siya Pinabayaan',
+      'Hinahalikan niya ang lahat ng mahal niya sa buhay sa ulo o sa noo. Ang halik na iyon ang nagsisilbing simbolo ng kanyang tunay na pagmamahal.',
+  'memory_4_title': 'Pag-aalaga',
   'memory_4_body':
-      'Noong dumating ang sakit, kami ang humawak ng mga kamay niya. '
-      'Nagbantay kami, hindi siya nag-isa hanggang dulo.',
+      'Noong dumating ang iba\'t ibang sakit niya, hindi namin siya pinabayaan. '
+      'Ginawa namin ang lahat para mawala ang sakit niya, laging nasa ospital, gamot, at pagbabantay hanggang sa kanyang huling sandali.',
   'memory_5_title': 'Matibay sa Gitna ng Sakit',
   'memory_5_body':
       'Kahit nanghihina ang katawan niya, hindi ipinakita ang pagkatalo. '
@@ -232,8 +232,9 @@ const Map<String, String> translationsTl = {
       'Ang ngiti niya sa araw na iyon ang paborito naming larawan.',
   'memory_7_title': 'Ang Kanyang Pagpanaw',
   'memory_7_body':
-      'Tahimik siyang umalis: panloob na pagdurugo sa pancreas. '
-      'Hindi siya nawala: nabubuhay sa tawanan, dasal, at tahanan namin.',
+      'Tahimik siyang umalis dahil sa 3 buwang pagdurugo sa loob ng kanyang katawan. '
+      'Isa siya sa pinakamatibay at pinakamatapang na babae na nakilala ko, ngunit hindi siya nawala. '
+      'Patuloy siyang namumuhay sa puso naming pamilya.',
   'memories_subtitle': 'Mga sandaling hindi malilimutan',
   'memories_count': '{count} na alaala',
   'memories_photos_in_gallery': '{count} larawan sa Galeri',
@@ -362,11 +363,12 @@ const Map<String, String> translationsTl = {
   'family_story_rodolfo':
       'Si Rodolfo ang pinakamasipag sa magkakapatid nina Anita. Mangingisda '
       'nang mahigit sampung taon, hindi pa rin siya nagreretiro at patuloy '
-      'na nagbibigay sa sariling pamilya at tumutulong sa mga anak ng '
-      'kapatid niyang si Lorie. Walang makapantay sa kaalaman niya sa '
-      'dagat. Hindi mga aklat ang humubog sa karunungan niya kundi dekadang '
-      'mabigat na trabaho, pasensya, at tahimik na pagmamahal sa mga taong '
-      'minamahal niya.',
+      'na nagbibigay sa sariling pamilya. Tumutulong siya sa mga kapamilya, '
+      'lalo na kay Lorie, anak ni Anita, na lagi niyang binibigyan ng isda '
+      'tuwing papalaot. Walang makapantay sa kaalaman niya sa dagat. Hindi '
+      'mga aklat ang humubog sa karunungan niya kundi dekadang mabigat na '
+      'trabaho, pasensya, at tahimik na pagmamahal sa mga taong minamahal '
+      'niya.',
   'family_member_rodolfo_bio':
       'Ang kanyang kapatid na lalaki, mangingisda magpakailanman, asawa nina '
       'Lolita, ama ng tatlo, at lolo ng limang apo.',
@@ -376,13 +378,13 @@ const Map<String, String> translationsTl = {
       'pagkawala pumanaw ang bunso niyang anak at asawa ngunit dala '
       'niya ito nang may tahimik na lakas, napapaligiran ng nagmamahal '
       'niyang mga anak at apo, kabilang ang pinakabagong apo niyang si '
-      'Zia. Bilang barangay tanod, siya ang bantay ng kanyang komunidad: '
+      'Zia. Bilang barangay official, siya ang bantay ng kanyang komunidad: '
       'matapang, masipag, at pusong laging nag-aalay sa pamilya at kapwa.',
   'family_member_sonia_bio':
       'Ang kanyang nag-iisang kapatid na babae, matapang at mapagkalinga, '
-      'barangay tanod na nagbabantay sa komunidad, at lola ng tatlong apo.',
+      'barangay official na nagbabantay sa komunidad, at lola ng tatlong apo.',
   'family_story_gernan':
-      'Si Gernan ang panganay na anak nina Anita, kilala bilang '
+      'Si Gernan ay ang buhay na panganay na anak ni Anita, kilala bilang '
       'pinakamasungit ngunit siya rin ang pinakamatapang, hindi umaatras '
       'kapag may kailangang ipagtanggol. Sa likod ng matigas na anyo ay '
       'tapat na asawa at amang buong pusong nagtrabaho kina Milagros at '
@@ -399,10 +401,10 @@ const Map<String, String> translationsTl = {
       'at itlog simpleng patunay ng pagkatao niya: mapagbigay, '
       'maaasahan, at pamilya muna.',
   'family_story_lorie':
-      'Si Lorie ang bunso at pinakamamahal ni Nanay Anita, siyang '
-      'nag-alaga rito nang walang sawa hanggang sa huling sandali. '
-      'Nakapangasawa siya ni Elben Salvador, at magkasama silang '
-      'nagpalaki ng apat na talinong anak kabilang si Arvel, ang '
+      'Si Lorie ang bunso at pinakamamahal ni Nanay Anita. Si Lorie ay '
+      'ang nag-alaga at nagbantay sa kanyang ina. Nakapangasawa siya ni '
+      'Elben Salvador, at magkasama silang nagpalaki ng apat na anak '
+      'kabilang si Arvel, ang '
       'developer ng app na ito. May pambihira siyang halo ng lakas at '
       'lambing: sapat ang tapang upang harapin ang mga pagsubok ng '
       'buhay, mahinahon ang puso sa bawat taong minamahal niya. Ang '
@@ -439,52 +441,41 @@ const Map<String, String> translationsTl = {
       'Anak ni Lorie Salvador. Matatag at mabait ang puso, may tahimik '
       'na pagkamature, at mapag-aruga sa mga taong nasa paligid niya.',
   'family_story_hanna':
-      'Si Hanna Mae ay anak ni Gernan Lumbao. Masayahin at puno ng '
-      'enerhiya, parang nagliwanag ang bawat silid na pinapasok niya. '
-      'Napapasaya niya ang buong pamilya sa kanyang ngiti at kulit, at '
-      'sa bawat pagtitipon siya ang maliit na ilaw na hindi nauubusan '
-      'ng kwento at tawa.',
+      'Si Hanna Mae ay anak ni Gernan Lumbao. Masayahin at puno siya ng '
+      'enerhiya. Napapasaya niya ang buong pamilya sa kanyang ngiti at '
+      'kulit, at sa bawat pagtitipon siya ang maliit na ilaw na hindi '
+      'nauubusan ng kwento at tawa.',
   'family_story_audrey':
       'Si Audrey ay anak ni Gernan Lumbao. Tahimik ngunit may '
       'kumpiyansa, may sarili siyang estilo at pananaw na hindi '
       'natatakot ipakita. May lakas sa kanyang katahimikan, at sa bawat '
-      'hakbang niya ipinapakita niyang ang tunay na sarili ang '
-      'pinakamagandang suot.',
+      'hakbang niya, ipinapakita niya ang tunay na sarili.',
   'family_story_jongjong':
-      'Si Rodel Lumbao Jr. ay anak ni Rodel Lumbao Sr.. Makulit at madaling '
-      'pakisamahan, minana ang init ng loob ng kanyang tatay. Alam '
-      'niyang magpatawa kahit sino, at sa bawat pagtitipon siya ang '
-      'nagpapasiklab ng tawanan laging handang makipagkulitan sa mga '
-      'pinsan.',
+      'Si Rodel Lumbao Jr. ay anak ni Rodel Lumbao Sr.. Makulit siya at '
+      'madaling pakisamahan. Alam niyang magpatawa kahit sino, at sa '
+      'bawat pagtitipon siya ang nagpapasiklab ng tawanan, laging handang '
+      'makipagkulitan sa mga pinsan.',
   'family_story_roseann':
-      'Si Rose-ann ay anak ni Rodel Lumbao Sr.. Maamo at mahinahon magsalita, '
-      'dala niya ang banayad at nakakakalma na presensya sa bawat '
-      'pagtitipon. Sa kanyang lambing at paggalang, ipinapakita niyang '
-      'ang tahimik na kabaitan ang pinakamataas na anyo ng pagmamahal '
-      'sa pamilya.',
+      'Si Rose-ann ay anak ni Rodel Lumbao Sr.. Masigla si Rose Ann, at '
+      'dala niya ang saya sa bawat pagtitipon. Sa kanyang lambing at '
+      'paggalang, ipinapakita niyang ang masaya at bukas na pakikisama '
+      'ay isa sa pinakamataas na anyo ng pagmamahal sa pamilya.',
   'family_story_arvel':
-      'Si Arvel ay anak ni Lorie Salvador. Ang techie ng pamilya: laging '
-      'mausisa, masipag, at puno ng ideya. Siya ang mismong developer '
-      'ng app na ito, ang nagpapanatiling buhay ang mga kuwento at '
-      'alaala ng pamilya. Pagkatapos ng kolehiyo, patuloy siyang '
-      'naglilingkod sa pamilya sa kanyang galing.',
+      'Si Arvel ay anak ni Lorie Salvador. Simpleng anak ni Lorie, siya '
+      'ang techie ng pamilya at ang mismong developer ng app na ito, ang '
+      'nagpapanatiling buhay ang mga kuwento at alaala ng pamilya. '
+      'Pagkatapos ng kolehiyo, naglilingkod siya at patuloy na minamahal '
+      'ang kanyang pamilya.',
   'family_story_aivan':
-      'Si Aivan ay anak ni Lorie Salvador. Kalmado at masipag, siya ang '
-      'maaasahang anak na laging sandigan ng pamilya. Tahimik man sa '
-      'umpisa, malalim naman ang pagmamahal: tinatapos niya nang maayos '
-      'ang bawat gawain, at laging handang tumulong nang walang '
-      'sabi-sabi.',
-  'family_story_honey':
-      'Si Honey ay anak ni Lorie Salvador. Palakaibigan at puno ng '
-      'buhay, siya ang unang nagdadala ng enerhiya at kasiyahan sa '
-      'bawat pagtitipon. Sa kanyang tawa at kwento, dala niya ang init '
-      'ng matinong tahanan na kanyang kinagisnan mula kay Lola.',
+      'Magaling makipag-usap at makisama sa kahit sino. Madali siyang '
+      'makipagkaibigan, marunong makinig, at laging may paraan para '
+      'gumaan ang pakiramdam ng mga kasama niya.',
+  'family_story_honey': 'Palaban si Honey, sa sports man o sa pag-aaral.',
   'family_story_daniel':
-      'Si Daniel ay anak ni Lorie Salvador. Matatag at mabait ang puso, '
-      'may tahimik na pagkamature na higit sa kanyang edad. Mapag-aruga '
-      'siya sa mga nakapalibot sa kanya, at sa bawat hakbang ng buhay '
-      'ipinapakita niya ang disiplina at pagmamahal na itinuro ng '
-      'pamilya.',
+      'Teknikal si Daniel, magaling mag-ayos ng motor at electronics. '
+      "Kapag may sirang makina o gamit sa bahay, siya ang unang "
+      "nilalapitan ng pamilya, at bihira siyang sumuko hangga't hindi "
+      'ito gumagana muli.',
   'tribute_message':
       'Itinuro mo sa amin na ang tahanan ay itinatayo sa init ng pagmamahal, hindi sa mga pader. '
       'Ang iyong tawa ay nananatili sa bawat silid na minahal namin. '
@@ -622,6 +613,7 @@ const Map<String, String> translationsTl = {
   'gallery_highlights_title': 'Mga Tampok na Alaala',
   'gallery_curated_memory': 'Piniling alaala',
   'gallery_play_all': 'I-play lahat',
+  'gallery_tap_to_play': 'Pindutin para i-play',
   'gallery_photos': 'larawan',
   'gallery_all_photos_label': 'Lahat ng Larawan',
   'gallery_search_hint': 'Maghanap ng litrato',
@@ -751,13 +743,13 @@ const Map<String, String> translationsTl = {
   // ── Gabay sa Galeri: ang search bar ───────────────────────────────────
   'gallery_guide_search_title': 'Hanapin ang mga alaala',
   'gallery_guide_search_body':
-      'I-type ang lugar, petsa, o salita — agad lumiliit ang mga litrato '
+      'I-type ang lugar, petsa, o salita. Agad lumiliit ang mga litrato '
       'sa ibaba habang nagta-type ka.',
   'gallery_guide_pills_title': 'Salain ang mga alaala',
   'gallery_guide_pills_body':
       'Pindutin ang isang kategorya para salain ang mga litrato. Ang '
-      'ginintuang Huling Araw na pill ay may mga litrato ng huling sandali — '
-      'magsindi muna ng kandila para mabuksan.',
+      'ginintuang Huling Araw na pill ay may mga litrato ng huling sandali. '
+      'Magsindi muna ng kandila para mabuksan.',
   'gallery_guide_featured_title': 'Panoorin ang mga alaala',
   'gallery_guide_featured_body':
       'Pindutin ang featured card para mag-play ng slideshow ng kanyang mga '
@@ -768,7 +760,7 @@ const Map<String, String> translationsTl = {
   'family_guide_member_title': 'Pindutin ang isang miyembro',
   'family_guide_member_body':
       'Pindutin ang card ng isang miyembro para makita ang kanyang personal '
-      'na impormasyon — ang kuwento, pamilya, at mga litrato niya.',
+      'na impormasyon: ang kuwento, pamilya, at mga litrato niya.',
   'family_guide_done': 'Naintindihan ko',
   // ── Gabay sa Mga Salita: mga filter pill ───────────────────────────────
   'words_guide_pills_title': 'Salain ang mga mensahe',

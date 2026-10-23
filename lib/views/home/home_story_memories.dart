@@ -184,9 +184,9 @@ class _MemoriesSectionState extends State<MemoriesSection> {
 /// of its height, which rendered it tiny; the trim lets BoxFit.contain
 /// scale the spray to the full text-column width (tall as the width
 /// allows, 35–48px on phones).
-/// Vertical budget (worst case: 2-line title + 7-line body): 40px accent
-/// box + 4px gap + 34px title + 6px gap + 137px body = 221px, inside the
-/// ~242px available (276px card, 16px vertical padding, 1.4px border).
+/// Vertical budget: the card keeps 276px as a *minimum* height. The body is
+/// no longer line-capped, so a longer paragraph makes the card (and the
+/// full-bleed photo beside it) grow instead of clipping the copy.
 class _TitleAccent extends StatelessWidget {
   const _TitleAccent();
 
@@ -258,7 +258,7 @@ class MemoryCard extends StatelessWidget {
 
   const MemoryCard({super.key, required this.memory, required this.index});
 
-  static const double _cardHeight = 276;
+  static const double _minCardHeight = 276;
   static const double _photoWidth = 150;
   static const _radius = 12.0;
 
@@ -296,13 +296,16 @@ class MemoryCard extends StatelessWidget {
         onTap: () =>
             _openMemoryPhotoPreview(context, memory: memory, heroTag: heroTag),
         child: Stack(
+          // The slot is sized tightly by its Positioned parent in the card,
+          // so expand forces the photo to fill the card's full height.
+          fit: StackFit.expand,
           children: [
             Hero(
               tag: heroTag,
               child: _MemoryPhoto(
                 assetPath: memory.image,
                 width: photoWidth,
-                height: _cardHeight,
+                height: _minCardHeight,
                 borderRadius: photoRadius,
               ),
             ),
@@ -319,53 +322,56 @@ class MemoryCard extends StatelessWidget {
       ),
     );
 
-    final content = Expanded(
-      child: MediaQuery.withClampedTextScaling(
-        // Elderly visitors run large accessibility font sizes; the card's
-        // fixed 276px height would overflow (yellow stripes) above ~1.4×.
-        // Cap the on-card text so it still grows with the OS setting but
-        // always fits — same pattern the memorial hero header uses.
-        maxScaleFactor: 1.4,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const _TitleAccent(),
-              const SizedBox(height: 4),
-              Text(
-                lang.t(memory.titleKey),
-                textAlign: TextAlign.center,
-                style: AppTextStyles.homeContent.copyWith(
-                  color: AppColors.textDark,
+    final content = ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: _minCardHeight),
+      // heightFactor: 1 makes the column shrink-wrap its copy. Without it
+      // the Center would expand to a bounded parent height (e.g. when the
+      // card is placed in a Column), leaving a large empty gap in the card.
+      child: Center(
+        heightFactor: 1.0,
+        child: MediaQuery.withClampedTextScaling(
+          // Elderly visitors run large accessibility font sizes; cap the
+          // on-card text so it still grows with the OS setting but stays
+          // readable instead of ballooning the card unpredictably.
+          maxScaleFactor: 1.4,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _TitleAccent(),
+                const SizedBox(height: 4),
+                Text(
+                  lang.t(memory.titleKey),
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.homeContent.copyWith(
+                    color: AppColors.textDark,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 6),
-              // The body is summarized to fit ~7 lines on the card's text
-              // column (homepage content voice, 1.5 line height) at typical
-              // phone widths — no trailing ellipsis. The no-ellipsis probe
-              // test in test/memory_card_overflow_test.dart enforces this.
-              Text(
-                lang.t(memory.bodyKey),
-                textAlign: TextAlign.justify,
-                style: AppTextStyles.homeContent.copyWith(
-                  color: AppColors.muted,
-                  height: 1.5,
+                const SizedBox(height: 6),
+                // No maxLines/ellipsis here: the card grows to fit the full
+                // body (see the min-height container and Stack below), so
+                // long paragraphs wrap instead of ending in an ellipsis.
+                Text(
+                  lang.t(memory.bodyKey),
+                  textAlign: TextAlign.justify,
+                  style: AppTextStyles.homeContent.copyWith(
+                    color: AppColors.muted,
+                    height: 1.5,
+                  ),
                 ),
-                maxLines: 7,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
 
     return Container(
-      height: _cardHeight,
+      constraints: const BoxConstraints(minHeight: _minCardHeight),
       decoration: BoxDecoration(
         color: AppColors.paper,
         borderRadius: BorderRadius.circular(_radius),
@@ -382,9 +388,26 @@ class MemoryCard extends StatelessWidget {
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: photoOnLeft ? [photo, content] : [content, photo],
+      child: Stack(
+        children: [
+          // Pinned to both vertical edges so the photo fills however tall
+          // the copy makes the card — no empty strip under the image.
+          Positioned(
+            top: 0,
+            bottom: 0,
+            left: photoOnLeft ? 0 : null,
+            right: photoOnLeft ? null : 0,
+            width: photoWidth,
+            child: photo,
+          ),
+          Padding(
+            padding: EdgeInsets.only(
+              left: photoOnLeft ? photoWidth : 0,
+              right: photoOnLeft ? 0 : photoWidth,
+            ),
+            child: content,
+          ),
+        ],
       ),
     );
   }
@@ -776,4 +799,3 @@ class TimelineWidget extends StatelessWidget {
     );
   }
 }
-

@@ -5,7 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import 'package:nita/core/localization/language_provider.dart';
+import 'package:nita/core/utils/navigation.dart';
 import 'package:nita/controllers/gallery_controller.dart';
+import 'package:nita/controllers/guide_controller.dart';
 import 'package:nita/data/guide/guide_repository.dart';
 import 'package:nita/models/gallery_model.dart';
 import 'package:nita/views/family/family_page.dart';
@@ -675,6 +677,77 @@ void main() {
         action.bottom,
         lessThanOrEqualTo(515),
         reason: 'the action should not be cut off by the viewport',
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('Pakikiramay keeps Nanay visible on tight steps', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      // These controls sit mid-screen, leaving less than the full 240px art
+      // height. The pose should scale down instead of disappearing.
+      final privateMessage = ValueNotifier<Rect?>(
+        const Rect.fromLTWH(20, 540, 350, 50),
+      );
+      final forumHeader = ValueNotifier<Rect?>(
+        const Rect.fromLTWH(20, 520, 350, 50),
+      );
+      addTearDown(privateMessage.dispose);
+      addTearDown(forumHeader.dispose);
+
+      final lang = LanguageProvider()..setLanguage(AppLanguage.english);
+      final guide = GuideController()..isGuideOpen = true;
+      addTearDown(guide.dispose);
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider.value(value: lang),
+            ChangeNotifierProvider.value(value: guide),
+          ],
+          child: MaterialApp(
+            home: GuidePage(
+              tour: GuideTour.condolences,
+              condolencesPrivateMessageRect: privateMessage,
+              condolencesForumHeaderRect: forumHeader,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('1/3'), findsOneWidget);
+      expect(
+        (tester.widget<Image>(find.byType(Image)).image as AssetImage)
+            .assetName,
+        'assets/images/vector/heart.png',
+      );
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.text('Next'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('2/3'), findsOneWidget);
+      expect(
+        (tester.widget<Image>(find.byType(Image)).image as AssetImage)
+            .assetName,
+        'assets/images/vector/touch_phone.png',
+      );
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.text('Next'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('3/3'), findsOneWidget);
+      expect(
+        (tester.widget<Image>(find.byType(Image)).image as AssetImage)
+            .assetName,
+        'assets/images/vector/thumbs_up.png',
       );
       expect(tester.takeException(), isNull);
     });
@@ -1591,6 +1664,156 @@ void main() {
       );
       expect(find.byKey(GuidePage.galleryFeaturedOutlineKey), findsOneWidget);
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('guide finish', () {
+    testWidgets('finishing any tab scrolls its registered controller to 0', (
+      tester,
+    ) async {
+      final ids = ['home', 'gallery', 'family', 'tribute', 'favorites'];
+      final controllers = {
+        for (final id in ids) id: ScrollController(),
+      };
+      final guide = GuideController();
+      for (final id in ids) {
+        guide.registerScrollController(id, controllers[id]!);
+      }
+      addTearDown(() {
+        for (final controller in controllers.values) {
+          controller.dispose();
+        }
+        guide.dispose();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: IndexedStack(
+            index: 0,
+            children: [
+              for (final id in ids)
+                ListView(
+                  key: ValueKey(id),
+                  controller: controllers[id],
+                  children: [
+                    for (var i = 0; i < 30; i++)
+                      SizedBox(height: 100, child: Text('$id $i')),
+                  ],
+                ),
+            ],
+          ),
+        ),
+      );
+      await tester.pump();
+
+      for (final id in ids) {
+        controllers[id]!.jumpTo(400);
+      }
+      await tester.pump();
+
+      for (final id in ids) {
+        guide.onGuideFinished(id);
+      }
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.pump();
+
+      for (final id in ids) {
+        expect(
+          controllers[id]!.offset,
+          0,
+          reason: '$id should return to the top',
+        );
+      }
+      expect(guide.seenGuides, containsAll(ids));
+      expect(guide.isGuideOpen, isFalse);
+    });
+
+    testWidgets('Done, Skip, and back share the finish path', (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final scroll = ScrollController();
+      final guide = GuideController();
+      addTearDown(() {
+        scroll.dispose();
+        guide.dispose();
+      });
+      guide.registerScrollController('home', scroll);
+
+      final lang = LanguageProvider()..setLanguage(AppLanguage.english);
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider.value(value: lang),
+            ChangeNotifierProvider.value(value: guide),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: ListView(
+                controller: scroll,
+                children: [
+                  for (var i = 0; i < 30; i++)
+                    SizedBox(height: 100, child: Text('Row $i')),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final navigator = tester.state<NavigatorState>(
+        find.byType(Navigator).first,
+      );
+
+      Future<void> openGuide() async {
+        navigator.push(
+          fadeRoute(const GuidePage(tour: GuideTour.home), opaque: false),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+
+      Future<void> expectFinishedAtTop() async {
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 250));
+        await tester.pump(const Duration(milliseconds: 600));
+        await tester.pump();
+
+        expect(find.byType(GuidePage), findsNothing);
+        expect(scroll.offset, 0);
+        expect(guide.isGuideOpen, isFalse);
+        expect(guide.seenGuides, contains('home'));
+      }
+
+      // Done on the last stop.
+      scroll.jumpTo(500);
+      await tester.pump();
+      await openGuide();
+      await tester.tap(find.text('Next'));
+      await tester.pump();
+      await tester.tap(find.text('Next'));
+      await tester.pump();
+      expect(find.text('3/3'), findsOneWidget);
+      await tester.tap(find.text('Done'));
+      await expectFinishedAtTop();
+
+      // Skip from the first stop.
+      scroll.jumpTo(500);
+      await tester.pump();
+      await openGuide();
+      await tester.tap(find.text('Skip'));
+      await expectFinishedAtTop();
+
+      // System back from the first stop.
+      scroll.jumpTo(500);
+      await tester.pump();
+      await openGuide();
+      await navigator.maybePop();
+      await expectFinishedAtTop();
     });
   });
 }

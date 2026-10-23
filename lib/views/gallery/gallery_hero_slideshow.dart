@@ -141,46 +141,76 @@ class _HeroSlideshowCardState extends State<HeroSlideshowCard>
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(color: AppColors.sandBorder, width: 1),
                 ),
-                child: SizedBox(
-                  height: 100,
-                  child: Row(
-                    children: [
-                      _heroPhotoStack(item),
-                      const SizedBox(width: 18),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              lang.t('gallery_highlights_title'),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.copper,
-                              ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SizedBox(
+                      height: 100,
+                      child: Row(
+                        children: [
+                          _heroPhotoStack(item),
+                          const SizedBox(width: 18),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  lang.t('gallery_highlights_title'),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.copper,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(width: 10),
+                          Container(
+                            width: 38,
+                            height: 38,
+                            decoration: const BoxDecoration(
+                              color: AppColors.copper,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.chevron_right_rounded,
+                              color: AppColors.paper,
+                              size: 22,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 10),
-                      Container(
-                        width: 38,
-                        height: 38,
-                        decoration: const BoxDecoration(
+                    ),
+                    const SizedBox(height: 10),
+                    // Explicit affordance: the card is the "play all"
+                    // entry point, so name the action instead of relying
+                    // on the play badge and chevron alone.
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        const Icon(
+                          Icons.play_circle_outline_rounded,
+                          size: 15,
                           color: AppColors.copper,
-                          shape: BoxShape.circle,
                         ),
-                        child: const Icon(
-                          Icons.chevron_right_rounded,
-                          color: AppColors.paper,
-                          size: 22,
+                        const SizedBox(width: 6),
+                        Text(
+                          lang.t('gallery_tap_to_play'),
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.copper,
+                            letterSpacing: 0.1,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -316,4 +346,3 @@ class _HeroSlideshowCardState extends State<HeroSlideshowCard>
     return _heroCard(lang);
   }
 }
-

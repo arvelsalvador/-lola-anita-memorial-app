@@ -193,12 +193,22 @@ class _GuidePageState extends State<GuidePage> {
 
   final VisitorRepository _visitorRepo = const VisitorRepository();
   GuideController? _guideController;
+  bool _guideOpenScheduled = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _guideController = context.read<GuideController>();
-    _guideController?.isGuideOpen = true;
+    if (!_guideOpenScheduled) {
+      _guideOpenScheduled = true;
+      // Do not notify provider listeners during the route's first build; that
+      // would ask the provider scope to rebuild in the middle of this frame.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _finishing) return;
+        _guideController?.isGuideOpen = true;
+      });
+      WidgetsBinding.instance.scheduleFrame();
+    }
   }
 
   @override
@@ -269,15 +279,51 @@ class _GuidePageState extends State<GuidePage> {
     }
   }
 
+  /// True once the shared finish path has started, so a double tap cannot
+  /// pop the page underneath while the guide route is fading out.
+  bool _finishing = false;
+
+  /// Maps the tour to the active shell tab id. The Words and Condolences tabs
+  /// still use their original shell ids (`tribute`, `favorites`).
+  String get _tabId => switch (widget.tour) {
+    GuideTour.home => 'home',
+    GuideTour.gallery => 'gallery',
+    GuideTour.family => 'family',
+    GuideTour.words => 'tribute',
+    GuideTour.condolences => 'favorites',
+  };
+
+  /// One exit path for Done, Skip, system back, and an external route pop.
+  ///
+  /// The repository flag stays tour-scoped, while [GuideController] owns the
+  /// seen state and the scroll back to the top so every tab behaves the same.
+  void _finishGuide({bool closeRoute = true}) {
+    if (_finishing) return;
+    _finishing = true;
+
+    _repo.markSeen();
+
+    final controller = _guideController;
+    if (controller == null) {
+      if (closeRoute) _popGuideRoute();
+      return;
+    }
+
+    controller.onGuideFinished(
+      _tabId,
+      closeOverlay: closeRoute ? _popGuideRoute : null,
+    );
+  }
+
+  void _popGuideRoute() {
+    if (!mounted) return;
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) navigator.pop();
+  }
+
   /// Persist first, then pop. `markSeen` swallows its own errors, so this
   /// never leaves the visitor stuck on a dead button.
-  void _close() {
-    _guideController?.isGuideOpen = false;
-    _repo.markSeen();
-    if (Navigator.of(context).canPop()) {
-      Navigator.of(context).pop();
-    }
-  }
+  void _close() => _finishGuide();
 
   @override
   Widget build(BuildContext context) {
@@ -307,6 +353,7 @@ class _GuidePageState extends State<GuidePage> {
 
     Widget buildDialogue({
       double? maxHeight,
+      double? artHeight,
       bool showArt = true,
       bool showTopConnector = false,
     }) => _Dialogue(
@@ -320,6 +367,7 @@ class _GuidePageState extends State<GuidePage> {
       onSkip: _close,
       compact: compact,
       maxHeight: maxHeight,
+      artHeight: artHeight,
       showArt: showArt,
       showTopConnector: showTopConnector,
       stepCount: steps.length,
@@ -525,14 +573,18 @@ class _GuidePageState extends State<GuidePage> {
     }
 
     return PopScope(
-      // Back goes to the previous stop; on the first stop it closes the guide.
-      canPop: _step == 0,
+      // Back goes to the previous stop; on the first stop it uses the same
+      // finish path as Done and Skip.
+      canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) {
-          _guideController?.isGuideOpen = false;
-          _repo.markSeen();
+          // Some other route owner popped us. Mark/scroll, but do not pop
+          // again from this already-disposed route.
+          _finishGuide(closeRoute: false);
         } else if (_step > 0) {
           _goToStep(_step - 1);
+        } else {
+          _finishGuide();
         }
       },
       child: AnnotatedRegion<SystemUiOverlayStyle>(
@@ -1093,7 +1145,7 @@ class _CutoutStep extends StatelessWidget {
                           builder: (context, constraints) {
                             final compact =
                                 MediaQuery.sizeOf(context).width < 720;
-                            final artHeight = compact
+                            final baseArtHeight = compact
                                 ? _Dialogue.compactArtHeight
                                 : _Dialogue.wideArtHeight;
                             // Reserve the arrow row. Capping the bubble lets
@@ -1103,11 +1155,27 @@ class _CutoutStep extends StatelessWidget {
                               0.0,
                               constraints.maxHeight - 38,
                             );
+                            // Keep Nanay visible when the lit control leaves
+                            // only a narrow strip for the dialogue. Scaling
+                            // the pose down is much friendlier than dropping
+                            // it entirely, which used to leave the first
+                            // Pakikiramay stops with text only.
+                            final fittedArtHeight = math.min(
+                              baseArtHeight,
+                              dialogueMax,
+                            );
                             // Too tight for even the title and the 56px
                             // action? Let the whole dialogue scroll instead
                             // of forcing the card to overflow.
                             final fitsBubble =
                                 dialogueMax >= _minDialogueHeight;
+                            final showArt =
+                                fitsBubble &&
+                                fittedArtHeight >= _Dialogue.minArtHeight;
+                            final bubbleMaxHeight =
+                                dialogueMax >= _Dialogue.minBubbleHeight
+                                ? dialogueMax
+                                : null;
                             final arrowLeft = (rect.center.dx - 20 - 14)
                                 .clamp(
                                   0.0,
@@ -1128,8 +1196,9 @@ class _CutoutStep extends StatelessWidget {
                               ),
                             );
                             final dialogue = dialogueBuilder(
-                              maxHeight: fitsBubble ? dialogueMax : null,
-                              showArt: fitsBubble && dialogueMax >= artHeight,
+                              maxHeight: bubbleMaxHeight,
+                              artHeight: showArt ? fittedArtHeight : null,
+                              showArt: showArt,
                             );
 
                             return Align(
@@ -1424,7 +1493,12 @@ class _TourBouncingArrowState extends State<_TourBouncingArrow>
 /// Builds the bubble for a step, optionally capped to the height available in
 /// a short viewport. The landscape rail supplies the artwork separately.
 typedef _DialogueBuilder =
-    Widget Function({double? maxHeight, bool showArt, bool showTopConnector});
+    Widget Function({
+      double? maxHeight,
+      double? artHeight,
+      bool showArt,
+      bool showTopConnector,
+    });
 
 class _Dialogue extends StatelessWidget {
   /// The portrait figure's height on phones. Shared with [_CutoutStep] so the
@@ -1433,6 +1507,15 @@ class _Dialogue extends StatelessWidget {
 
   /// The portrait figure's height on wider screens.
   static const double wideArtHeight = 390;
+
+  /// The smallest scaled pose that still reads as Nanay. Below this the
+  /// dialogue keeps its text-only fallback instead of showing a tiny figure.
+  static const double minArtHeight = 150;
+
+  /// Smallest capped bubble that can hold the badge, title, action, and one
+  /// line of copy without overflowing. Below this the outer guide scroll view
+  /// handles the full-height bubble instead.
+  static const double minBubbleHeight = 190;
 
   final GuideArt art;
   final String title;
@@ -1444,6 +1527,7 @@ class _Dialogue extends StatelessWidget {
   final VoidCallback? onSkip;
   final bool compact;
   final double? maxHeight;
+  final double? artHeight;
   final bool showArt;
   final bool showTopConnector;
   final int stepCount;
@@ -1461,6 +1545,7 @@ class _Dialogue extends StatelessWidget {
     this.onSkip,
     required this.compact,
     this.maxHeight,
+    this.artHeight,
     this.showArt = true,
     this.showTopConnector = false,
     required this.stepCount,
@@ -1473,7 +1558,8 @@ class _Dialogue extends StatelessWidget {
     // A much more prominent vector figure so Nanay is expressive, vivid, and
     // clearly visible. On phones the figure is kept smaller so the speech
     // bubble gets enough width for its actions and copy.
-    final artHeight = compact ? compactArtHeight : wideArtHeight;
+    final artworkHeight =
+        artHeight ?? (compact ? compactArtHeight : wideArtHeight);
 
     final bubble = _AnimatedSpeechBubble(
       activeStep: activeStep,
@@ -1486,6 +1572,7 @@ class _Dialogue extends StatelessWidget {
         skipLabel: skipLabel,
         onSkip: onSkip,
         compact: compact,
+        maxHeight: maxHeight,
         stepCount: stepCount,
         activeStep: activeStep,
         stepLabel: stepLabel,
@@ -1501,7 +1588,7 @@ class _Dialogue extends StatelessWidget {
       );
     }
 
-    final artWidth = artHeight * (compact ? 0.42 : 0.44);
+    final artWidth = artworkHeight * (compact ? 0.42 : 0.44);
 
     return Center(
       child: ConstrainedBox(
@@ -1517,7 +1604,7 @@ class _Dialogue extends StatelessWidget {
                 child: _AliveVector(
                   art: art,
                   width: artWidth,
-                  height: artHeight,
+                  height: artworkHeight,
                 ),
               ),
             ),
@@ -1683,6 +1770,7 @@ class _SpeechBubble extends StatelessWidget {
   final String? skipLabel;
   final VoidCallback? onSkip;
   final bool compact;
+  final double? maxHeight;
   final int? stepCount;
   final int? activeStep;
   final String? stepLabel;
@@ -1696,6 +1784,7 @@ class _SpeechBubble extends StatelessWidget {
     this.skipLabel,
     this.onSkip,
     this.compact = false,
+    this.maxHeight,
     this.stepCount,
     this.activeStep,
     this.stepLabel,
@@ -1711,7 +1800,10 @@ class _SpeechBubble extends StatelessWidget {
         activeStep! >= stepCount! - 1;
 
     return Container(
-      constraints: const BoxConstraints(maxWidth: 280),
+      constraints: BoxConstraints(
+        maxWidth: 280,
+        maxHeight: maxHeight ?? double.infinity,
+      ),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFFF7EDE4),
@@ -1801,16 +1893,32 @@ class _SpeechBubble extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          Text(
-            body,
-            style: const TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 14,
-              fontWeight: FontWeight.w400,
-              height: 1.35,
-              color: Color(0xFF6B5A52),
+          if (maxHeight == null)
+            Text(
+              body,
+              style: const TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+                height: 1.35,
+                color: Color(0xFF6B5A52),
+              ),
+            )
+          else
+            Flexible(
+              child: SingleChildScrollView(
+                child: Text(
+                  body,
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                    height: 1.35,
+                    color: Color(0xFF6B5A52),
+                  ),
+                ),
+              ),
             ),
-          ),
           const SizedBox(height: 14),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,

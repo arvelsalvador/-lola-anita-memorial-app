@@ -12,8 +12,9 @@ import 'package:nita/views/home/home_page.dart';
 
 /// Lays [text] out exactly like the card does (same style, maxLines,
 /// ellipsis, and the width the widget actually renders at) and asserts the
-/// text fits — no trailing "…". This is the guard that keeps every memory
-/// body short enough to never look cropped on real phone widths.
+/// text fits — no trailing "…". Used for the memory titles, which stay
+/// capped at two lines. Bodies are no longer capped (the card grows), so
+/// they are checked with the adaptive-height probe below instead.
 void expectTextFits(
   WidgetTester tester,
   String text,
@@ -218,18 +219,18 @@ Future<void> main() async {
               child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: MemoryCard(
-                    memory: HomeController.memoriesData.memories.first,
-                    index: 0,
-                  ),
+                  memory: HomeController.memoriesData.memories.first,
+                  index: 0,
                 ),
               ),
             ),
           ),
         ),
-      );
-      await tester.pump(const Duration(milliseconds: 400));
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 400));
 
-      // Tap the card's photo (the Hero) — the preview route pushes on top
+    // Tap the card's photo (the Hero) — the preview route pushes on top
     // with its own Hero, showing the same wired-in photo.
     await tester.tap(find.byType(Hero));
     await tester.pump();
@@ -239,12 +240,11 @@ Future<void> main() async {
     expect(tester.takeException(), isNull);
   });
 
-  // No-ellipsis probe: every memory title and body must lay out inside its
-  // maxLines at typical phone widths in all three languages. The card's
-  // body is capped at 7 homepage-content lines (13px semibold, height
-  // 1.5); titles at 2 content lines. This guard is what keeps the copy
-  // from ever showing a trailing "…" — if a body here grows past ~7
-  // lines, trim it.
+  // Adaptive-height probe: every memory body must render in full — no
+  // maxLines cap, no ellipsis — with the card growing to fit it. Cards keep
+  // 276px as a minimum, and the photo is pinned to both vertical edges so
+  // it fills whatever height the copy needs (no empty strip). Titles stay
+  // capped at 2 lines because every title is short.
   final widths = <double>[360, 390, 412];
   final allMemories = HomeController.memoriesData.memories;
   if (!(await fontsReady)) {
@@ -286,7 +286,7 @@ Future<void> main() async {
         AppLanguage.bicol => 'Bicol',
       };
       testWidgets(
-        'memory copy fits without ellipsis @ ${width.toInt()}px ($languageName)',
+        'memory copy renders fully @ ${width.toInt()}px ($languageName)',
         (WidgetTester tester) async {
           tester.view.devicePixelRatio = 1.0;
           addTearDown(tester.view.reset);
@@ -312,14 +312,79 @@ Future<void> main() async {
             await tester.pump();
             await tester.pump(const Duration(milliseconds: 50));
 
-            final body = lang.t(allMemories[i].bodyKey);
-            expectTextFits(
-              tester,
-              body,
-              AppTextStyles.homeContent,
-              7,
-              '${allMemories[i].id} body @ ${width.toInt()}px ($languageName)',
+            final cardSize = tester.getSize(find.byType(MemoryCard));
+            expect(
+              cardSize.height,
+              greaterThanOrEqualTo(276.0),
+              reason:
+                  '${allMemories[i].id} card must keep its 276px minimum '
+                  '@ ${width.toInt()}px ($languageName)',
             );
+
+            final body = lang.t(allMemories[i].bodyKey);
+            final bodyFinder = find.text(body);
+            expect(
+              bodyFinder,
+              findsOneWidget,
+              reason:
+                  '${allMemories[i].id} body @ ${width.toInt()}px '
+                  '($languageName)',
+            );
+            final bodyWidget = tester.widget<Text>(bodyFinder);
+            expect(
+              bodyWidget.maxLines,
+              isNull,
+              reason:
+                  '${allMemories[i].id} body must not cap its lines '
+                  '@ ${width.toInt()}px ($languageName)',
+            );
+            expect(
+              bodyWidget.overflow,
+              isNot(TextOverflow.ellipsis),
+              reason:
+                  '${allMemories[i].id} body must not end in an ellipsis '
+                  '@ ${width.toInt()}px ($languageName)',
+            );
+
+            // The rendered body must sit fully inside the card's padding —
+            // proof it was laid out in the grown card, not clipped.
+            final bodyRect = tester.getRect(bodyFinder);
+            final cardRect = tester.getRect(find.byType(MemoryCard));
+            expect(
+              bodyRect.bottom,
+              lessThanOrEqualTo(cardRect.bottom - 15.0),
+              reason:
+                  '${allMemories[i].id} body is clipped by the card bottom '
+                  '@ ${width.toInt()}px ($languageName)',
+            );
+            expect(
+              bodyRect.top,
+              greaterThanOrEqualTo(cardRect.top + 15.0),
+              reason:
+                  '${allMemories[i].id} body is clipped by the card top '
+                  '@ ${width.toInt()}px ($languageName)',
+            );
+
+            // The photo is pinned to both vertical edges; it must fill the
+            // card interior even when the copy pushes the card past its
+            // minimum. The 1.4px difference is the card's 0.7px border.
+            final photoSize = tester.getSize(find.byType(Hero));
+            expect(
+              photoSize.height,
+              closeTo(cardSize.height - 1.4, 0.5),
+              reason:
+                  '${allMemories[i].id} photo must fill the grown card '
+                  '@ ${width.toInt()}px ($languageName)',
+            );
+
+            if (allMemories[i].id == 'memory_1' && width == 360) {
+              expect(
+                cardSize.height,
+                greaterThan(276.0),
+                reason: 'long body must grow the card at 360px ($languageName)',
+              );
+            }
+
             final title = lang.t(allMemories[i].titleKey);
             expectTextFits(
               tester,
@@ -329,9 +394,9 @@ Future<void> main() async {
               '${allMemories[i].id} title @ ${width.toInt()}px ($languageName)',
             );
           }
+          expect(tester.takeException(), isNull);
         },
       );
     }
   }
 }
-

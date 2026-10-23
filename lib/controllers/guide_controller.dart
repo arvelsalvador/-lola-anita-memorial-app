@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Global controller managing onboarding guide visibility, auto-start delays,
@@ -18,6 +18,14 @@ class GuideController extends ChangeNotifier {
 
   Timer? _autoStartTimer;
   String? _pendingTabId;
+
+  /// Main vertical scroll controller for each tab, registered by the shell.
+  ///
+  /// The guide uses these to return the page beneath it to the top after the
+  /// visitor finishes or skips the tour. The shell owns the controllers; this
+  /// map is only a by-tab lookup and is cleared on dispose.
+  final Map<String, ScrollController> _scrollControllers =
+      <String, ScrollController>{};
 
   /// Callback registered by the active UI shell (HomePage) to launch the
   /// visual guide modal for [tabId].
@@ -133,6 +141,48 @@ class GuideController extends ChangeNotifier {
     onStartGuide?.call(tabId);
   }
 
+  /// Registers [controller] as the main vertical scroll controller for [tabId].
+  ///
+  /// Kept separate from the guide itself so every tab follows the same finish
+  /// path and the visual guide never owns page state.
+  void registerScrollController(String tabId, ScrollController controller) {
+    _scrollControllers[tabId] = controller;
+  }
+
+  /// Removes [controller] for [tabId] if it is still the registered instance.
+  ///
+  /// The identity check protects against a shell rebuild registering a newer
+  /// controller before the old shell is disposed.
+  void unregisterScrollController(String tabId, ScrollController controller) {
+    if (identical(_scrollControllers[tabId], controller)) {
+      _scrollControllers.remove(tabId);
+    }
+  }
+
+  /// The single exit path for every guide.
+  ///
+  /// Marks [tabId] seen, closes the overlay through [closeOverlay], then
+  /// returns that tab's page to the top. The scroll is scheduled after the
+  /// current frame so the page beneath the overlay is laid out and visible
+  /// when the animation begins.
+  void onGuideFinished(String tabId, {VoidCallback? closeOverlay}) {
+    markSeen(tabId);
+    isGuideOpen = false;
+    closeOverlay?.call();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final controller = _scrollControllers[tabId];
+      if (controller == null || !controller.hasClients) return;
+
+      controller.animateTo(
+        0,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeOutCubic,
+      );
+    });
+    WidgetsBinding.instance.scheduleFrame();
+  }
+
   Future<void> _saveBool(String key, bool value) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -154,7 +204,7 @@ class GuideController extends ChangeNotifier {
   @override
   void dispose() {
     _autoStartTimer?.cancel();
+    _scrollControllers.clear();
     super.dispose();
   }
 }
-
