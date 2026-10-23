@@ -121,7 +121,7 @@ class _GuideChoiceDialogWidget extends StatelessWidget {
                               frameBuilder: guideArtFrameBuilder,
                             ),
                           ),
-                          SizedBox(width: isCompact ? 10 : 18),
+                          SizedBox(width: isCompact ? 12 : 18),
 
                           // Right Column: Title, Body, Action buttons
                           Expanded(
@@ -129,16 +129,25 @@ class _GuideChoiceDialogWidget extends StatelessWidget {
                               mainAxisSize: MainAxisSize.min,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Title
-                                Text(
-                                  lang.t('guide_choice_title'),
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: isCompact ? 16 : 19.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: const Color(0xFF2E1C14),
-                                    height: 1.2,
-                                    letterSpacing: -0.3,
+                                // Title. The right gutter keeps the copy clear
+                                // of the floating X button pinned to the
+                                // card's top-right corner — without it, longer
+                                // Tagalog titles ran underneath the close
+                                // circle on narrow phones.
+                                Padding(
+                                  padding: EdgeInsets.only(
+                                    right: isCompact ? 30 : 34,
+                                  ),
+                                  child: Text(
+                                    lang.t('guide_choice_title'),
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: isCompact ? 15.5 : 19.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: const Color(0xFF2E1C14),
+                                      height: 1.2,
+                                      letterSpacing: -0.3,
+                                    ),
                                   ),
                                 ),
                                 SizedBox(height: isCompact ? 6 : 9),

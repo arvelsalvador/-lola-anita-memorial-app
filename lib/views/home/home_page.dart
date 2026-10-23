@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'package:provider/provider.dart';
@@ -364,6 +365,55 @@ class _HomeShellState extends State<HomeShell> {
     }
   }
 
+  // The Story tab's scroll view is the only scrollable on the home shell, and
+  // it starts *below* the memorial hero. A drag that begins on the hero would
+  // therefore hit nothing and make the page feel frozen, so the handlers below
+  // forward it to the Story controller. The normal listener then collapses
+  // the hero exactly as if the drag had started on the content.
+  ScrollController get _storyController => _controllers[0];
+
+  void _scrollStoryBy(double delta) {
+    final controller = _storyController;
+    if (!controller.hasClients) return;
+    final position = controller.position;
+    final target = (position.pixels + delta).clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
+    if (target != position.pixels) controller.jumpTo(target);
+  }
+
+  void _onHeroDragStart(DragStartDetails details) {
+    // A tab-switch collapse/expand animation must not fight the finger.
+    _heroTabTimer?.cancel();
+    if (_heroTabAnimating) setState(() => _heroTabAnimating = false);
+  }
+
+  void _onHeroDragUpdate(DragUpdateDetails details) {
+    _scrollStoryBy(-details.delta.dy);
+  }
+
+  void _onHeroDragEnd(DragEndDetails details) {
+    final controller = _storyController;
+    if (!controller.hasClients) return;
+    final velocity = -(details.primaryVelocity ?? 0);
+    if (velocity == 0) return;
+    final position = controller.position;
+    // Use the scroll view's own physics so the fling decelerates (and clamps
+    // at the ends) exactly like a fling started on the content itself.
+    if (position is ScrollPositionWithSingleContext) {
+      position.goBallistic(velocity);
+    }
+  }
+
+  void _onHeroPointerSignal(PointerSignalEvent event) {
+    // Mouse wheel / trackpad on desktop web. Touch drags go through the
+    // GestureDetector callbacks above.
+    if (event is PointerScrollEvent) {
+      _scrollStoryBy(event.scrollDelta.dy);
+    }
+  }
+
   @override
   void didUpdateWidget(covariant HomeShell oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -373,9 +423,6 @@ class _HomeShellState extends State<HomeShell> {
       }
       _activeTab.value = widget.selectedTab;
       final tabId = _tabIdFor(widget.selectedTab);
-      final guideController = context.read<GuideController>();
-      guideController.setCurrentTab(tabId);
-      guideController.maybeAutoStart(tabId);
       // Duck the opacity with zero duration (an instant drop, not a fade),
       // then switch to an animated duration for the rise once the new
       // tab's scroll position has been reset — two different durations so
@@ -391,6 +438,12 @@ class _HomeShellState extends State<HomeShell> {
       // down the last time it was visited.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
+        // Guide bookkeeping notifies its listeners, so it must run after the
+        // build phase — notifying during this widget's update marks provider
+        // dependents dirty mid-build.
+        context.read<GuideController>()
+          ..setCurrentTab(tabId)
+          ..maybeAutoStart(tabId);
         final controller = _controllers[widget.selectedTab];
         if (controller.hasClients) {
           controller.jumpTo(0);
@@ -472,22 +525,35 @@ class _HomeShellState extends State<HomeShell> {
                 final heroHeight = onStoryTab
                     ? (expandedHeight - storyOffset).clamp(0.0, expandedHeight)
                     : 0.0;
-                final heroContent = OverflowBox(
-                  alignment: Alignment.topCenter,
-                  maxHeight: expandedHeight,
-                  child: AnimatedOpacity(
-                    opacity: onStoryTab ? 1 : 0,
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.easeOut,
-                    child: TickerMode(
-                      // The hero sits above the IndexedStack and is only
-                      // visible on the Story tab. Hidden behind opacity 0
-                      // it would still run its infinite animations (the
-                      // portrait's glow pulse in home_effects.dart and the
-                      // curved-header shimmer in home_hero_header.dart),
-                      // so mute its tickers while another tab is active.
-                      enabled: onStoryTab,
-                      child: _heroChild,
+                final heroContent = Listener(
+                  onPointerSignal: _onHeroPointerSignal,
+                  child: GestureDetector(
+                    // Opaque so even the transparent margins around the
+                    // portrait accept the drag. The portrait's tap-to-gallery
+                    // still wins on a tap — the drag recognizer only claims
+                    // the gesture once the finger actually moves.
+                    behavior: HitTestBehavior.opaque,
+                    onVerticalDragStart: _onHeroDragStart,
+                    onVerticalDragUpdate: _onHeroDragUpdate,
+                    onVerticalDragEnd: _onHeroDragEnd,
+                    child: OverflowBox(
+                      alignment: Alignment.topCenter,
+                      maxHeight: expandedHeight,
+                      child: AnimatedOpacity(
+                        opacity: onStoryTab ? 1 : 0,
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeOut,
+                        child: TickerMode(
+                          // The hero sits above the IndexedStack and is only
+                          // visible on the Story tab. Hidden behind opacity 0
+                          // it would still run its infinite animations (the
+                          // portrait's glow pulse in home_effects.dart and the
+                          // curved-header shimmer in home_hero_header.dart),
+                          // so mute its tickers while another tab is active.
+                          enabled: onStoryTab,
+                          child: _heroChild,
+                        ),
+                      ),
                     ),
                   ),
                 );

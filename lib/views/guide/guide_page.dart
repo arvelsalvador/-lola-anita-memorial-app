@@ -758,6 +758,13 @@ class _AbuloyStep extends StatelessWidget {
     required this.activeStep,
   });
 
+  /// Gap between the coin's ring and the bouncing pointer. The pointer's
+  /// bounce lifts it 6px, so 8 keeps a 2px breathing space at the peak.
+  static const double _arrowGap = 8;
+
+  /// Breathing room between the pointer and the bubble card.
+  static const double _arrowToBubble = 8;
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
@@ -767,11 +774,15 @@ class _AbuloyStep extends StatelessWidget {
     // The ring is 8px larger than the 60px coin on every side, so shifting
     // it up by 8px leaves the coin itself on the docked spot.
     final ringTop = AbuloyTouch.dockTopFor(size) - 8;
-    // A touch higher than the coin's bottom edge: the bubble and Nanay read as
-    // one group under the touch without crowding the hero copy behind them.
+    final ringBottom = ringTop + _HighlightedAbuloy.ringSize;
+    // The pointer sits in the clear scrim between the coin and the bubble.
+    // Reserve its height plus a gap in the dialogue's top padding: without
+    // that, the bubble card (taller than the artwork on phones) started above
+    // the arrow and swallowed it — cream on cream, right over the back button.
+    final arrowTop = ringBottom + _arrowGap;
     final dialogueTop = math.max(
       0.0,
-      ringTop - padding.top + _HighlightedAbuloy.ringSize - 4,
+      arrowTop + _TourBouncingArrow.size + _arrowToBubble - padding.top,
     );
 
     return Stack(
@@ -811,8 +822,11 @@ class _AbuloyStep extends StatelessWidget {
         ),
         if (!short)
           Positioned(
-            right: 36,
-            top: ringTop + _HighlightedAbuloy.ringSize + 4,
+            // Centred under the coin: the docked coin's centre is 50px from
+            // the screen's right edge (the 20px dock margin plus half the
+            // 60px touch), minus half the pointer's width.
+            right: 20 + AbuloyTouch.size / 2 - _TourBouncingArrow.size / 2,
+            top: arrowTop,
             child: const _TourBouncingArrow(pointingUp: true),
           ),
       ],
@@ -1427,6 +1441,10 @@ class _LitTopBar extends StatelessWidget {
 /// Bouncing pointer arrow that draws attention to the currently highlighted
 /// target. Loops a 6px vertical offset smoothly up and down.
 class _TourBouncingArrow extends StatefulWidget {
+  /// Icon size. Shared with the Abuloy stop so the gap reserved above the
+  /// bubble always matches the pointer that fills it.
+  static const double size = 28;
+
   final bool pointingUp;
 
   const _TourBouncingArrow({this.pointingUp = true});
@@ -1475,7 +1493,7 @@ class _TourBouncingArrowState extends State<_TourBouncingArrow>
         widget.pointingUp
             ? Icons.arrow_upward_rounded
             : Icons.arrow_downward_rounded,
-        size: 28,
+        size: _TourBouncingArrow.size,
         color: cream,
         shadows: [
           Shadow(color: AppColors.gold.withValues(alpha: 0.65), blurRadius: 10),

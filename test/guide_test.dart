@@ -289,6 +289,44 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('the Abuloy pointer stays clear of the bubble', (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final lang = LanguageProvider()..setLanguage(AppLanguage.english);
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider.value(value: lang),
+            // GuidePage reports its open state to the controller, so this
+            // standalone harness needs one above the route.
+            ChangeNotifierProvider(create: (_) => GuideController()),
+          ],
+          child: const MaterialApp(home: GuidePage()),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Next'));
+      await tester.pump();
+
+      final arrow = tester.getRect(find.byIcon(Icons.arrow_upward_rounded));
+      final title = tester.getRect(find.text('Abuloy, always within reach'));
+      final coin = tester.getRect(find.byType(AbuloyTouchVisual));
+
+      // The pointer lives in the clear scrim between the coin and the card:
+      // below the coin, above the bubble, and centred under the coin. Before
+      // this, the card's top started above the arrow and swallowed it (cream
+      // on cream, over the card's back button).
+      expect(arrow.top, greaterThanOrEqualTo(coin.bottom));
+      expect(arrow.bottom, lessThanOrEqualTo(title.top));
+      expect(arrow.center.dx, closeTo(coin.center.dx, 1.0));
+      expect(arrow.top, greaterThanOrEqualTo(0));
+      expect(arrow.bottom, lessThanOrEqualTo(tester.view.physicalSize.height));
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('Skip marks the guide seen from the first stop', (
       tester,
     ) async {

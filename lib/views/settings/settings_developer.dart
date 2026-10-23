@@ -149,7 +149,7 @@ class _AboutDeveloperPage extends StatelessWidget {
                       const SizedBox(height: 12),
                       Text(
                         lang.t('settings_about_dev_dedication'),
-                        textAlign: TextAlign.justify,
+                        textAlign: TextAlign.start,
                         style: AppTextStyles.bodyText,
                       ),
                       const SizedBox(height: 16),

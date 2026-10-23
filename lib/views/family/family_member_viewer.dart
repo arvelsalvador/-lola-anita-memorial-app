@@ -398,7 +398,7 @@ class _MemberDetailSheet extends StatelessWidget {
                             member.storyKey != null
                                 ? lang.t(member.storyKey!)
                                 : lang.t(member.bioKey!),
-                            textAlign: TextAlign.justify,
+                            textAlign: TextAlign.start,
                             style: const TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 12.5,

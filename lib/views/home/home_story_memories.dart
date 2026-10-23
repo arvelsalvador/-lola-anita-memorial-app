@@ -115,7 +115,9 @@ class AboutCard extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         child: Text(
           text,
-          textAlign: TextAlign.justify,
+          // Left-aligned on every card: justifying a narrow column produces
+          // the huge, uneven word gaps seen on phones.
+          textAlign: TextAlign.start,
           style: AppTextStyles.homeContent.copyWith(
             color: AppColors.warmMid,
             height: 1.8,
@@ -357,7 +359,7 @@ class MemoryCard extends StatelessWidget {
                 // long paragraphs wrap instead of ending in an ellipsis.
                 Text(
                   lang.t(memory.bodyKey),
-                  textAlign: TextAlign.justify,
+                  textAlign: TextAlign.start,
                   style: AppTextStyles.homeContent.copyWith(
                     color: AppColors.muted,
                     height: 1.5,

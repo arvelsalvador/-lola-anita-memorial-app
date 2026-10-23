@@ -8,18 +8,36 @@ import 'package:nita/controllers/gallery_controller.dart';
 import 'package:nita/controllers/home_controller.dart';
 import 'package:nita/controllers/words_controller.dart';
 import 'package:nita/controllers/condolences_controller.dart';
+import 'package:nita/controllers/guide_controller.dart';
 import 'package:nita/views/home/home_page.dart';
+import 'package:nita/widgets/framed_memorial_portrait.dart';
 
 void _noop(int _) {}
 
-Widget _shell(int selectedTab) => HomeShell(
-  selectedTab: selectedTab,
-  onTabChanged: _noop,
-  homeController: HomeController(),
-  galleryController: GalleryController(),
-  wordsController: WordsController(),
-  condolencesController: CondolencesController(),
-);
+Widget _app(int selectedTab, {ValueChanged<int>? onTabChanged}) {
+  return MultiProvider(
+    providers: [
+      ChangeNotifierProvider(create: (_) => LanguageProvider()),
+      // HomeShell registers its scroll controllers with the guide in a
+      // post-frame callback, so the provider is required here. Auto-start is
+      // disabled: these tests never open a tour, and the 1.5s auto-start
+      // timer would otherwise push the guide over the hero mid-test.
+      ChangeNotifierProvider(
+        create: (_) => GuideController(guideEnabled: false),
+      ),
+    ],
+    child: MaterialApp(
+      home: HomeShell(
+        selectedTab: selectedTab,
+        onTabChanged: onTabChanged ?? _noop,
+        homeController: HomeController(),
+        galleryController: GalleryController(),
+        wordsController: WordsController(),
+        condolencesController: CondolencesController(),
+      ),
+    ),
+  );
+}
 
 /// The hero's collapse container height — 0 means the hero is hidden, the
 /// full expanded height means it is shown. Read after the fixed pumps so the
@@ -27,6 +45,15 @@ Widget _shell(int selectedTab) => HomeShell(
 double _heroHeight(WidgetTester tester) => tester
     .getSize(find.byKey(const ValueKey('hero-collapse'), skipOffstage: false))
     .height;
+
+/// The Story tab's current scroll offset.
+double _storyPixels(WidgetTester tester) {
+  final scrollable = find.descendant(
+    of: find.byType(StoryPage),
+    matching: find.byType(Scrollable),
+  );
+  return tester.state<ScrollableState>(scrollable.first).position.pixels;
+}
 
 void main() {
   setUpAll(() {
@@ -40,12 +67,7 @@ void main() {
   testWidgets('hero hides on scroll and only returns at the top', (
     tester,
   ) async {
-    await tester.pumpWidget(
-      ChangeNotifierProvider(
-        create: (_) => LanguageProvider(),
-        child: MaterialApp(home: _shell(0)),
-      ),
-    );
+    await tester.pumpWidget(_app(0));
     // Fixed pumps: the gallery tab shows an indefinite spinner, so
     // pumpAndSettle would never settle.
     await tester.pump(const Duration(milliseconds: 400));
@@ -97,12 +119,7 @@ void main() {
     // open mid-scroll and collapsing again ("flapping"), which used to
     // happen when a short page reported pixels=0 while the visible page
     // was still scrolled down.
-    await tester.pumpWidget(
-      ChangeNotifierProvider(
-        create: (_) => LanguageProvider(),
-        child: MaterialApp(home: _shell(0)),
-      ),
-    );
+    await tester.pumpWidget(_app(0));
     await tester.pump(const Duration(milliseconds: 400));
 
     // Mirrors the expandedHeight formula in _HomeShellState.build, read from
@@ -160,12 +177,7 @@ void main() {
 
   testWidgets('hero only appears on the home tab', (tester) async {
     Future<void> pumpTab(int tab) async {
-      await tester.pumpWidget(
-        ChangeNotifierProvider(
-          create: (_) => LanguageProvider(),
-          child: MaterialApp(home: _shell(tab)),
-        ),
-      );
+      await tester.pumpWidget(_app(tab));
       await tester.pump(const Duration(milliseconds: 400));
     }
 
@@ -182,5 +194,56 @@ void main() {
     // And back home it expands again.
     await pumpTab(0);
     expect(_heroHeight(tester), greaterThan(0));
+  });
+
+  testWidgets('a drag starting on the hero scrolls the story', (tester) async {
+    // Phone-sized viewport so the hero is the tall block a visitor actually
+    // swipes on.
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(_app(0));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final heroRect = tester.getRect(
+      find.byKey(const ValueKey('hero-collapse'), skipOffstage: false),
+    );
+    expect(heroRect.height, greaterThan(0));
+
+    // Start inside the visible hero (below the top bar), then fling upward.
+    // Before the fix this drag hit no scrollable at all and the story stayed
+    // at offset 0.
+    final start = Offset(heroRect.center.dx, heroRect.top + 100);
+    await tester.dragFrom(start, const Offset(0, -600));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      _storyPixels(tester),
+      greaterThan(0),
+      reason: 'the drag on the hero must reach the Story scroll view',
+    );
+    expect(
+      _heroHeight(tester),
+      0,
+      reason: 'the hero must collapse exactly as if the content was dragged',
+    );
+  });
+
+  testWidgets('tapping the hero portrait still opens the gallery', (
+    tester,
+  ) async {
+    int? openedTab;
+    await tester.pumpWidget(_app(0, onTabChanged: (tab) => openedTab = tab));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    // The new drag recognizer must not swallow the portrait's tap.
+    await tester.tap(find.byType(FramedMemorialPortrait).first);
+    await tester.pump();
+
+    expect(openedTab, 1);
   });
 }
