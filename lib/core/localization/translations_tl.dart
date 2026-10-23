@@ -527,24 +527,20 @@ const Map<String, String> translationsTl = {
   'words_relation_apo_lalaki': 'Apo na lalaki',
   'words_relation_apo_babae': 'Apo na babae',
   // Mga anak
-  'words_quote_1':
-      'Salamat sa pag-aaruga, Nay. Sa bawat "mahal kita" ay isang hakbang na hindi kailanman kulang.',
+  'words_quote_1': 'Maraming salamat sa pag-aaruga, Nay.',
   'words_quote_1_name': 'Lorie Salvador',
-  'words_quote_2':
-      'Buong pusong nagtrabaho ka para sa amin. Magpahinga ka na, Nay.',
+  'words_quote_2': 'Pahinga ka na, Nay.',
   'words_quote_2_name': 'Gernan Lumbao',
   'words_quote_3':
-      'Hindi man kita nadakotup ngayon, dala-dala ko pa rin ang mga kuwento at tawanan natin.',
+      'Naalala ko pa ang mga kuwento at tawanan natin. Salamat, Nay.',
   'words_quote_3_name': 'Rodel Lumbao Sr.',
   // Mga kapatid
-  'words_quote_4':
-      'May isang sulok sa bawat sulok ng bahay at sa puso naming lahat.',
+  'words_quote_4': 'Sana masaya ka kung saan ka man naroroon.',
   'words_quote_4_name': 'Roberto Daiz',
-  'words_quote_5':
-      'Ang dagat ang nagturo sa akin ng pasensya, ikaw ang nagturo ng puso.',
+  'words_quote_5': 'Salamat at paalam.',
   'words_quote_5_name': 'Rodolfo Daiz',
   'words_quote_6':
-      'Ikaw ang nagdasal para sa amin. Ngayon, kami naman ang magdadasal para sa iyo.',
+      'Sana maayos ka kung nasaan ka man, at sana masaya ka.',
   'words_quote_6_name': 'Sonia Daiz',
   // Mga apo
   'words_quote_7':
@@ -560,7 +556,7 @@ const Map<String, String> translationsTl = {
       'Ang lambing mo ay nabubuhay sa paraan ng aming pananalita. Salamat, Lola.',
   'words_quote_10_name': 'Rose-ann Lumbao',
   'words_quote_11':
-      'Ang app na ito ang nagpapanatiling buhay ang mga kuwento mo. Alay ko ito sa iyo, Lola.',
+      'Ikukuwento ko na lang sa iyo ang lahat, Nay, kapag nagkita tayong muli.',
   'words_quote_11_name': 'Arvel Salvador',
   'words_quote_12':
       'Tahimik ngunit tiyak, ipinakita mo kung paano tapusin ang mga bagay nang may pagmamahal.',
@@ -578,7 +574,7 @@ const Map<String, String> translationsTl = {
   'candle_message_title': 'Anong gusto mong sabihin kay Nanay?',
   'candle_message_hint': 'Mensahe mo kay Nanay…',
   'candle_message_private_note':
-      'Ang iyong mensahe ay pribado at hindi makikita ng ibang tao',
+      'Ang iyong mensahe ay pribado, hindi makikita ng ibang tao',
   'candle_message_send': 'Ipadala',
   'candle_message_thanks': 'Nakarating kay Nanay ang iyong mensahe 🕊️',
   'candle_message_required':

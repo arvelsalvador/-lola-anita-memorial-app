@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:nita/controllers/guide_controller.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/utils/image_decode.dart';
 import 'package:nita/core/localization/language_provider.dart';
@@ -8,7 +7,6 @@ import 'package:nita/core/utils/navigation.dart';
 import 'package:nita/widgets/abuloy_touch.dart';
 import 'package:nita/widgets/ornamental_card.dart';
 import 'package:nita/views/admin/admin_page.dart';
-import 'package:nita/views/guide/guide_page.dart';
 
 part 'settings_about.dart';
 part 'settings_developer.dart';
@@ -19,21 +17,14 @@ class _SettingEntry {
   final Color iconColor;
   final String titleKey;
   final String descKey;
-  final WidgetBuilder? page;
-  final void Function(BuildContext context)? onTap;
-
-  /// Whether the page needs the app to stay visible underneath. The guide
-  /// dims it with a translucent scrim instead of a solid background.
-  final bool translucent;
+  final WidgetBuilder page;
 
   const _SettingEntry({
     required this.icon,
     required this.iconColor,
     required this.titleKey,
     required this.descKey,
-    this.page,
-    this.onTap,
-    this.translucent = false,
+    required this.page,
   });
 }
 
@@ -44,32 +35,6 @@ List<_SettingEntry> _entriesFor(
   VoidCallback? onViewFamily,
   ValueChanged<int>? onOpenTab,
 ) => [
-  _SettingEntry(
-    icon: Icons.replay_rounded,
-    iconColor: AppColors.gold,
-    titleKey: 'settings_replay_guides_title',
-    descKey: 'settings_replay_guides_desc',
-    onTap: (context) {
-      context.read<GuideController>().resetAll();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.read<LanguageProvider>().t('settings_replay_guides_snack'),
-          ),
-          duration: const Duration(seconds: 3),
-          backgroundColor: AppColors.warmDark,
-        ),
-      );
-    },
-  ),
-  _SettingEntry(
-    icon: Icons.menu_book_outlined,
-    iconColor: AppColors.roseDeep,
-    titleKey: 'guide_settings_title',
-    descKey: 'guide_settings_desc',
-    page: (_) => const GuidePage(),
-    translucent: true,
-  ),
   _SettingEntry(
     icon: Icons.person_outline_rounded,
     iconColor: AppColors.gold,
@@ -149,9 +114,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return Scaffold(
       backgroundColor: AppColors.cream,
       appBar: _SettingsAppBar(title: lang.t('settings_title')),
-      // The assistive touch floats over settings too, like every tab.
-      body: AbuloyTouchScope(
-        child: LayoutBuilder(
+      body: LayoutBuilder(
           builder: (context, viewport) => SingleChildScrollView(
             child: Center(
               child: ConstrainedBox(
@@ -312,16 +275,11 @@ class _SettingsPageState extends State<SettingsPage> {
                                           ),
                                       horizontalTitleGap: 14,
                                       onTap: () {
-                                        if (entry.onTap != null) {
-                                          entry.onTap!(context);
-                                        } else if (entry.page != null) {
-                                          Navigator.of(context).push(
-                                            fadeRoute(
-                                              entry.page!(context),
-                                              opaque: !entry.translucent,
-                                            ),
-                                          );
-                                        }
+                                        Navigator.of(context).push(
+                                          fadeRoute(
+                                            entry.page(context),
+                                          ),
+                                        );
                                       },
                                     );
                                   },
@@ -337,7 +295,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             child: Text(
-                              'Nanay Anita · ${lang.t('settings_about_app_version')}',
+                              'Nanay Anita Â· ${lang.t('settings_about_app_version')}',
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 fontFamily: 'Inter',
@@ -355,7 +313,6 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
         ),
-      ),
     );
   }
 }

@@ -41,16 +41,16 @@ class _PressableState extends State<_Pressable> {
 }
 
 /// Reveals [child] with a fade + directional slide the first time it
-/// becomes meaningfully visible while scrolling — not on mount. Content
-/// below the fold starts fully hidden until the user actually scrolls it
-/// into view, then it settles in once and stays.
-class _ScrollReveal extends StatefulWidget {
+/// becomes meaningfully visible while scrolling — delegates to the shared
+/// [RevealOnAppear] widget.
+class _ScrollReveal extends StatelessWidget {
   final String id;
   final int index;
   final Widget child;
   final bool floatUp;
 
   const _ScrollReveal({
+    super.key,
     required this.id,
     required this.index,
     required this.child,
@@ -58,63 +58,8 @@ class _ScrollReveal extends StatefulWidget {
   });
 
   @override
-  State<_ScrollReveal> createState() => _ScrollRevealState();
-}
-
-class _ScrollRevealState extends State<_ScrollReveal>
-    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 700),
-  );
-  late final Animation<double> _fade = CurvedAnimation(
-    parent: _controller,
-    curve: Curves.easeOut,
-  );
-  late final Animation<Offset> _slide = Tween<Offset>(
-    begin: _beginOffset,
-    end: Offset.zero,
-  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
-
-  bool _revealed = false;
-  Timer? _delayTimer;
-  @override
-  bool get wantKeepAlive => true;
-
-  Offset get _beginOffset {
-    if (widget.floatUp) return const Offset(0, 0.08);
-    return Offset(widget.index.isEven ? -0.10 : 0.10, 0.04);
-  }
-
-  @override
-  void dispose() {
-    _delayTimer?.cancel();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _onVisibilityChanged(VisibilityInfo info) {
-    if (_revealed || info.visibleFraction <= 0.15) return;
-    _revealed = true;
-    _delayTimer = Timer(
-      Duration(milliseconds: 150 + 80 * (widget.index % 4)),
-      () {
-        if (mounted) _controller.forward();
-      },
-    );
-  }
-
-  @override
   Widget build(BuildContext context) {
-    super.build(context); // required by AutomaticKeepAliveClientMixin
-    return VisibilityDetector(
-      key: Key('scroll-reveal-${widget.id}'),
-      onVisibilityChanged: _onVisibilityChanged,
-      child: FadeTransition(
-        opacity: _fade,
-        child: SlideTransition(position: _slide, child: widget.child),
-      ),
-    );
+    return RevealOnAppear(id: id, index: index, floatUp: floatUp, child: child);
   }
 }
 
@@ -131,12 +76,12 @@ class _StaggeredEntry extends StatelessWidget {
   Widget build(BuildContext context) {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: Duration(milliseconds: 320 + index * 60),
+      duration: Duration(milliseconds: math.min(240 + index * 35, 400)),
       curve: Curves.easeOutCubic,
       builder: (context, t, child) => Opacity(
         opacity: t,
         child: Transform.translate(
-          offset: Offset(0, (1 - t) * 14),
+          offset: Offset(0, (1 - t) * 10),
           child: child,
         ),
       ),

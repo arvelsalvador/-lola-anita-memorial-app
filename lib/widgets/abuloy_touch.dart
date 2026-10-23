@@ -15,125 +15,58 @@ import 'package:nita/widgets/ornamental_card.dart';
 /// and stays where the visitor leaves it while the app is open. Position
 /// is clamped to the visible area so it can never be lost off-screen.
 ///
-/// A slow breathing halo makes it noticeable at first glance; the pulse
-/// freezes the moment the dialog is first opened, so it quiets down once
-/// discovered.
-///
 /// Must be placed directly inside a [Stack], with [areaSize] matching that
 /// stack's size (see [AbuloyTouchScope], or the Home shell which measures
 /// its stack with a parent-side LayoutBuilder). The touch positions itself
-/// relative to the stack â€” screen size would be wrong wherever the stack
-/// doesn't fill the screen (e.g. under the expanded memorial hero).
+/// relative to the stack.
 class AbuloyTouch extends StatefulWidget {
   const AbuloyTouch({super.key, required this.areaSize});
 
   /// Size of the hosting stack. Drives the dock position and drag bounds.
   final Size areaSize;
 
-  /// Diameter of the touch (outer halo at rest). Public so tests and
+  /// Hit area diameter (minimum 44x44 tap target). Public so tests and
   /// clamping share one source of truth.
-  static const double size = 60;
+  static const double size = 44;
 
-  /// Diameter of the gold coin. The white ring between coin and halo comes
-  /// from the coin's paper border.
-  static const double coinSize = 45;
+  /// Diameter of the outer cream ring button.
+  static const double buttonSize = 42;
+
+  /// Diameter of the gold coin. The cream ring between coin and outer edge
+  /// is ~3px thick ((42 - 36) / 2 = 3).
+  static const double coinSize = 36;
 
   /// Edge margin kept when clamping the dragged position.
-  static const double margin = 8;
+  static const double margin = 12;
 
-  /// Where the touch's centre sits when docked, as a fraction of the
-  /// hosting stack's height. Positioned in the upper-right beside the page
-  /// title header so it stays clear of the top bar above and the search bar,
-  /// filter pills, and featured card below. The first-run guide uses the same
-  /// fraction so its diagram matches where the coin really sits.
+  /// Legacy dock center fraction kept for backward compatibility with guide.
   static const double dockCenterFraction = 0.11;
 
-  /// Top offset of the docked touch for a hosting area of [area]'s size.
-  static double dockTopFor(Size area) =>
-      area.height * dockCenterFraction - size / 2;
+  /// Top offset of the docked touch just below the top bar.
+  static double dockTopFor(Size area, [double paddingTop = 0]) =>
+      paddingTop + 53.0 + 8.0;
 
   @override
   State<AbuloyTouch> createState() => _AbuloyTouchState();
 }
 
-class _AbuloyTouchState extends State<AbuloyTouch>
-    with
-        SingleTickerProviderStateMixin,
-        WidgetsBindingObserver // pauses the breathing pulse in the background
-        {
+class _AbuloyTouchState extends State<AbuloyTouch> {
   /// Current position as a fraction (0..1) of the stack size. Null = docked
-  /// default. Fractions keep the spot (e.g. the middle) stable when moving
-  /// between tabs whose stacks have different sizes â€” absolute pixels would
-  /// land somewhere else after clamping (seen on Tahanan vs Galeri).
+  /// default. Fractions keep the spot stable across screen size adjustments.
   Offset? _fraction;
 
-  /// True while a drag is in flight â€” slightly deepens the shadow so the
-  /// visitor feels the lift.
+  /// True while a drag is in flight.
   bool _dragging = false;
 
-  /// Slow breathing pulse for the halo (0..1, eased). Runs until the dialog
-  /// is first opened, then freezes â€” the last frame simply becomes a static
-  /// halo, so there is never a visible pop.
-  late final AnimationController _pulse;
-  late final Animation<double> _pulseAnim;
-
-  /// Whether [_pulse] is currently repeating; mirrors state so lifecycle
-  /// callbacks and [_openDialog] never fight over the controller.
-  bool _pulseRunning = true;
-
-  /// True once the dialog was first opened â€” the pulse is then permanently
-  /// frozen and must not restart on app resume.
-  bool _pulseFrozen = false;
-
-  @override
-  void initState() {
-    super.initState();
-    // The infinite pulse would keep ticking while backgrounded; observe
-    // the app lifecycle and pause it off-screen.
-    WidgetsBinding.instance.addObserver(this);
-    _pulse = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1800),
-    )..repeat(reverse: true);
-    _pulseAnim = CurvedAnimation(parent: _pulse, curve: Curves.easeInOut);
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      if (_pulseRunning || _pulseFrozen) return;
-      _pulseRunning = true;
-      _pulse.repeat(reverse: true);
-    } else {
-      if (!_pulseRunning) return;
-      _pulseRunning = false;
-      _pulse.stop();
-    }
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _pulse.dispose();
-    super.dispose();
-  }
-
-  /// Freezes the pulse on first open; the frozen frame stays as a static
-  /// halo. Idempotent â€” later taps just open the dialog.
   void _openDialog(BuildContext context) {
-    if (!_pulseFrozen) {
-      _pulseFrozen = true;
-      _pulseRunning = false;
-      _pulse.stop();
-    }
     showAbuloyDialog(context);
   }
 
-  Offset _defaultPosition(Size area) {
-    // Dock top-right, a little below the middle of the content.
+  Offset _defaultPosition(Size area, EdgeInsets padding) {
+    // Dock top-right, right margin 12px, just below the top bar.
     return Offset(
-      area.width - 20 - AbuloyTouch.size,
-      AbuloyTouch.dockTopFor(area),
+      area.width - 12 - AbuloyTouch.size,
+      padding.top + 53.0 + 8.0,
     );
   }
 
@@ -145,21 +78,20 @@ class _AbuloyTouchState extends State<AbuloyTouch>
   Offset _toPixels(Offset f, Size area) =>
       Offset(f.dx * area.width, f.dy * area.height);
 
-  /// Keeps a fraction inside the 0..1 square.
   Offset _clamp01(Offset f) =>
       Offset(f.dx.clamp(0.0, 1.0), f.dy.clamp(0.0, 1.0));
 
   Offset _clamp(Offset pos, Size area, EdgeInsets padding) {
-    final maxX = (area.width - AbuloyTouch.size - AbuloyTouch.margin).clamp(
-      AbuloyTouch.margin,
+    final maxX = (area.width - AbuloyTouch.size - 12.0).clamp(
+      12.0,
       double.infinity,
     );
-    final minY = AbuloyTouch.margin + padding.top;
+    final minY = padding.top + 53.0 + 8.0;
     final maxY =
         (area.height - padding.bottom - AbuloyTouch.size - AbuloyTouch.margin)
             .clamp(minY, double.infinity);
     return Offset(
-      pos.dx.clamp(AbuloyTouch.margin, maxX),
+      pos.dx.clamp(12.0, maxX),
       pos.dy.clamp(minY, maxY),
     );
   }
@@ -168,29 +100,16 @@ class _AbuloyTouchState extends State<AbuloyTouch>
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
     final label = lang.t('donate_title');
-    // NOTE: Positioned must be returned directly (no LayoutBuilder between
-    // it and the Stack) or Flutter throws a ParentDataWidget error. The
-    // stack's size therefore arrives via [AbuloyTouch.areaSize], measured
-    // by a parent-side LayoutBuilder â€” MediaQuery screen size would be
-    // wrong wherever the stack doesn't fill the screen.
     final area = widget.areaSize;
     final padding = MediaQuery.paddingOf(context);
-    final frac = _fraction ?? _toFraction(_defaultPosition(area), area);
+    final frac = _fraction ?? _toFraction(_defaultPosition(area, padding), area);
     final pos = _clamp(_toPixels(frac, area), area, padding);
     return Positioned(
       left: pos.dx,
       top: pos.dy,
       child: GestureDetector(
         onPanStart: (_) => setState(() => _dragging = true),
-        // Accumulate onto live [_fraction] (updated synchronously), NOT the
-        // build-captured point: several pointer events can arrive between
-        // frames, and basing each on the stale build point would drop
-        // movement and make the drag lag behind the finger.
         onPanUpdate: (details) {
-          // Guard the sizes the same way [_toFraction] does: a degenerate
-          // (zero-sized) area would send delta / 0 to Infinity, and after
-          // clamping that teleports the touch to a corner instead of
-          // dragging it.
           if (area.width <= 0 || area.height <= 0) return;
           setState(() {
             final base = _fraction ?? _toFraction(pos, area);
@@ -209,17 +128,9 @@ class _AbuloyTouchState extends State<AbuloyTouch>
           label: label,
           child: Tooltip(
             message: label,
-            // Only the visuals rebuild per pulse tick â€” position and
-            // gestures stay untouched.
-            child: AnimatedBuilder(
-              animation: _pulseAnim,
-              builder: (context, _) => AbuloyTouchVisual(
-                // 0 = rest. The value freezes when the pulse stops (first
-                // open or dispose), so the halo simply goes still.
-                pulse: _pulseAnim.value,
-                dragging: _dragging,
-                onTap: () => _openDialog(context),
-              ),
+            child: AbuloyTouchVisual(
+              dragging: _dragging,
+              onTap: () => _openDialog(context),
             ),
           ),
         ),
@@ -230,10 +141,6 @@ class _AbuloyTouchState extends State<AbuloyTouch>
 
 /// The Abuloy coin itself, split out of [AbuloyTouch] so the first-run guide
 /// can show the same artwork as a spotlit diagram without duplicating it.
-///
-/// [pulse] is the breathing value (0 = at rest) and [dragging] deepens the
-/// shadow while a drag is in flight. [onTap] is null in the guide, where the
-/// coin is a diagram and the bubble's Next button moves the tour along.
 class AbuloyTouchVisual extends StatelessWidget {
   const AbuloyTouchVisual({
     super.key,
@@ -248,7 +155,6 @@ class AbuloyTouchVisual extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = pulse;
     final lift = dragging ? 1.0 : 0.0;
     return Material(
       color: Colors.transparent,
@@ -260,94 +166,69 @@ class AbuloyTouchVisual extends StatelessWidget {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // Clean attention ring: noticeable while browsing,
-            // but airy enough not to feel like an alert badge.
-            Transform.scale(
-              scale: 0.88 + 0.22 * p,
-              child: Opacity(
-                opacity: 0.34 - 0.22 * p,
-                child: Container(
-                  width: AbuloyTouch.size,
-                  height: AbuloyTouch.size,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.rose, width: 2.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.gold.withValues(alpha: 0.14),
-                        blurRadius: 18,
-                        spreadRadius: 2,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+            // Outer cream ring with subtle static shadow
             Container(
-              width: AbuloyTouch.coinSize + 8,
-              height: AbuloyTouch.coinSize + 8,
+              width: AbuloyTouch.buttonSize,
+              height: AbuloyTouch.buttonSize,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.paper.withValues(alpha: 0.92),
+                color: AppColors.paper.withValues(alpha: 0.95),
                 border: Border.all(
-                  color: AppColors.gold.withValues(alpha: 0.32),
+                  color: AppColors.gold.withValues(alpha: 0.35),
                   width: 1,
                 ),
                 boxShadow: [
                   BoxShadow(
                     color: AppColors.warmDark.withValues(
-                      alpha: 0.14 + 0.08 * lift,
+                      alpha: 0.16 + 0.08 * lift,
                     ),
-                    blurRadius: 18 + 8 * lift,
-                    offset: Offset(0, 7 + 3 * lift),
+                    blurRadius: 10 + 4 * lift,
+                    offset: Offset(0, 3 + 2 * lift),
                   ),
                   BoxShadow(
-                    color: AppColors.gold.withValues(alpha: 0.20),
-                    blurRadius: 12,
+                    color: AppColors.gold.withValues(alpha: 0.15),
+                    blurRadius: 6,
                     offset: const Offset(0, 1),
                   ),
                 ],
               ),
             ),
-            // Warm coin with a paper ring and white glyph.
-            Transform.scale(
-              scale: 1.0 + 0.035 * p + 0.03 * lift,
-              child: Container(
-                width: AbuloyTouch.coinSize,
-                height: AbuloyTouch.coinSize,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.gold,
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      AppColors.glowGold,
-                      AppColors.gold,
-                      AppColors.copper,
-                    ],
-                    stops: [0.0, 0.58, 1.0],
-                  ),
-                  border: Border.all(color: AppColors.paper, width: 2.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.white.withValues(alpha: 0.22),
-                      blurRadius: 6,
-                      offset: const Offset(-2, -2),
-                    ),
+            // Inner gold coin with paper border and white glyph
+            Container(
+              width: AbuloyTouch.coinSize,
+              height: AbuloyTouch.coinSize,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.gold,
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.glowGold,
+                    AppColors.gold,
+                    AppColors.copper,
                   ],
+                  stops: [0.0, 0.58, 1.0],
                 ),
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  splashColor: Colors.white.withValues(alpha: 0.25),
-                  highlightColor: Colors.white.withValues(alpha: 0.12),
-                  onTap: onTap,
-                  child: const Center(
-                    child: Icon(
-                      Icons.volunteer_activism_outlined,
-                      size: 26,
-                      color: Colors.white,
-                    ),
+                border: Border.all(color: AppColors.paper, width: 2.0),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.white.withValues(alpha: 0.22),
+                    blurRadius: 4,
+                    offset: const Offset(-1, -1),
+                  ),
+                ],
+              ),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                splashColor: Colors.white.withValues(alpha: 0.25),
+                highlightColor: Colors.white.withValues(alpha: 0.12),
+                onTap: onTap,
+                child: const Center(
+                  child: Icon(
+                    Icons.volunteer_activism_outlined,
+                    size: 20,
+                    color: Colors.white,
                   ),
                 ),
               ),
@@ -360,11 +241,9 @@ class AbuloyTouchVisual extends StatelessWidget {
 }
 
 /// Wraps any page body so the assistive touch floats over it.
-
-/// Use for pushed routes (Settings, detail pages) that live outside the
-/// Home shell's stack â€” the five main tabs already carry [AbuloyTouch].
-/// Measures the stack with a parent-side LayoutBuilder (legal position â€”
-/// a LayoutBuilder *between* [AbuloyTouch] and its Stack would crash).
+///
+/// Use for pushed routes that live outside the Home shell's stack.
+/// Measures the stack with a parent-side LayoutBuilder.
 class AbuloyTouchScope extends StatelessWidget {
   final Widget child;
   const AbuloyTouchScope({super.key, required this.child});
@@ -391,7 +270,7 @@ Future<void> showAbuloyDialog(BuildContext context) {
   try {
     HapticFeedback.lightImpact().catchError((_) {});
   } catch (_) {
-    // Haptics unavailable on desktop â€” the dialog still opens.
+    // Haptics unavailable on desktop — the dialog still opens.
   }
   return showDialog<void>(
     context: context,

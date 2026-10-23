@@ -26,12 +26,14 @@ import 'package:nita/views/settings/settings_page.dart';
 import 'package:nita/views/words/words_page.dart';
 import 'package:nita/widgets/app_bottom_nav.dart';
 import 'package:nita/widgets/abuloy_touch.dart';
+import 'package:nita/widgets/balanced_justify_text.dart';
 
 import 'package:nita/widgets/app_brand_bar.dart';
 import 'package:nita/widgets/curved_memorial_header.dart';
 import 'package:nita/widgets/framed_memorial_portrait.dart';
 import 'package:nita/widgets/ornament_divider.dart';
 import 'package:nita/widgets/ornamental_card.dart';
+import 'package:nita/widgets/reveal_on_appear.dart';
 import 'package:nita/widgets/section_label.dart';
 import 'package:nita/data/visitors/visitor_repository.dart';
 
@@ -87,7 +89,7 @@ class _HomePageState extends State<HomePage> {
 
   /// Bounces fresh devices (deep link or refresh that skipped splash) to
   /// the splash gate. Mirrors splash's philosophy: unreadable local prefs
-  /// count as "not remembered", so the visitor is greeted at the door —
+  /// count as "not remembered", so the visitor is greeted at the door â€”
   /// the gate itself never blocks (the form always lets them in).
   Future<void> _checkVisitorGate() async {
     bool remembered = false;
@@ -105,7 +107,7 @@ class _HomePageState extends State<HomePage> {
         // Replace the entire stack, not just the top route: a deep link
         // starts on '/' (splash) with '/home' pushed above it, so popping
         // first would leave two splash routes behind the gate. One splash,
-        // nothing underneath — the splash is always the start of the flow.
+        // nothing underneath â€” the splash is always the start of the flow.
         Navigator.of(
           context,
         ).pushNamedAndRemoveUntil(AppRoutes.splash, (route) => false);
@@ -183,7 +185,7 @@ class _HomeShellState extends State<HomeShell> {
   // The Story tab's live scroll offset, mirrored here by the controller
   // listener in initState. The hero's height is derived from it inside a
   // ValueListenableBuilder, so the photo header tracks the finger 1:1 as
-  // the content scrolls — and grows back smoothly on the way up — without
+  // the content scrolls â€” and grows back smoothly on the way up â€” without
   // rebuilding the rest of the shell on every scroll tick.
   final ValueNotifier<double> _storyOffset = ValueNotifier<double>(0);
 
@@ -202,7 +204,7 @@ class _HomeShellState extends State<HomeShell> {
 
   // Drives a quick fade on the tab body whenever the selected tab changes,
   // so switching tabs reads as a soft cross-fade instead of an instant swap.
-  // (The IndexedStack switch itself is still instant — this just masks it.)
+  // (The IndexedStack switch itself is still instant â€” this just masks it.)
   double _contentOpacity = 1;
   Duration _contentFadeDuration = const Duration(milliseconds: 200);
 
@@ -231,7 +233,7 @@ class _HomeShellState extends State<HomeShell> {
   void initState() {
     super.initState();
     _controllers = List.generate(5, (_) => ScrollController());
-    // Named listener so it can be removed in dispose — an anonymous
+    // Named listener so it can be removed in dispose â€” an anonymous
     // closure here would leak the ScrollController subscription.
     _controllers[0].addListener(_mirrorStoryOffset);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -255,7 +257,7 @@ class _HomeShellState extends State<HomeShell> {
   // Built fresh on every build() instead of cached once in initState, so
   // that if the parent ever swaps in new controller instances, the tab
   // bodies always point at the current ones rather than the ones captured
-  // on first mount. This is cheap — these are thin wrapper widgets, and
+  // on first mount. This is cheap â€” these are thin wrapper widgets, and
   // IndexedStack preserves each tab's scroll position by matching widget
   // type/position, not by list identity, so rebuilding the list is safe.
   List<Widget> _buildBodies() {
@@ -425,7 +427,7 @@ class _HomeShellState extends State<HomeShell> {
       final tabId = _tabIdFor(widget.selectedTab);
       // Duck the opacity with zero duration (an instant drop, not a fade),
       // then switch to an animated duration for the rise once the new
-      // tab's scroll position has been reset — two different durations so
+      // tab's scroll position has been reset â€” two different durations so
       // the drop can't visually cancel out the rise before it starts.
       setState(() {
         _contentFadeDuration = Duration.zero;
@@ -439,7 +441,7 @@ class _HomeShellState extends State<HomeShell> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         // Guide bookkeeping notifies its listeners, so it must run after the
-        // build phase — notifying during this widget's update marks provider
+        // build phase â€” notifying during this widget's update marks provider
         // dependents dirty mid-build.
         context.read<GuideController>()
           ..setCurrentTab(tabId)
@@ -460,8 +462,8 @@ class _HomeShellState extends State<HomeShell> {
         });
       });
       // Release the animated transition once it has had time to finish, so
-      // the hero returns to finger-tracking. A timer — rather than scroll
-      // notifications — avoids jumpTo's own notifications clearing the flag
+      // the hero returns to finger-tracking. A timer â€” rather than scroll
+      // notifications â€” avoids jumpTo's own notifications clearing the flag
       // before the expand animation even starts. The timer is tracked and
       // canceled on dispose/re-schedule so it never fires into a dead state.
       _heroTabTimer?.cancel();
@@ -500,20 +502,30 @@ class _HomeShellState extends State<HomeShell> {
       math.max(0.0, screenHeight - _heroReservedExtent),
     );
     final onStoryTab = widget.selectedTab == 0;
+    final onCondolencesTab = widget.selectedTab == 4;
+    final locked = context.watch<GuideController?>()?.inputLocked ?? false;
 
-    return Scaffold(
+    final topBar = _TopBar(
+      selectedTab: widget.selectedTab,
+      onOpenFamily: () => widget.onTabChanged(2),
+      onOpenTab: widget.onTabChanged,
+      onOpenGuide: _openGuideForActiveTab,
+      backgroundColor: onCondolencesTab
+          ? AppColors.warmDark.withValues(alpha: 0.62)
+          : null,
+    );
+
+    final shell = Scaffold(
       backgroundColor: AppColors.cream,
-      // The assistive touch floats over the whole body — top bar, hero,
-      // and content alike — so it can be parked anywhere on screen.
+      // The assistive touch floats over the whole body â€” top bar, hero,
+      // and content alike â€” so it can be parked anywhere on screen.
       body: AbuloyTouchScope(
-        child: Column(
+        child: Stack(
           children: [
-            _TopBar(
-              onOpenFamily: () => widget.onTabChanged(2),
-              onOpenTab: widget.onTabChanged,
-              onOpenGuide: _openGuideForActiveTab,
-            ),
-            // The memorial hero belongs to the home page only — on the other
+            Column(
+              children: [
+                if (!onCondolencesTab) topBar,
+            // The memorial hero belongs to the home page only â€” on the other
             // tabs (gallery, family, words, condolences) the pages show their
             // own headers instead. On the Story tab its height is derived
             // straight from the scroll offset, so the photo collapses and
@@ -530,7 +542,7 @@ class _HomeShellState extends State<HomeShell> {
                   child: GestureDetector(
                     // Opaque so even the transparent margins around the
                     // portrait accept the drag. The portrait's tap-to-gallery
-                    // still wins on a tap — the drag recognizer only claims
+                    // still wins on a tap â€” the drag recognizer only claims
                     // the gesture once the finger actually moves.
                     behavior: HitTestBehavior.opaque,
                     onVerticalDragStart: _onHeroDragStart,
@@ -579,17 +591,19 @@ class _HomeShellState extends State<HomeShell> {
             Expanded(
               child: Stack(
                 children: [
-                  // NestedScrollView is gone — nothing here needs outer/inner
+                  // NestedScrollView is gone â€” nothing here needs outer/inner
                   // sliver coordination anymore, since the hero isn't a sliver.
                   SafeArea(
                     top: false,
                     child: Container(
                       width: double.infinity,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: AppColors.cream,
-                        borderRadius: BorderRadius.vertical(
-                          top: Radius.circular(26),
-                        ),
+                        borderRadius: onCondolencesTab
+                            ? BorderRadius.zero
+                            : const BorderRadius.vertical(
+                                top: Radius.circular(26),
+                              ),
                       ),
                       child: Center(
                         child: ConstrainedBox(
@@ -647,6 +661,32 @@ class _HomeShellState extends State<HomeShell> {
             ),
           ],
         ),
+        if (onCondolencesTab)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: topBar,
+          ),
+      ],
+    ),
+  ),
+);
+
+    return PopScope(
+      canPop: !locked,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          shell,
+          if (locked)
+            Positioned.fill(
+              child: AbsorbPointer(
+                absorbing: true,
+                child: Container(color: Colors.transparent),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -661,6 +701,8 @@ class _HomeShellState extends State<HomeShell> {
 /// visitor from the splash gate (SharedPreferences via [VisitorRepository]).
 /// Falls back to brand-only when loading, empty, or prefs unreadable.
 class _TopBar extends StatefulWidget {
+  final int selectedTab;
+
   /// Jumps straight to the Family tab in the bottom nav. Handed to
   /// Settings so "Tingnan sa Pamilya" lands on the real tab.
   final VoidCallback onOpenFamily;
@@ -673,10 +715,16 @@ class _TopBar extends StatefulWidget {
   /// because the Gallery's tour is opened by the grid that measures it.
   final VoidCallback onOpenGuide;
 
+  /// Optional translucent fill used by the Pakikiramay tab so the fixed
+  /// gradient shows through. Null keeps the default charcoal bar.
+  final Color? backgroundColor;
+
   const _TopBar({
+    required this.selectedTab,
     required this.onOpenFamily,
     required this.onOpenTab,
     required this.onOpenGuide,
+    this.backgroundColor,
   });
 
   @override
@@ -705,11 +753,24 @@ class _TopBarState extends State<_TopBar> {
       final full = await _visitorRepo.localName();
       first = VisitorRepository.firstName(full);
     } catch (_) {
-      // Prefs unreadable — stay brand-only. Never blocks the bar.
+      // Prefs unreadable â€” stay brand-only. Never blocks the bar.
       first = '';
     }
     if (!mounted) return;
     setState(() => _firstName = first);
+  }
+
+  void _handleHomeTap() {
+    final guide = context.read<GuideController?>();
+    if (guide != null && (guide.inputLocked || guide.isGuideOpen)) return;
+
+    final nav = Navigator.of(context);
+    if (nav.canPop()) {
+      nav.popUntil((route) => route.isFirst);
+    }
+    if (widget.selectedTab != 0) {
+      widget.onOpenTab(0);
+    }
   }
 
   @override
@@ -720,10 +781,18 @@ class _TopBarState extends State<_TopBar> {
         ? lang.t('header_greeting', {'name': first})
         : null;
 
+    final homeLabel = lang.t('nav_home');
+    final homeTooltip = homeLabel == 'Home'
+        ? 'Go to Home'
+        : (homeLabel == 'Harong' ? 'Magduman sa Harong' : 'Pumunta sa Tahanan');
+
     return AppBrandBar(
+      backgroundColor: widget.backgroundColor,
       greeting: greeting,
       helpTooltip: lang.t('guide_help_tooltip'),
       onHelpTap: widget.onOpenGuide,
+      onHomeTap: _handleHomeTap,
+      homeTooltip: homeTooltip,
       onSettingsTap: () {
         Navigator.of(context).push(
           fadeRoute(

@@ -31,34 +31,69 @@ class _AboutUsPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 30,
-                      height: 30,
-                      decoration: BoxDecoration(
-                        color: AppColors.gold.withValues(alpha: 0.14),
+                Semantics(
+                  button: true,
+                  label: lang.t('nav_home') == 'Home'
+                      ? 'Go to Home'
+                      : (lang.t('nav_home') == 'Harong'
+                          ? 'Magduman sa Harong'
+                          : 'Pumunta sa Tahanan'),
+                  child: Tooltip(
+                    message: lang.t('nav_home') == 'Home'
+                        ? 'Go to Home'
+                        : (lang.t('nav_home') == 'Harong'
+                            ? 'Magduman sa Harong'
+                            : 'Pumunta sa Tahanan'),
+                    child: Material(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
                         borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.eco,
-                        size: 16,
-                        color: AppColors.gold,
+                        mouseCursor: SystemMouseCursors.click,
+                        onTap: () => _goTab(context, 0),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 4,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 30,
+                                height: 30,
+                                decoration: BoxDecoration(
+                                  color: AppColors.gold.withValues(alpha: 0.14),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.eco,
+                                  size: 16,
+                                  color: AppColors.gold,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'nanay anita',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.8,
+                                  color: AppColors.textDark,
+                                  fontFamily: 'Inter',
+                                  fontFamilyFallback: [
+                                    'Times New Roman',
+                                    'serif',
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'nanay anita',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.8,
-                        color: AppColors.textDark,
-                        fontFamily: 'Inter',
-                        fontFamilyFallback: ['Times New Roman', 'serif'],
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Text(

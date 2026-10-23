@@ -162,7 +162,8 @@ Note: **terracotta** (#CB6A4B) is declared in the token source but unused anywhe
 - **Display** (400, 42px, line-height 1.1; 36px under 380px): the hero name "Anita Daiz Lumbao" — fitted and scaled down to fit, never wrapped.
 - **Headline** (700, 26px): page titles, e.g. the Family tab header flanked by leaf icons.
 - **Carved Numeral** (600, 24px, line-height 1.1): the large counts inside the stats lintel — engraved serif figures over tracked labels.
-- **Title** (600, 15px): card titles (memory-card headings); 18px (600) for Anita's name on the cover leaf; 17px (700) for the feature-card heading; 13.5px (600) for group-page headings; 13px (600) for ruled-entry names; 12.5px (600) for "view all" summary labels (rose deep).
+- **Memory-Card Heading** (700, 21px, line-height 1.15, Playfair Display, text dark): centred over the botanical spray with a short gold rule beneath, as in the approved Memories_design mock; uncapped, so long titles wrap and the card grows rather than truncating.
+- **Title** (600, 15px): card titles; 18px (600) for Anita's name on the cover leaf; 17px (700) for the feature-card heading; 13.5px (600) for group-page headings; 13px (600) for ruled-entry names; 12.5px (600) for "view all" summary labels (rose deep).
 - **Body** (400, 14px, line-height 1.8): long-form story text, warm mid brown.
 - **Italic** (400 italic, 16px, line-height 1.7): quotation cards; 13.5px italic for the family subtitle; 13px italic rose for the cover-leaf role; 11px italic muted for group counts; 10.5px italic warm mid for member roles; 16px (14px under 380px) pale gold for the hero tagline.
 - **Label** (500, 10px, letter-spacing 3px, uppercase, rose): section headings ("HER WORDS") with a leading leaf and trailing rule; the lintel's printed labels sit slightly larger (10.5px, 500, letter-spacing 1.2px, warm mid).

@@ -23,11 +23,14 @@ class StoryPage extends StatelessWidget {
   Widget build(BuildContext context) {
     const data = HomeController.data;
     final lang = context.watch<LanguageProvider>();
+    final locked = context.watch<GuideController?>()?.inputLocked ?? false;
 
     return CustomScrollView(
       controller: controller,
       primary: false,
-      physics: const ClampingScrollPhysics(),
+      physics: locked
+          ? const NeverScrollableScrollPhysics()
+          : const ClampingScrollPhysics(),
       slivers: [
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
@@ -115,9 +118,9 @@ class AboutCard extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         child: Text(
           text,
-          // Left-aligned on every card: justifying a narrow column produces
-          // the huge, uneven word gaps seen on phones.
-          textAlign: TextAlign.start,
+          // Justified on every card. The card component supplies enough
+          // width that the word gaps stay natural on phones.
+          textAlign: TextAlign.justify,
           style: AppTextStyles.homeContent.copyWith(
             color: AppColors.warmMid,
             height: 1.8,
@@ -162,59 +165,107 @@ class _MemoriesSectionState extends State<MemoriesSection> {
   @override
   Widget build(BuildContext context) {
     final memories = HomeController.memoriesData.memories;
+    final lang = context.watch<LanguageProvider>();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (var i = 0; i < memories.length; i++) ...[
-          _StaggeredEntry(
-            key: ValueKey(memories[i].id),
-            index: i,
-            child: MemoryCard(memory: memories[i], index: i),
-          ),
-          if (i != memories.length - 1) const SizedBox(height: 12),
-        ],
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cardWidth = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width - 40;
+        final photoWidth = (cardWidth * 0.38).roundToDouble();
+        final textColumnWidth = cardWidth - photoWidth - 32;
+
+        final textScaler = MediaQuery.textScalerOf(context).clamp(
+          maxScaleFactor: 1.4,
+        );
+
+        double maxContentHeight = 0;
+        for (final memory in memories) {
+          final h = MemoryCard.measureContentHeight(
+            title: lang.t(memory.titleKey),
+            body: lang.t(memory.bodyKey),
+            textWidth: textColumnWidth,
+            textScaler: textScaler,
+          );
+          if (h > maxContentHeight) {
+            maxContentHeight = h;
+          }
+        }
+
+        final cardHeight = math.max(
+          276.0,
+          (maxContentHeight + 56.0).ceilToDouble(),
+        );
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var i = 0; i < memories.length; i++) ...[
+              _StaggeredEntry(
+                key: ValueKey(memories[i].id),
+                index: i,
+                child: MemoryCard(
+                  memory: memories[i],
+                  index: i,
+                  cardHeight: cardHeight,
+                  photoWidth: photoWidth,
+                ),
+              ),
+              if (i != memories.length - 1) const SizedBox(height: 16),
+            ],
+          ],
+        );
+      },
     );
   }
 }
 
-/// Botanical spray above a memory card's title — the approved design
-/// (Memories_design.png) trimmed to its artwork band
-/// (Memories_design_trim.png, 2002x492, no transparent padding). The
-/// original canvas is 2304x1536 with the spray occupying only a quarter
-/// of its height, which rendered it tiny; the trim lets BoxFit.contain
-/// scale the spray to the full text-column width (tall as the width
-/// allows, 35–48px on phones).
-/// Vertical budget: the card keeps 276px as a *minimum* height. The body is
-/// no longer line-capped, so a longer paragraph makes the card (and the
-/// full-bleed photo beside it) grow instead of clipping the copy.
+/// Botanical spray decoration for memory cards — trimmed artwork
+/// band (900x221), sized to ~90px wide with ~0.9 opacity and warm gold tint.
+/// Positioned in the outer top corner on the text side of the card,
+/// mirrored horizontally on alternating cards.
 class _TitleAccent extends StatelessWidget {
-  const _TitleAccent();
+  final bool mirrored;
+  const _TitleAccent({this.mirrored = false});
 
   static const _assetPath =
       'assets/images/editing_images/Memories_design_trim.png';
 
+  /// Trimmed artwork ratio (900x221).
+  static const double _aspectRatio = 900 / 221;
+  static const double _width = 90.0;
+  static const double _height = _width / _aspectRatio;
+
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 40,
-      width: double.infinity,
-      child: Center(
-        child: Image.asset(
-          _assetPath,
-          height: 40,
-          fit: BoxFit.contain,
-          // Width-axis budget: the spray is far wider than tall, so
-          // width is the limiting axis. (Height-only starved it.)
-          cacheWidth: ImageDecode.width(
-            MediaQuery.sizeOf(context).width,
-            context,
-          ),
-          // The spray is purely decorative — never let an asset problem
-          // break the card's layout.
-          errorBuilder: (_, _, _) => const SizedBox.shrink(),
-        ),
+    Widget image = ColorFiltered(
+      colorFilter: const ColorFilter.mode(
+        Color(0xFFC9A25E),
+        BlendMode.srcIn,
+      ),
+      child: Image.asset(
+        _assetPath,
+        width: _width,
+        height: _height,
+        fit: BoxFit.contain,
+        cacheWidth: ImageDecode.width(_width, context),
+        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+      ),
+    );
+
+    if (mirrored) {
+      image = Transform.flip(
+        flipX: true,
+        child: image,
+      );
+    }
+
+    return Opacity(
+      opacity: 0.9,
+      child: SizedBox(
+        width: _width,
+        height: _height,
+        child: image,
       ),
     );
   }
@@ -248,21 +299,64 @@ class _ExpandBadge extends StatelessWidget {
   }
 }
 
-/// Memory card with a full-bleed photo occupying roughly a third of the
+/// Memory card with a full-bleed photo occupying roughly 38% of the
 /// card, flush against one rounded edge — left on even-indexed cards,
 /// right on odd-indexed ones, so the list reads as an alternating column
-/// rather than a repeating row. A small gold accent, the title row, and
-/// the body fill the remaining space. The whole card is tappable to open
-/// the gallery.
+/// rather than a repeating row. A warm gold botanical accent, the title row,
+/// and the body fill the remaining space. All cards share the same height
+/// and photo dimensions, with copy vertically centered.
 class MemoryCard extends StatelessWidget {
   final MemoryItem memory;
   final int index;
+  final double? cardHeight;
+  final double? photoWidth;
 
-  const MemoryCard({super.key, required this.memory, required this.index});
+  const MemoryCard({
+    super.key,
+    required this.memory,
+    required this.index,
+    this.cardHeight,
+    this.photoWidth,
+  });
 
-  static const double _minCardHeight = 276;
-  static const double _photoWidth = 150;
   static const _radius = 12.0;
+
+  static double measureContentHeight({
+    required String title,
+    required String body,
+    required double textWidth,
+    required TextScaler textScaler,
+  }) {
+    if (textWidth <= 0) return 0;
+
+    final titlePainter = TextPainter(
+      text: TextSpan(
+        text: title,
+        style: AppTextStyles.memoryCardTitle,
+      ),
+      textAlign: TextAlign.center,
+      textDirection: TextDirection.ltr,
+      textScaler: textScaler,
+    )..layout(maxWidth: textWidth);
+
+    final bodyPainter = TextPainter(
+      text: TextSpan(
+        text: body,
+        style: AppTextStyles.homeContent.copyWith(
+          color: AppColors.muted,
+          fontSize: 12,
+          height: 1.5,
+          fontWeight: FontWeight.w400,
+        ),
+      ),
+      textAlign: TextAlign.left,
+      textDirection: TextDirection.ltr,
+      textScaler: textScaler,
+    )..layout(maxWidth: textWidth);
+
+    final bodyHeight = bodyPainter.size.height + 18.0;
+    return titlePainter.size.height + 6 + 3 + 10 + bodyHeight;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -276,141 +370,177 @@ class MemoryCard extends StatelessWidget {
       right: photoOnLeft ? Radius.zero : const Radius.circular(_radius),
     );
 
-    // The photo holds its usual share of the card on normal widths but
-    // yields ground on narrow phones, so the text side keeps enough room
-    // for the copy. Sits at the full 150px from
-    // ~390px screens up; the 96px floor keeps a visible photo strip on
-    // very narrow viewports.
-    final photoWidth = math.max(
-      96.0,
-      math.min(_photoWidth, (MediaQuery.sizeOf(context).width - 40) * 0.44),
-    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cardWidth = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width - 40;
+        final effectivePhotoWidth =
+            photoWidth ?? (cardWidth * 0.38).roundToDouble();
+        final textColumnWidth = cardWidth - effectivePhotoWidth - 32;
 
-    // The photo is the card's only tap target — it opens a full-screen
-    // preview. The rest of the card (title, body) is static text; the
-    // gallery is reached from the section header instead. The expand
-    // badge overlaid on the photo tells visitors it is tappable.
-    final photo = Semantics(
-      button: true,
-      label: lang.t('memory_photo_hint'),
-      child: _Pressable(
-        borderRadius: photoRadius,
-        onTap: () =>
-            _openMemoryPhotoPreview(context, memory: memory, heroTag: heroTag),
-        child: Stack(
-          // The slot is sized tightly by its Positioned parent in the card,
-          // so expand forces the photo to fill the card's full height.
-          fit: StackFit.expand,
-          children: [
-            Hero(
-              tag: heroTag,
-              child: _MemoryPhoto(
-                assetPath: memory.image,
-                width: photoWidth,
-                height: _minCardHeight,
-                borderRadius: photoRadius,
-              ),
-            ),
-            Positioned(
-              bottom: 8,
-              left: photoOnLeft ? 8 : null,
-              right: photoOnLeft ? null : 8,
-              child: const IgnorePointer(
-                child: _ExpandBadge(),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    final content = ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: _minCardHeight),
-      // heightFactor: 1 makes the column shrink-wrap its copy. Without it
-      // the Center would expand to a bounded parent height (e.g. when the
-      // card is placed in a Column), leaving a large empty gap in the card.
-      child: Center(
-        heightFactor: 1.0,
-        child: MediaQuery.withClampedTextScaling(
-          // Elderly visitors run large accessibility font sizes; cap the
-          // on-card text so it still grows with the OS setting but stays
-          // readable instead of ballooning the card unpredictably.
+        final textScaler = MediaQuery.textScalerOf(context).clamp(
           maxScaleFactor: 1.4,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+        );
+
+        final double effectiveCardHeight;
+        if (cardHeight != null) {
+          effectiveCardHeight = cardHeight!;
+        } else {
+          final contentH = measureContentHeight(
+            title: lang.t(memory.titleKey),
+            body: lang.t(memory.bodyKey),
+            textWidth: textColumnWidth,
+            textScaler: textScaler,
+          );
+          effectiveCardHeight = math.max(
+            276.0,
+            (contentH + 56.0).ceilToDouble(),
+          );
+        }
+
+        // The photo is the card's only tap target — it opens a full-screen
+        // preview. The rest of the card (title, body) is static text; the
+        // gallery is reached from the section header instead. The expand
+        // badge overlaid on the photo tells visitors it is tappable.
+        final photo = Semantics(
+          button: true,
+          label: lang.t('memory_photo_hint'),
+          child: _Pressable(
+            borderRadius: photoRadius,
+            onTap: () => _openMemoryPhotoPreview(
+              context,
+              memory: memory,
+              heroTag: heroTag,
+            ),
+            child: Stack(
+              // The slot is sized tightly by its Positioned parent in the card,
+              // so expand forces the photo to fill the card's full height.
+              fit: StackFit.expand,
               children: [
-                const _TitleAccent(),
-                const SizedBox(height: 4),
-                Text(
-                  lang.t(memory.titleKey),
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.homeContent.copyWith(
-                    color: AppColors.textDark,
+                Hero(
+                  tag: heroTag,
+                  child: _MemoryPhoto(
+                    assetPath: memory.image,
+                    width: effectivePhotoWidth,
+                    height: effectiveCardHeight,
+                    borderRadius: photoRadius,
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 6),
-                // No maxLines/ellipsis here: the card grows to fit the full
-                // body (see the min-height container and Stack below), so
-                // long paragraphs wrap instead of ending in an ellipsis.
-                Text(
-                  lang.t(memory.bodyKey),
-                  textAlign: TextAlign.start,
-                  style: AppTextStyles.homeContent.copyWith(
-                    color: AppColors.muted,
-                    height: 1.5,
+                Positioned(
+                  bottom: 8,
+                  left: photoOnLeft ? 8 : null,
+                  right: photoOnLeft ? null : 8,
+                  child: const IgnorePointer(
+                    child: _ExpandBadge(),
                   ),
                 ),
               ],
             ),
           ),
-        ),
-      ),
-    );
+        );
 
-    return Container(
-      constraints: const BoxConstraints(minHeight: _minCardHeight),
-      decoration: BoxDecoration(
-        color: AppColors.paper,
-        borderRadius: BorderRadius.circular(_radius),
-        border: Border.all(
-          color: AppColors.rose.withValues(alpha: 0.14),
-          width: 0.7,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 14,
-            offset: const Offset(0, 5),
+        final content = MediaQuery.withClampedTextScaling(
+          // Elderly visitors run large accessibility font sizes; cap the
+          // on-card text so it still grows with the OS setting but stays
+          // readable instead of ballooning the card unpredictably.
+          maxScaleFactor: 1.4,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            // Stretch so the title's TextAlign.center centres across the
+            // whole column (an intrinsically sized Text would sit at the
+            // start even with textAlign.center).
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Carved serif heading: dark, centred.
+              Text(
+                lang.t(memory.titleKey),
+                textAlign: TextAlign.center,
+                style: AppTextStyles.memoryCardTitle,
+              ),
+              const SizedBox(height: 6),
+              // Short gold rule beneath the title (~6px above, ~10px below).
+              Center(
+                child: Container(
+                  key: const ValueKey('memory-title-rule'),
+                  width: 34,
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: AppColors.gold.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(1.5),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Body text at 12sp with 1.5 line height.
+              BalancedJustifyText(
+                lang.t(memory.bodyKey),
+                textAlign: TextAlign.left,
+                style: AppTextStyles.homeContent.copyWith(
+                  color: AppColors.muted,
+                  fontSize: 12,
+                  height: 1.5,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          // Pinned to both vertical edges so the photo fills however tall
-          // the copy makes the card — no empty strip under the image.
-          Positioned(
-            top: 0,
-            bottom: 0,
-            left: photoOnLeft ? 0 : null,
-            right: photoOnLeft ? null : 0,
-            width: photoWidth,
-            child: photo,
-          ),
-          Padding(
-            padding: EdgeInsets.only(
-              left: photoOnLeft ? photoWidth : 0,
-              right: photoOnLeft ? 0 : photoWidth,
+        );
+
+        return Container(
+          height: effectiveCardHeight,
+          decoration: BoxDecoration(
+            color: AppColors.paper,
+            borderRadius: BorderRadius.circular(_radius),
+            border: Border.all(
+              color: AppColors.rose.withValues(alpha: 0.14),
+              width: 0.7,
             ),
-            child: content,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 14,
+                offset: const Offset(0, 5),
+              ),
+            ],
           ),
-        ],
-      ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            children: [
+              // Pinned to both vertical edges so the photo fills the entire card height.
+              Positioned(
+                top: 0,
+                bottom: 0,
+                left: photoOnLeft ? 0 : null,
+                right: photoOnLeft ? null : 0,
+                width: effectivePhotoWidth,
+                child: photo,
+              ),
+              // Line-art flower decoration in the top outer corner on the
+              // text side of the card, mirrored on alternating cards.
+              // Kept behind the text (lower in the stack) and wrapped in IgnorePointer.
+              Positioned(
+                top: 4,
+                left: photoOnLeft ? null : 8,
+                right: photoOnLeft ? 8 : null,
+                child: IgnorePointer(
+                  child: _TitleAccent(mirrored: !photoOnLeft),
+                ),
+              ),
+              // Vertically centered text column.
+              Positioned(
+                top: 0,
+                bottom: 0,
+                left: photoOnLeft ? (effectivePhotoWidth + 16) : 16,
+                right: photoOnLeft ? 16 : (effectivePhotoWidth + 16),
+                child: Center(
+                  child: content,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -597,10 +727,7 @@ class _MemoryPhotoPreview extends StatelessWidget {
                               // so a width decode covers both orientations
                               // without squashing the aspect (the old
                               // square trick did that).
-                              cacheWidth: ImageDecode.width(
-                                maxWidth,
-                                context,
-                              ),
+                              cacheWidth: ImageDecode.width(maxWidth, context),
                               errorBuilder: (context, error, stackTrace) =>
                                   _PhotoPlaceholder(
                                     width: maxWidth,
@@ -636,7 +763,6 @@ class _MemoryPhotoPreview extends StatelessWidget {
 // ---------------------------------------------------------------------
 // Shared micro-interaction widgets, private to this file.
 // ---------------------------------------------------------------------
-
 
 // -- Quote card (story section) --
 /// Serif quote card with a large opening quotation mark, an ornament
@@ -694,9 +820,7 @@ class QuoteCard extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             attribution,
-            style: AppTextStyles.homeContent.copyWith(
-              color: AppColors.muted,
-            ),
+            style: AppTextStyles.homeContent.copyWith(color: AppColors.muted),
           ),
         ],
       ),

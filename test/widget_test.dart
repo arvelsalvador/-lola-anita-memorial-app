@@ -292,7 +292,7 @@ void main() {
     // Words tab
     await tester.tap(find.text('Mga Salita'));
     await tester.pump(const Duration(milliseconds: 400));
-    await expectWordsQuote(tester, 'Salamat sa pag-aaruga, Nay');
+    await expectWordsQuote(tester, 'Maraming salamat sa pag-aaruga, Nay');
 
     // Pakikiramay tab
     await tester.tap(find.text('Pakikiramay'));

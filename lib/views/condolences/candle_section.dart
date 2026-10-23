@@ -7,13 +7,13 @@ import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/data/condolences/condolence_repository.dart';
 import 'package:nita/data/visitors/visitor_repository.dart';
-import 'package:nita/views/condolences/candle_video.dart';
+import 'package:nita/widgets/candle_widget.dart';
 
 /// The "Sindihan ang kandila" card: a video of a candle being lit in
 /// Nanay's memory, with a local session counter (Firebase paused).
 /// Hosted on the Pakikiramay (condolences) tab; quotes live on Words.
 ///
-/// The circle shows the video's first (unlit) frame paused — nothing
+/// The circle shows the video's first (unlit) frame paused â€” nothing
 /// autoplays. Tapping "light the candle" (on the video or the card
 /// button) plays it once; it pauses on the final lit frame.
 class CandleSection extends StatefulWidget {
@@ -32,7 +32,7 @@ class CandleSection extends StatefulWidget {
 }
 
 /// Pangalan validator: blocks empty, digits/symbols, vowel-less
-/// strings, and keyboard-mash gibberish — so `lyca13` fails while
+/// strings, and keyboard-mash gibberish â€” so `lyca13` fails while
 /// `Marc`, `Princess`, `Maria Clara`, `Anne-Marie`, `D'Angelo`, `Sy`
 /// pass. Spam like `awdasdawsdawawd` / `asdfghjkl` is rejected via
 /// lightweight heuristics (no backend dictionary needed).
@@ -41,20 +41,20 @@ String? validateCandleName(String input) {
   if (name.isEmpty) return 'candle_name_required';
   if (name.length > 50) return 'candle_name_invalid';
   // Letters (any language) + space + hyphen + apostrophes only.
-  if (!RegExp(r"^[\p{L} '\-’']+$", unicode: true).hasMatch(name)) {
+  if (!RegExp(r"^[\p{L} '\-â€™']+$", unicode: true).hasMatch(name)) {
     return 'candle_name_invalid';
   }
-  final letters = name.replaceAll(RegExp(r"[ '\-’']"), '');
+  final letters = name.replaceAll(RegExp(r"[ '\-â€™']"), '');
   if (letters.length < 2) return 'candle_name_invalid';
   // At least one vowel-like character (y counts, for names like Sy).
   const vowelPattern =
-      r'[aeiouyAEIOUYàáâãäåèéêëìíîïòóôõöùúûüýÿÀÁÂÃÄÅÈÉÊËÌÍÎÏÒÓÔÕÖÙÚÛÜÝ]';
+      r'[aeiouyAEIOUYÃ Ã¡Ã¢Ã£Ã¤Ã¥Ã¨Ã©ÃªÃ«Ã¬Ã­Ã®Ã¯Ã²Ã³Ã´ÃµÃ¶Ã¹ÃºÃ»Ã¼Ã½Ã¿Ã€ÃÃ‚ÃƒÃ„Ã…ÃˆÃ‰ÃŠÃ‹ÃŒÃÃŽÃÃ’Ã“Ã”Ã•Ã–Ã™ÃšÃ›ÃœÃ]';
   if (!RegExp(vowelPattern).hasMatch(name)) {
     return 'candle_name_invalid';
   }
   // Every word/token must contain a vowel (blocks `wxxz`, `qrst`).
-  // Single-letter tokens are initials (`D'Angelo`, `O'Neil`) — skip them.
-  for (final part in name.split(RegExp(r"[ '\-’']+")).where((p) => p.isNotEmpty)) {
+  // Single-letter tokens are initials (`D'Angelo`, `O'Neil`) â€” skip them.
+  for (final part in name.split(RegExp(r"[ '\-â€™']+")).where((p) => p.isNotEmpty)) {
     if (part.length <= 1) continue;
     if (!RegExp(vowelPattern).hasMatch(part)) {
       return 'candle_name_invalid';
@@ -67,12 +67,12 @@ String? validateCandleName(String input) {
   }
   // 4+ consonants in a row (`sdfghjkl`, `wdsdws`). y counts as vowel.
   if (RegExp(
-    r'[^aeiouyàáâãäåèéêëìíîïòóôõöùúûüýÿ]{4,}',
+    r'[^aeiouyÃ Ã¡Ã¢Ã£Ã¤Ã¥Ã¨Ã©ÃªÃ«Ã¬Ã­Ã®Ã¯Ã²Ã³Ã´ÃµÃ¶Ã¹ÃºÃ»Ã¼Ã½Ã¿]{4,}',
   ).hasMatch(compact)) {
     return 'candle_name_invalid';
   }
   // Low letter diversity for longer input: keyboard mash reuses a few
-  // keys (`awdasdawsdawawd` = 4 unique / 14 ≈ 0.29). Real names are
+  // keys (`awdasdawsdawawd` = 4 unique / 14 â‰ˆ 0.29). Real names are
   // more varied. Only applied at length 6+ so `Anna` (0.5) still passes.
   if (compact.length >= 6) {
     final uniqueCount = compact.split('').toSet().length;
@@ -81,8 +81,8 @@ String? validateCandleName(String input) {
     }
   }
   // Repeated-chunk mash (`awdawdawd`, `abababab`): block only clear
-  // spam — a 3-letter chunk repeated 3+ times in a row (always ≥9
-  // letters), or the whole name being one 1–2 letter chunk repeated
+  // spam â€” a 3-letter chunk repeated 3+ times in a row (always â‰¥9
+  // letters), or the whole name being one 1â€“2 letter chunk repeated
   // 3+ times. Repeated syllables are normal in Filipino nicknames
   // (`Chichi`, `Mama`) and must still pass.
   if (RegExp(r'(.{3})\1\1').hasMatch(compact) ||
@@ -110,7 +110,7 @@ class _CandleSectionState extends State<CandleSection> {
   }
 
   /// Shared count + names-only list from the `visitors` table
-  /// (who entered the app). Selects names only — addresses stay private.
+  /// (who entered the app). Selects names only â€” addresses stay private.
   /// A null snapshot means offline: the list hides and an offline note
   /// shows instead. Never throws. [afterSave] clears the pending
   /// own-candle overlay because the server snapshot now includes us.
@@ -145,7 +145,7 @@ class _CandleSectionState extends State<CandleSection> {
           markSynced: markSynced,
         );
         if (!_reloadQueuedAfterSave) return;
-        // A call arrived while fetching — one trailing pass, and it
+        // A call arrived while fetching â€” one trailing pass, and it
         // inherits the sync flag so the pending overlay still clears.
         _reloadQueuedAfterSave = false;
         markSynced = true;
@@ -180,7 +180,7 @@ class _CandleSectionState extends State<CandleSection> {
     if (mounted) setState(() {});
   }
 
-  /// Mensahe para kay Nanay, collected before lighting. Mandatory —
+  /// Mensahe para kay Nanay, collected before lighting. Mandatory â€”
   /// the Sindihan button stays disabled until the draft is non-empty.
   final TextEditingController _messageController = TextEditingController();
 
@@ -192,7 +192,7 @@ class _CandleSectionState extends State<CandleSection> {
     final controller = widget.condolencesController;
     if (controller.lit || controller.loading) return;
     // Mandatory message: the video-circle tap must respect the same gate
-    // as the button, otherwise it would bypass validation — but instead
+    // as the button, otherwise it would bypass validation â€” but instead
     // of failing silently, say WHY (same hint the button shows).
     final draft = _messageController.text;
     final messageErrorKey = CondolenceRepository.validateMessage(draft);
@@ -200,7 +200,7 @@ class _CandleSectionState extends State<CandleSection> {
       try {
         HapticFeedback.selectionClick().catchError((_) {});
       } catch (_) {
-        // Haptics unavailable on desktop — the hint still shows.
+        // Haptics unavailable on desktop â€” the hint still shows.
       }
       if (mounted) {
         final lang = context.read<LanguageProvider>();
@@ -215,7 +215,7 @@ class _CandleSectionState extends State<CandleSection> {
     try {
       HapticFeedback.lightImpact().catchError((_) {});
     } catch (_) {
-      // Haptics unavailable on desktop — the gesture still counts.
+      // Haptics unavailable on desktop â€” the gesture still counts.
     }
     FocusManager.instance.primaryFocus?.unfocus();
     // Local-first: light immediately so offline web visitors are never
@@ -223,14 +223,14 @@ class _CandleSectionState extends State<CandleSection> {
     controller.lightCandle();
     final name = _visitorFull.trim().isEmpty ? 'Anonymous' : _visitorFull;
     controller.noteOwnLight(name);
-    // ignore: discarded_futures — background sync, UI already lit.
+    // ignore: discarded_futures â€” background sync, UI already lit.
     _condolenceRepo.saveMessage(name: name, message: draft).then((ok) {
       if (!mounted) return;
       if (ok) {
         // Refresh the shared list once our candle is stored.
         _loadRemote(afterSave: true);
       } else {
-        // The server never got this candle — drop the fake pending
+        // The server never got this candle â€” drop the fake pending
         // overlay (count +1 and pinned name) and say so, in the same
         // tone as the forum's failure snacks.
         debugPrint('CandleSection: candle save failed for "$name"');
@@ -260,7 +260,11 @@ class _CandleSectionState extends State<CandleSection> {
 
     return Column(
       children: [
-        CandleVideo(lit: lit, onLight: _handleLightTap),
+        CandleWidget(
+          isLit: lit,
+          size: const Size(190, 238),
+          onTap: _handleLightTap,
+        ),
         const SizedBox(height: 16),
         AnimatedSwitcher(
           duration: const Duration(milliseconds: 300),
@@ -274,8 +278,14 @@ class _CandleSectionState extends State<CandleSection> {
                   fontFamily: 'Inter',
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textDark,
+                  color: AppColors.warmDeep,
                   height: 1.2,
+                  shadows: [
+                    Shadow(
+                      color: Color(0xB3FFF4E6),
+                      blurRadius: 5,
+                    ),
+                  ],
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -290,6 +300,12 @@ class _CandleSectionState extends State<CandleSection> {
                     fontSize: 12.5,
                     height: 1.5,
                     color: AppColors.warmMid,
+                    shadows: [
+                      Shadow(
+                        color: Color(0x99FFF4E6),
+                        blurRadius: 4,
+                      ),
+                    ],
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -308,15 +324,33 @@ class _CandleSectionState extends State<CandleSection> {
           style: const TextStyle(
             fontFamily: 'Inter',
             fontSize: 14,
-            color: AppColors.muted,
+            color: Color(0xFF5A3D2E),
             height: 1.5,
+            shadows: [
+              Shadow(
+                color: Color(0xB3FFF4E6),
+                offset: Offset(0.8, 0),
+              ),
+              Shadow(
+                color: Color(0xB3FFF4E6),
+                offset: Offset(-0.8, 0),
+              ),
+              Shadow(
+                color: Color(0xB3FFF4E6),
+                offset: Offset(0, 0.8),
+              ),
+              Shadow(
+                color: Color(0xB3FFF4E6),
+                offset: Offset(0, -0.8),
+              ),
+            ],
           ),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 16),
         _FlameProgressRow(count: controller.displayCount),
         // Mensahe first (mandatory), then the single light action.
-        // Hidden once lit — the video then rests on its final frame.
+        // Hidden once lit â€” the video then rests on its final frame.
         // No second message box after lighting: thanks only.
         if (!lit) ...[
           const SizedBox(height: 16),
@@ -325,23 +359,37 @@ class _CandleSectionState extends State<CandleSection> {
           ),
           const SizedBox(height: 8),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const Icon(
                 Icons.lock_outline_rounded,
                 size: 13,
-                color: AppColors.muted,
+                color: AppColors.warmMid,
+                shadows: [
+                  Shadow(
+                    color: Color(0x99FFF4E6),
+                    blurRadius: 4,
+                  ),
+                ],
               ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   lang.t('candle_message_private_note'),
-                  maxLines: 2,
+                  maxLines: 1,
+                  softWrap: false,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontFamily: 'Inter',
-                    fontSize: 12.5,
-                    color: AppColors.muted,
+                    fontSize: 11,
+                    color: AppColors.warmMid,
                     height: 1.4,
+                    shadows: [
+                      Shadow(
+                        color: Color(0x99FFF4E6),
+                        blurRadius: 4,
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -401,15 +449,21 @@ class _CandleSectionState extends State<CandleSection> {
                 fontStyle: FontStyle.italic,
                 color: AppColors.warmMid,
                 height: 1.4,
+                shadows: [
+                  Shadow(
+                    color: Color(0x99FFF4E6),
+                    blurRadius: 4,
+                  ),
+                ],
               ),
               textAlign: TextAlign.center,
             ),
           ],
         ],
-        const SizedBox(height: 20),
         // After lighting: thanks only, no second message box, then the
         // names-only remembering list (offline hides it).
         if (lit) ...[
+          const SizedBox(height: 20),
           KeyedSubtree(
             key: widget.privateMessageKey,
             child: _RememberingList(
@@ -426,7 +480,7 @@ class _CandleSectionState extends State<CandleSection> {
 /// Names-only guestbook of who lit a candle, shown after Sindihan as a
 /// fixed-size spiral notebook page with the binding on the left (like
 /// loose-leaf). The page never grows: names scroll inside it.
-/// Messages are never rendered here — too personal.
+/// Messages are never rendered here â€” too personal.
 /// Offline (`recentNames == null`): the notebook stays but shows the
 /// "go online" note with a retry button instead of lines.
 class _RememberingList extends StatelessWidget {
@@ -739,7 +793,7 @@ class _NotebookLine extends StatelessWidget {
 
 /// Minimal flame progress row (Image 1): 7 outline flames centered,
 /// first N filled warm brown where N = min(count, 7), rest light grey.
-/// No hairline, no circles — flat modern feel, memorial tokens only.
+/// No hairline, no circles â€” flat modern feel, memorial tokens only.
 class _FlameProgressRow extends StatelessWidget {
   final int count;
 
@@ -760,6 +814,12 @@ class _FlameProgressRow extends StatelessWidget {
                   : Icons.local_fire_department_outlined,
               size: 22,
               color: i < lit ? AppColors.amber : AppColors.stoneBorder,
+              shadows: const [
+                Shadow(
+                  color: Color(0x66FFF4E6),
+                  blurRadius: 4,
+                ),
+              ],
             ),
           ),
       ],

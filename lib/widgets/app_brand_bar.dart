@@ -19,19 +19,118 @@ class AppBrandBar extends StatelessWidget {
   final VoidCallback? onHelpTap;
   final String? helpTooltip;
 
+  /// Optional tap handler for the brand group (leaf + title + greeting) on the left.
+  /// When provided, tapping navigates to the home tab.
+  final VoidCallback? onHomeTap;
+  final String? homeTooltip;
+
+  /// Optional fill override. The Pakikiramay tab passes a translucent warm
+  /// brown so the fixed gradient shows through; everything else keeps the
+  /// default charcoal.
+  final Color? backgroundColor;
+
   const AppBrandBar({
     super.key,
     this.greeting,
     this.onSettingsTap,
     this.onHelpTap,
     this.helpTooltip,
+    this.onHomeTap,
+    this.homeTooltip,
+    this.backgroundColor,
   });
 
   @override
   Widget build(BuildContext context) {
     final hasGreeting = greeting != null && greeting!.isNotEmpty;
+    final brandGroup = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 30,
+          height: 30,
+          decoration: BoxDecoration(
+            color: AppColors.gold.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppColors.gold.withValues(alpha: 0.35),
+              width: 0.8,
+            ),
+          ),
+          child: const Icon(
+            Icons.eco,
+            size: 16,
+            color: AppColors.goldLight,
+          ),
+        ),
+        const SizedBox(width: 9),
+        Flexible(
+          child: hasGreeting
+              ? Semantics(
+                  header: true,
+                  label: greeting,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'nanay anita',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.6,
+                          color: AppColors.gold,
+                          fontFamily: 'Inter',
+                          fontFamilyFallback: [
+                            'Times New Roman',
+                            'serif',
+                          ],
+                        ),
+                      ),
+                      Text(
+                        greeting!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.3,
+                          color: AppColors.goldLight,
+                          fontFamily: 'Inter',
+                          fontFamilyFallback: [
+                            'Times New Roman',
+                            'serif',
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : const Text(
+                  'nanay anita',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.4,
+                    color: AppColors.goldLight,
+                    fontFamily: 'Inter',
+                    fontFamilyFallback: [
+                      'Times New Roman',
+                      'serif',
+                    ],
+                  ),
+                ),
+        ),
+      ],
+    );
+
     return Container(
-      color: AppColors.charcoal,
+      color: backgroundColor ?? AppColors.charcoal,
       child: SafeArea(
         bottom: false,
         child: Column(
@@ -40,96 +139,42 @@ class AppBrandBar extends StatelessWidget {
             SizedBox(
               height: 52,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: EdgeInsets.fromLTRB(
+                  onHomeTap != null ? 6 : 12,
+                  0,
+                  12,
+                  0,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Flexible(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 30,
-                            height: 30,
-                            decoration: BoxDecoration(
-                              color: AppColors.gold.withValues(alpha: 0.14),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: AppColors.gold.withValues(alpha: 0.35),
-                                width: 0.8,
-                              ),
-                            ),
-                            child: const Icon(
-                              Icons.eco,
-                              size: 16,
-                              color: AppColors.goldLight,
-                            ),
-                          ),
-                          const SizedBox(width: 9),
-                          Flexible(
-                            child: hasGreeting
-                                ? Semantics(
-                                    header: true,
-                                    label: greeting,
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'nanay anita',
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w600,
-                                            letterSpacing: 0.6,
-                                            color: AppColors.gold,
-                                            fontFamily: 'Inter',
-                                            fontFamilyFallback: [
-                                              'Times New Roman',
-                                              'serif',
-                                            ],
-                                          ),
-                                        ),
-                                        Text(
-                                          greeting!,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w700,
-                                            letterSpacing: 0.3,
-                                            color: AppColors.goldLight,
-                                            fontFamily: 'Inter',
-                                            fontFamilyFallback: [
-                                              'Times New Roman',
-                                              'serif',
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  )
-                                : const Text(
-                                    'nanay anita',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: 0.4,
-                                      color: AppColors.goldLight,
-                                      fontFamily: 'Inter',
-                                      fontFamilyFallback: [
-                                        'Times New Roman',
-                                        'serif',
-                                      ],
+                      child: onHomeTap != null
+                          ? Semantics(
+                              button: true,
+                              label: homeTooltip ?? 'Pumunta sa Tahanan',
+                              child: Tooltip(
+                                message: homeTooltip ?? 'Pumunta sa Tahanan',
+                                child: Material(
+                                  color: Colors.transparent,
+                                  borderRadius: BorderRadius.circular(14),
+                                  clipBehavior: Clip.antiAlias,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(14),
+                                    mouseCursor: SystemMouseCursors.click,
+                                    onTap: onHomeTap,
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 4,
+                                      ),
+                                      child: brandGroup,
                                     ),
                                   ),
-                          ),
-                        ],
-                      ),
+                                ),
+                              ),
+                            )
+                          : brandGroup,
                     ),
                     Row(
                       mainAxisSize: MainAxisSize.min,

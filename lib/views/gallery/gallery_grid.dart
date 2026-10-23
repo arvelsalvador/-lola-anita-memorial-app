@@ -723,24 +723,53 @@ class _GalleryGridViewState extends State<GalleryGridView> {
       controller: widget.controller,
       primary: false,
       slivers: [
-        SliverToBoxAdapter(child: _header(lang)),
+        SliverToBoxAdapter(
+          child: RevealOnAppear(
+            id: 'gallery-header',
+            index: 0,
+            child: _header(lang),
+          ),
+        ),
         // Filter pills now come right under the title, before the
         // featured-memory card.
-        SliverToBoxAdapter(child: _searchBar(lang)),
-        SliverToBoxAdapter(child: _filterPills(lang)),
+        SliverToBoxAdapter(
+          child: RevealOnAppear(
+            id: 'gallery-search',
+            index: 1,
+            child: _searchBar(lang),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: RevealOnAppear(
+            id: 'gallery-pills',
+            index: 2,
+            child: _filterPills(lang),
+          ),
+        ),
         // Compact featured-memory card. Hidden while the guarded Last Day
         // photos are being viewed.
         if (_playableImages.isNotEmpty &&
             _selectedGroup != GalleryGroup.remembrances)
           SliverToBoxAdapter(
-            child: HeroSlideshowCard(
-              images: _playableImages,
-              galleryController: widget.galleryController,
-              activeTab: widget.activeTab,
-              surfaceKey: _featuredCardKey,
+            child: RevealOnAppear(
+              id: 'gallery-featured',
+              index: 3,
+              floatUp: true,
+              child: HeroSlideshowCard(
+                images: _playableImages,
+                galleryController: widget.galleryController,
+                activeTab: widget.activeTab,
+                surfaceKey: _featuredCardKey,
+              ),
             ),
           ),
-        SliverToBoxAdapter(child: _listHeader(lang, images.length)),
+        SliverToBoxAdapter(
+          child: RevealOnAppear(
+            id: 'gallery-list-header',
+            index: 4,
+            child: _listHeader(lang, images.length),
+          ),
+        ),
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
           sliver: SliverMasonryGrid.count(
@@ -753,18 +782,24 @@ class _GalleryGridViewState extends State<GalleryGridView> {
               final locked =
                   item.group == GalleryGroup.remembrances &&
                   !widget.galleryController.isUnlocked(item.path);
-              return _PhotoCard(
-                key: ValueKey(item.path),
-                item: item,
-                index: index,
-                locked: locked,
-                onTap: () {
-                  if (locked) {
-                    widget.galleryController.unlock(item.path);
-                  } else {
-                    _openLightbox(images, index);
-                  }
-                },
+              return RevealOnAppear(
+                id: 'gallery-photo-${item.path}',
+                index: 5 + index,
+                floatUp: true,
+                animate: index < 6,
+                child: _PhotoCard(
+                  key: ValueKey(item.path),
+                  item: item,
+                  index: index,
+                  locked: locked,
+                  onTap: () {
+                    if (locked) {
+                      widget.galleryController.unlock(item.path);
+                    } else {
+                      _openLightbox(images, index);
+                    }
+                  },
+                ),
               );
             },
           ),
@@ -825,12 +860,12 @@ class _PhotoCard extends StatelessWidget {
 
     return TweenAnimationBuilder<double>(
       tween: _fadeTween,
-      duration: const Duration(milliseconds: 600),
-      curve: Interval((index % 8) * 0.07, 1, curve: Curves.easeOutCubic),
+      duration: kRevealDuration,
+      curve: Interval((index % 8) * 0.05, 1, curve: Curves.easeOutCubic),
       builder: (context, v, child) => Opacity(
         opacity: v,
         child: Transform.translate(
-          offset: Offset(0, 22 * (1 - v)),
+          offset: Offset(0, 16 * (1 - v)),
           child: child,
         ),
       ),

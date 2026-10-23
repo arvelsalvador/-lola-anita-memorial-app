@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:nita/controllers/condolences_controller.dart';
 import 'package:nita/controllers/forum_controller.dart';
+import 'package:nita/controllers/guide_controller.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/core/utils/navigation.dart';
@@ -10,6 +11,7 @@ import 'package:nita/data/guide/guide_repository.dart';
 import 'package:nita/views/condolences/candle_section.dart';
 import 'package:nita/views/condolences/forum/community_forum_section.dart';
 import 'package:nita/views/guide/guide_page.dart';
+import 'package:nita/widgets/reveal_on_appear.dart';
 
 /// The Pakikiramay (condolences) tab: the visitor lights a virtual candle
 /// in Nanay's memory, and can share and read memories, condolences, and
@@ -336,40 +338,55 @@ class _CondolencesPageState extends State<CondolencesPage> {
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
+    final locked = context.watch<GuideController?>()?.inputLocked ?? false;
+    final topBarHeight = MediaQuery.paddingOf(context).top + 53.0;
 
     return RefreshIndicator(
       onRefresh: _handleRefresh,
       color: AppColors.warmDark,
+      edgeOffset: topBarHeight,
       child: CustomScrollView(
         controller: widget.controller,
         primary: false,
-        physics: const AlwaysScrollableScrollPhysics(),
+        physics: locked
+            ? const NeverScrollableScrollPhysics()
+            : const AlwaysScrollableScrollPhysics(),
         slivers: [
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
-              child: _PakikiramayHeader(
-                title: lang.t('nav_condolences'),
-                subtitle: lang.t('condolences_subtitle'),
+            child: RevealOnAppear(
+              id: 'condolences-hero',
+              index: 0,
+              child: _PakikiramayHeroContainer(
+                topPadding: topBarHeight,
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+                      child: _PakikiramayHeader(
+                        title: lang.t('nav_condolences'),
+                        subtitle: lang.t('condolences_subtitle'),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: CandleSection(
+                        condolencesController: widget.condolencesController,
+                        privateMessageKey: _privateMessageKey,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                CandleSection(
-                  condolencesController: widget.condolencesController,
-                  privateMessageKey: _privateMessageKey,
-                ),
-                const SizedBox(height: 28),
-                CommunityForumSection(
-                  forumController: _forumController,
-                  forumHeaderKey: _forumHeaderKey,
-                  firstPostActionsKey: _actionsKey,
-                ),
-                const SizedBox(height: 32),
-              ]),
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
+            sliver: SliverToBoxAdapter(
+              child: CommunityForumSection(
+                forumController: _forumController,
+                forumHeaderKey: _forumHeaderKey,
+                firstPostActionsKey: _actionsKey,
+              ),
             ),
           ),
         ],
@@ -379,7 +396,7 @@ class _CondolencesPageState extends State<CondolencesPage> {
 }
 
 /// Pakikiramay title matching the reference image: large Inter bold
-/// dark-brown title, warm subtitle, and a line–sprig–line gold divider.
+/// dark-brown title, warm subtitle, and a lineâ€“sprigâ€“line gold divider.
 /// Local to this tab so Words/Gallery headers stay untouched.
 class _PakikiramayHeader extends StatelessWidget {
   final String title;
@@ -401,7 +418,7 @@ class _PakikiramayHeader extends StatelessWidget {
               fontSize: 38,
               height: 1.05,
               fontWeight: FontWeight.w700,
-              color: AppColors.textDark,
+              color: Color(0xFFFFF4E6),
             ),
           ),
         ),
@@ -413,7 +430,7 @@ class _PakikiramayHeader extends StatelessWidget {
             fontFamily: 'Inter',
             fontSize: 14.5,
             height: 1.5,
-            color: AppColors.warmMid,
+            color: Color(0xFFF3E1CC),
           ),
         ),
         const SizedBox(height: 10),
@@ -423,7 +440,7 @@ class _PakikiramayHeader extends StatelessWidget {
   }
 }
 
-/// Line–sprig–line divider: two hairlines with a tiny three-leaf
+/// Lineâ€“sprigâ€“line divider: two hairlines with a tiny three-leaf
 /// gold sprig in the middle, like the reference image.
 class _LeafDivider extends StatelessWidget {
   const _LeafDivider();
@@ -436,7 +453,7 @@ class _LeafDivider extends StatelessWidget {
         Container(
           width: 72,
           height: 1,
-          color: AppColors.gold.withValues(alpha: 0.45),
+          color: const Color(0xFFE3C28F),
         ),
         const SizedBox(width: 10),
         CustomPaint(
@@ -447,7 +464,7 @@ class _LeafDivider extends StatelessWidget {
         Container(
           width: 72,
           height: 1,
-          color: AppColors.gold.withValues(alpha: 0.45),
+          color: const Color(0xFFE3C28F),
         ),
       ],
     );
@@ -457,7 +474,7 @@ class _LeafDivider extends StatelessWidget {
 class _SprigPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = AppColors.gold;
+    final paint = Paint()..color = const Color(0xFFE3C28F);
     final cx = size.width / 2;
     final baseY = size.height - 1;
     // Stem.
@@ -485,4 +502,71 @@ class _SprigPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Scrolling hero container for the Pakikiramay tab: wraps the title,
+/// candle, counter, flame row, message field, and light button in the
+/// warm brown gradient with radial candlelight glow, blending cleanly
+/// into the cream page background below.
+class _PakikiramayHeroContainer extends StatelessWidget {
+  final double topPadding;
+  final Widget child;
+
+  const _PakikiramayHeroContainer({
+    required this.topPadding,
+    required this.child,
+  });
+
+  static const Color _top = Color(0xFF6B4A38);
+  static const Color _mid1 = Color(0xFFA07556);
+  static const Color _mid2 = Color(0xFFD9B99A);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        borderRadius: BorderRadius.vertical(
+          bottom: Radius.circular(28),
+        ),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            _top,
+            _mid1,
+            _mid2,
+            AppColors.cream,
+          ],
+          stops: [0.0, 0.35, 0.70, 1.0],
+        ),
+      ),
+      child: Stack(
+        children: [
+          const Positioned.fill(
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.vertical(
+                    bottom: Radius.circular(28),
+                  ),
+                  gradient: RadialGradient(
+                    center: Alignment(0, -0.15),
+                    radius: 0.6,
+                    colors: [
+                      Color(0x73FFDCAA),
+                      Color(0x00FFDCAA),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.only(top: topPadding, bottom: 8),
+            child: child,
+          ),
+        ],
+      ),
+    );
+  }
 }

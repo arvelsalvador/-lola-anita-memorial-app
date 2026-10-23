@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'package:nita/controllers/gallery_controller.dart';
+import 'package:nita/controllers/guide_controller.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/utils/image_decode.dart';
 import 'package:nita/core/localization/language_provider.dart';
@@ -17,11 +18,13 @@ import 'package:nita/core/utils/motion.dart';
 import 'package:nita/data/guide/guide_repository.dart';
 import 'package:nita/models/gallery_model.dart';
 import 'package:nita/views/guide/guide_page.dart';
+import 'package:nita/widgets/candle_widget.dart';
 import 'package:nita/widgets/circle_icon_button.dart';
 import 'package:nita/widgets/floating_close_button.dart';
 import 'package:nita/widgets/ornamental_card.dart';
 import 'package:nita/widgets/page_title_header.dart';
 import 'package:nita/widgets/photo_counter_pill.dart';
+import 'package:nita/widgets/reveal_on_appear.dart';
 import 'package:nita/widgets/stagger_entrance.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 

@@ -16,8 +16,13 @@ class GuideController extends ChangeNotifier {
   String _currentTabId = 'home';
   bool _isGuideOpen = false;
 
+  /// True while the page beneath the guide must ignore all input.
+  bool _inputLocked = false;
+
   Timer? _autoStartTimer;
+  Timer? _lockFailsafeTimer;
   String? _pendingTabId;
+  bool _disposed = false;
 
   /// Main vertical scroll controller for each tab, registered by the shell.
   ///
@@ -35,21 +40,52 @@ class GuideController extends ChangeNotifier {
     bool guideEnabled = true,
     Set<String>? seenGuides,
     bool hasEnteredInfo = false,
-  })  : _guideEnabled = guideEnabled,
-        _seenGuides = seenGuides ?? <String>{},
-        _hasEnteredInfo = hasEnteredInfo;
+  }) : _guideEnabled = guideEnabled,
+       _seenGuides = seenGuides ?? <String>{},
+       _hasEnteredInfo = hasEnteredInfo;
 
   bool get guideEnabled => _guideEnabled;
   Set<String> get seenGuides => Set.unmodifiable(_seenGuides);
   bool get hasEnteredInfo => _hasEnteredInfo;
   String get currentTabId => _currentTabId;
   bool get isGuideOpen => _isGuideOpen;
+  bool get inputLocked => _inputLocked;
 
   set isGuideOpen(bool value) {
     if (_isGuideOpen != value) {
       _isGuideOpen = value;
+      if (value) {
+        // The guide is visible, so the starts-failsafe is no longer needed.
+        _lockFailsafeTimer?.cancel();
+        _lockFailsafeTimer = null;
+      }
       notifyListeners();
     }
+  }
+
+  /// Freezes the shell (taps, scrolling, navigation) until the guide is done.
+  void lockInput() {
+    if (_disposed) return;
+    _lockFailsafeTimer?.cancel();
+    if (!_inputLocked) {
+      _inputLocked = true;
+      notifyListeners();
+    }
+    // Never leave the app frozen if the guide never becomes visible.
+    _lockFailsafeTimer = Timer(const Duration(seconds: 8), () {
+      if (_inputLocked && !_isGuideOpen) unlockInput();
+    });
+  }
+
+  /// Releases the shell lock. Called only from the shared guide finish path
+  /// (or from the auto-start safety checks).
+  void unlockInput() {
+    if (_disposed) return;
+    _lockFailsafeTimer?.cancel();
+    _lockFailsafeTimer = null;
+    if (!_inputLocked) return;
+    _inputLocked = false;
+    notifyListeners();
   }
 
   /// Factory that loads persisted preferences from SharedPreferences before
@@ -117,6 +153,10 @@ class GuideController extends ChangeNotifier {
         _autoStartTimer = null;
         _pendingTabId = null;
       }
+      // The tab that was locked is no longer visible. Release the lock even
+      // if a guide is open: the guide route still blocks the shell, and this
+      // guarantees a tab change can never leave the app frozen.
+      unlockInput();
       notifyListeners();
     }
   }
@@ -128,10 +168,31 @@ class GuideController extends ChangeNotifier {
     if (!_guideEnabled) return;
     if (_seenGuides.contains(tabId)) return;
 
+    final startGuide = onStartGuide;
+    if (startGuide == null) return;
+
+    // Lock at the very start of the delay, before any guide timer runs.
+    lockInput();
+
     _autoStartTimer = Timer(const Duration(milliseconds: 1500), () {
-      if (_currentTabId != tabId || _isGuideOpen) return;
-      markSeen(tabId);
-      onStartGuide?.call(tabId);
+      _autoStartTimer = null;
+      try {
+        if (_currentTabId != tabId) {
+          unlockInput();
+          return;
+        }
+        // The guide is already visible (for example a manual replay):
+        // keep the lock on; the finish path releases it.
+        if (_isGuideOpen) return;
+        if (!_guideEnabled || _seenGuides.contains(tabId)) {
+          unlockInput();
+          return;
+        }
+        markSeen(tabId);
+        startGuide(tabId);
+      } catch (_) {
+        unlockInput();
+      }
     });
   }
 
@@ -172,13 +233,16 @@ class GuideController extends ChangeNotifier {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final controller = _scrollControllers[tabId];
-      if (controller == null || !controller.hasClients) return;
-
-      controller.animateTo(
-        0,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeOutCubic,
-      );
+      if (controller != null && controller.hasClients) {
+        controller.animateTo(
+          0,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeOutCubic,
+        );
+      }
+      // The scroll back to the top has started; the shell can take input
+      // again. This is the single unlock point for every guide exit.
+      unlockInput();
     });
     WidgetsBinding.instance.scheduleFrame();
   }
@@ -203,7 +267,9 @@ class GuideController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _autoStartTimer?.cancel();
+    _lockFailsafeTimer?.cancel();
     _scrollControllers.clear();
     super.dispose();
   }

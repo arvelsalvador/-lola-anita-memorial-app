@@ -178,4 +178,16 @@ class AppTextStyles {
     fontSize: 13,
     fontWeight: FontWeight.w600,
   );
+
+  /// Memory-card heading: the approved Memories_design mock sets the title
+  /// in a large carved serif over the botanical spray, centred above the
+  /// body — much bigger than the 13px content voice used elsewhere.
+  static const memoryCardTitle = TextStyle(
+    fontFamily: 'PlayfairDisplay',
+    fontFamilyFallback: ['Times New Roman', 'serif'],
+    fontSize: 17,
+    fontWeight: FontWeight.w700,
+    color: AppColors.textDark,
+    height: 1.15,
+  );
 }

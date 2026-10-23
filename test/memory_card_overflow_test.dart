@@ -9,17 +9,19 @@ import 'package:nita/controllers/home_controller.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/views/home/home_page.dart';
+import 'package:nita/widgets/balanced_justify_text.dart';
 
 /// Lays [text] out exactly like the card does (same style, maxLines,
 /// ellipsis, and the width the widget actually renders at) and asserts the
-/// text fits — no trailing "…". Used for the memory titles, which stay
-/// capped at two lines. Bodies are no longer capped (the card grows), so
-/// they are checked with the adaptive-height probe below instead.
+/// text fits — no trailing "…". Used for the memory titles and bodies,
+/// neither of which is line-capped any more (the card grows instead), so
+/// [maxLines] is normally null: the probe then confirms the rendered text is
+/// tall enough for every wrapped line instead of looking for an ellipsis.
 void expectTextFits(
   WidgetTester tester,
   String text,
   TextStyle style,
-  int maxLines,
+  int? maxLines,
   String reason,
 ) {
   final matches = find.text(text).evaluate().toList();
@@ -29,22 +31,30 @@ void expectTextFits(
     reason: 'expected to find rendered text: $reason',
   );
   final widget = matches.first.widget as Text;
-  final renderedWidth = tester.getSize(find.text(text)).width;
+  final renderedSize = tester.getSize(find.text(text));
+  // Text merges its style over the ambient DefaultTextStyle (which can add
+  // letter/word spacing), so the probe must measure with that merge too —
+  // otherwise it under-measures and reports a different wrap.
+  final effectiveStyle = DefaultTextStyle.of(
+    matches.first,
+  ).style.merge(widget.style);
 
   final painter = TextPainter(
-    text: TextSpan(text: widget.data, style: widget.style),
+    text: TextSpan(text: widget.data, style: effectiveStyle),
     textDirection: TextDirection.ltr,
     maxLines: maxLines,
-    ellipsis: '\u2026',
+    // A painter with an ellipsis but no maxLines silently caps at one line,
+    // which read every wrapped (uncapped) title as truncated.
+    ellipsis: maxLines == null ? null : '\u2026',
   );
-  painter.layout(maxWidth: renderedWidth);
+  painter.layout(maxWidth: renderedSize.width);
   final diag = File('build/fit_diag.txt');
   try {
     diag.parent.createSync(recursive: true);
     diag.writeAsStringSync(
-      '[fit] "$text" width=$renderedWidth maxLines=$maxLines '
+      '[fit] "$text" width=${renderedSize.width} maxLines=$maxLines '
       'chars=${text.length} exceeded=${painter.didExceedMaxLines} '
-      'paintedH=${painter.height} '
+      'paintedH=${painter.height} renderedH=${renderedSize.height} '
       'family=${widget.style?.fontFamily}\n',
       mode: FileMode.append,
     );
@@ -52,15 +62,24 @@ void expectTextFits(
     // Diagnostics are best-effort; never fail the test on a write error.
   }
   debugPrint(
-    '[fit] "$text" width=$renderedWidth maxLines=$maxLines '
+    '[fit] "$text" width=${renderedSize.width} maxLines=$maxLines '
     'chars=${text.length} exceeded=${painter.didExceedMaxLines} '
-    'paintedH=${painter.height}',
+    'paintedH=${painter.height} renderedH=${renderedSize.height}',
   );
-  expect(
-    painter.didExceedMaxLines,
-    isFalse,
-    reason: 'text is cropped with an ellipsis ($reason)',
-  );
+  if (maxLines == null) {
+    // Uncapped: the widget must lay out every wrapped line (no clipping).
+    expect(
+      renderedSize.height + 1.0,
+      greaterThanOrEqualTo(painter.height),
+      reason: 'text is clipped to fewer lines than it wraps to ($reason)',
+    );
+  } else {
+    expect(
+      painter.didExceedMaxLines,
+      isFalse,
+      reason: 'text is cropped with an ellipsis ($reason)',
+    );
+  }
   painter.dispose();
 }
 
@@ -240,11 +259,10 @@ Future<void> main() async {
     expect(tester.takeException(), isNull);
   });
 
-  // Adaptive-height probe: every memory body must render in full — no
-  // maxLines cap, no ellipsis — with the card growing to fit it. Cards keep
-  // 276px as a minimum, and the photo is pinned to both vertical edges so
-  // it fills whatever height the copy needs (no empty strip). Titles stay
-  // capped at 2 lines because every title is short.
+  // Adaptive-height probe: every memory body and title must render in full —
+  // no maxLines cap, no ellipsis — with the card growing to fit it. Cards
+  // keep 276px as a minimum, and the photo is pinned to both vertical edges
+  // so it fills whatever height the copy needs (no empty strip).
   final widths = <double>[360, 390, 412];
   final allMemories = HomeController.memoriesData.memories;
   if (!(await fontsReady)) {
@@ -322,7 +340,14 @@ Future<void> main() async {
             );
 
             final body = lang.t(allMemories[i].bodyKey);
-            final bodyFinder = find.text(body);
+            // The narrow card body is rendered through BalancedJustifyText,
+            // which inserts hard line breaks before justifying. Look the
+            // widget up by type (there is exactly one body per card) and
+            // compare the rendered words with whitespace normalised.
+            final bodyFinder = find.descendant(
+              of: find.byType(MemoryCard),
+              matching: find.byType(BalancedJustifyText),
+            );
             expect(
               bodyFinder,
               findsOneWidget,
@@ -330,7 +355,7 @@ Future<void> main() async {
                   '${allMemories[i].id} body @ ${width.toInt()}px '
                   '($languageName)',
             );
-            final bodyWidget = tester.widget<Text>(bodyFinder);
+            final bodyWidget = tester.widget<BalancedJustifyText>(bodyFinder);
             expect(
               bodyWidget.maxLines,
               isNull,
@@ -343,6 +368,16 @@ Future<void> main() async {
               isNot(TextOverflow.ellipsis),
               reason:
                   '${allMemories[i].id} body must not end in an ellipsis '
+                  '@ ${width.toInt()}px ($languageName)',
+            );
+            final renderedBody = tester.widget<Text>(
+              find.descendant(of: bodyFinder, matching: find.byType(Text)),
+            );
+            expect(
+              renderedBody.data!.replaceAll(RegExp(r'\s+'), ' '),
+              body.replaceAll(RegExp(r'\s+'), ' '),
+              reason:
+                  '${allMemories[i].id} body must render every word in full '
                   '@ ${width.toInt()}px ($languageName)',
             );
 
@@ -389,8 +424,8 @@ Future<void> main() async {
             expectTextFits(
               tester,
               title,
-              AppTextStyles.homeContent,
-              2,
+              AppTextStyles.memoryCardTitle,
+              null,
               '${allMemories[i].id} title @ ${width.toInt()}px ($languageName)',
             );
           }

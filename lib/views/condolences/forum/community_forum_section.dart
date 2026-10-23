@@ -8,6 +8,7 @@ import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/models/forum_post_model.dart';
 import 'package:nita/views/condolences/forum/create_post_dialog.dart';
 import 'package:nita/views/condolences/forum/forum_post_card.dart';
+import 'package:nita/widgets/reveal_on_appear.dart';
 
 /// The community messages & stories board connected directly to the database.
 ///
@@ -215,18 +216,23 @@ class _CommunityForumSectionState extends State<CommunityForumSection> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Section Header
-            _ForumHeader(
-              title: lang.t('forum_title'),
-              subtitle: lang.t('forum_subtitle'),
-              live: controller.realtimeConnected,
-              buttonKey: widget.forumHeaderKey,
-              onRetry: () {
-                controller.loadPosts();
-                controller.subscribeRealtime().catchError((_) {});
-              },
-              onShareTap: () {
-                CreatePostDialog.show(context, controller: controller);
-              },
+            RevealOnAppear(
+              id: 'forum-header',
+              index: 1,
+              floatUp: true,
+              child: _ForumHeader(
+                title: lang.t('forum_title'),
+                subtitle: lang.t('forum_subtitle'),
+                live: controller.realtimeConnected,
+                buttonKey: widget.forumHeaderKey,
+                onRetry: () {
+                  controller.loadPosts();
+                  controller.subscribeRealtime().catchError((_) {});
+                },
+                onShareTap: () {
+                  CreatePostDialog.show(context, controller: controller);
+                },
+              ),
             ),
             const SizedBox(height: 16),
 
@@ -316,7 +322,13 @@ class _CommunityForumSectionState extends State<CommunityForumSection> {
             else ...[
               // Paginate: first paint builds max 20 cards, not 100.
               for (final (index, post) in posts.take(_visibleCount).indexed)
-                _cardFor(controller, post, isFirst: index == 0),
+                RevealOnAppear(
+                  id: 'forum-post-${post.id}',
+                  index: 2 + index,
+                  floatUp: true,
+                  animate: index < 6,
+                  child: _cardFor(controller, post, isFirst: index == 0),
+                ),
               if (_visibleCount < posts.length)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
@@ -427,69 +439,60 @@ class _LiveInsertWrapperState extends State<_LiveInsertWrapper>
   }
 }
 
-/// Green LIVE pill when the realtime socket is up; muted offline note
-/// with a retry tap when showing cached posts.
-class _LiveBadge extends StatelessWidget {
-  final bool live;
+/// Compact pill showing offline status when viewing cached posts.
+/// Tapping retries the connection.
+class _OfflineStatusPill extends StatelessWidget {
   final VoidCallback onRetry;
 
-  const _LiveBadge({required this.live, required this.onRetry});
+  const _OfflineStatusPill({required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
-    if (live) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 7,
-            height: 7,
-            decoration: const BoxDecoration(
-              color: Color(0xFF1F9D55),
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 6),
-          const Text(
-            'LIVE',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.2,
-              color: Color(0xFF1F9D55),
-            ),
-          ),
-        ],
-      );
-    }
-    return InkWell(
-      onTap: () {
-        HapticFeedback.lightImpact().catchError((_) {});
-        onRetry();
-      },
-      borderRadius: BorderRadius.circular(8),
-      child: const Padding(
-        padding: EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.cloud_off_outlined, size: 13, color: AppColors.muted),
-            SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                'Offline • showing saved — tap to retry',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 12,
-                  fontStyle: FontStyle.italic,
-                  color: AppColors.muted,
-                ),
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact().catchError((_) {});
+            onRetry();
+          },
+          borderRadius: BorderRadius.circular(999),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1E4D6),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: const Color(0xFFE3C9AE),
+                width: 1,
               ),
             ),
-          ],
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.cloud_off_outlined,
+                  size: 14,
+                  color: Color(0xFF8C7267),
+                ),
+                SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    'Offline • showing saved — tap to retry',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                      color: Color(0xFF8C7267),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -527,12 +530,15 @@ class _ForumHeader extends StatelessWidget {
           color: AppColors.stoneBorder.withValues(alpha: 0.6),
         ),
         const SizedBox(height: 16),
+        // Row 1: title and refresh
         Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Expanded(
+            Flexible(
               child: Text(
                 title,
-                maxLines: 2,
+                maxLines: 1,
+                softWrap: false,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontFamily: 'Inter',
@@ -540,31 +546,50 @@ class _ForumHeader extends StatelessWidget {
                   height: 1.25,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textDark,
+                  shadows: [
+                    Shadow(
+                      color: Color(0x99FFF4E6),
+                      blurRadius: 5,
+                    ),
+                  ],
                 ),
               ),
             ),
-            // Elderly-friendly manual refresh: same reload as
-            // pull-to-refresh, 44px target with a text tooltip.
-            IconButton(
-              tooltip: lang.t('forum_refresh'),
-              onPressed: () {
-                HapticFeedback.lightImpact().catchError((_) {});
-                onRetry();
-              },
-              icon: const Icon(
-                Icons.refresh_rounded,
-                size: 20,
-                color: AppColors.warmMid,
-              ),
-              style: IconButton.styleFrom(
-                minimumSize: const Size(44, 44),
-                tapTargetSize: MaterialTapTargetSize.padded,
-                padding: EdgeInsets.zero,
+            SizedBox(
+              width: 40,
+              height: 40,
+              child: IconButton(
+                tooltip: lang.t('forum_refresh'),
+                onPressed: () {
+                  HapticFeedback.lightImpact().catchError((_) {});
+                  onRetry();
+                },
+                icon: const Icon(
+                  Icons.refresh_rounded,
+                  size: 20,
+                  color: AppColors.warmMid,
+                  shadows: [
+                    Shadow(
+                      color: Color(0x99FFF4E6),
+                      blurRadius: 4,
+                    ),
+                  ],
+                ),
+                style: IconButton.styleFrom(
+                  minimumSize: const Size(40, 40),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  padding: EdgeInsets.zero,
+                ),
               ),
             ),
-            _LiveBadge(live: live, onRetry: onRetry),
           ],
         ),
+        // Row 2: status chip (only when offline or showing saved data)
+        if (!live) ...[
+          const SizedBox(height: 6),
+          _OfflineStatusPill(onRetry: onRetry),
+        ],
+        // Row 3: visibility note
         const SizedBox(height: 6),
         Row(
           children: [
@@ -572,6 +597,12 @@ class _ForumHeader extends StatelessWidget {
               Icons.public_outlined,
               size: 14,
               color: AppColors.muted,
+              shadows: [
+                Shadow(
+                  color: Color(0x99FFF4E6),
+                  blurRadius: 4,
+                ),
+              ],
             ),
             const SizedBox(width: 6),
             Expanded(
@@ -584,6 +615,12 @@ class _ForumHeader extends StatelessWidget {
                   fontSize: 13,
                   color: AppColors.muted,
                   height: 1.4,
+                  shadows: [
+                    Shadow(
+                      color: Color(0x99FFF4E6),
+                      blurRadius: 4,
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -603,7 +640,7 @@ class _ForumHeader extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         KeyedSubtree(
           key: buttonKey,
           child: SizedBox(

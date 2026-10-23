@@ -30,6 +30,7 @@ import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/core/utils/navigation.dart';
 import 'package:nita/core/utils/display_utils.dart';
 import 'package:nita/controllers/family_controller.dart';
+import 'package:nita/controllers/guide_controller.dart';
 import 'package:nita/data/guide/guide_repository.dart';
 import 'package:nita/models/family_model.dart';
 import 'package:nita/views/guide/guide_page.dart';
@@ -37,6 +38,7 @@ import 'package:nita/widgets/framed_memorial_portrait.dart';
 import 'package:nita/widgets/gradient_avatar.dart';
 import 'package:nita/widgets/ornament_divider.dart';
 import 'package:nita/widgets/ornamental_card.dart';
+import 'package:nita/widgets/reveal_on_appear.dart';
 import 'package:nita/widgets/tag_chip.dart';
 import 'package:nita/views/family/family_tree_canvas_page.dart';
 
@@ -324,6 +326,7 @@ class _FamilyPageState extends State<FamilyPage> {
   Widget build(BuildContext context) {
     const data = FamilyController.data;
     final groups = data.groups;
+    final locked = context.watch<GuideController?>()?.inputLocked ?? false;
 
     return Scaffold(
       backgroundColor: AppColors.cream,
@@ -331,13 +334,27 @@ class _FamilyPageState extends State<FamilyPage> {
         child: ListView(
           controller: _pageController,
           cacheExtent: 1200,
+          physics: locked ? const NeverScrollableScrollPhysics() : null,
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 18),
           children: [
-            const FamilyPageHeader(),
+            const RevealOnAppear(
+              id: 'family-header',
+              index: 0,
+              child: FamilyPageHeader(),
+            ),
             const SizedBox(height: 16),
-            const FamilySearchBar(),
+            const RevealOnAppear(
+              id: 'family-search',
+              index: 1,
+              child: FamilySearchBar(),
+            ),
             const SizedBox(height: 18),
-            FamilyRootCard(member: data.rootMember),
+            RevealOnAppear(
+              id: 'family-root',
+              index: 2,
+              floatUp: true,
+              child: FamilyRootCard(member: data.rootMember),
+            ),
             // Carry the descent line from the root card's bottom edge down
             // to the first section header: the bead marks the branch
             // origin, and that header's own spine (see _SpineBehind)
@@ -346,19 +363,25 @@ class _FamilyPageState extends State<FamilyPage> {
             if (groups.isNotEmpty)
               const _FamilyGroupConnector(height: 18, bead: true),
             for (var i = 0; i < groups.length; i++) ...[
-              FamilyGroupSection(
-                group: groups[i],
-                // The guide lights the first card of the first section.
-                firstMemberKey: i == 0 ? _memberKey : null,
-                // Gather branches back to the center trunk when the next
-                // section uses a center-line connector (not straight
-                // descent), so the connector reads as continuous.
-                // Skip the gather for sections followed by straight-descent
-                // groups — those continue the per-column lines directly.
-                showGather: i < groups.length - 1
-                    ? (!_isApoGroup(groups[i + 1]) &&
-                          !_isStraightDescentGroup(groups[i + 1]))
-                    : false,
+              RevealOnAppear(
+                id: 'family-group-${groups[i].labelKey}',
+                index: 3 + i,
+                floatUp: true,
+                animate: i < 6,
+                child: FamilyGroupSection(
+                  group: groups[i],
+                  // The guide lights the first card of the first section.
+                  firstMemberKey: i == 0 ? _memberKey : null,
+                  // Gather branches back to the center trunk when the next
+                  // section uses a center-line connector (not straight
+                  // descent), so the connector reads as continuous.
+                  // Skip the gather for sections followed by straight-descent
+                  // groups — those continue the per-column lines directly.
+                  showGather: i < groups.length - 1
+                      ? (!_isApoGroup(groups[i + 1]) &&
+                            !_isStraightDescentGroup(groups[i + 1]))
+                      : false,
+                ),
               ),
               if (i < groups.length - 1) ...[
                 // The grandchildren section draws its own straight
@@ -376,7 +399,11 @@ class _FamilyPageState extends State<FamilyPage> {
                 const SizedBox(height: 18),
             ],
             const SizedBox(height: 12),
-            const FamilyFooterNote(),
+            const RevealOnAppear(
+              id: 'family-footer',
+              index: 10,
+              child: FamilyFooterNote(),
+            ),
           ],
         ),
       ),

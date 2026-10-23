@@ -7,12 +7,14 @@ import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/core/utils/display_utils.dart';
 import 'package:nita/core/utils/navigation.dart';
 import 'package:nita/controllers/words_controller.dart';
+import 'package:nita/controllers/guide_controller.dart';
 import 'package:nita/data/guide/guide_repository.dart';
 import 'package:nita/models/words_model.dart';
 import 'package:nita/views/guide/guide_page.dart';
 import 'package:nita/widgets/ornamental_card.dart';
 import 'package:nita/widgets/gradient_avatar.dart';
 import 'package:nita/widgets/page_title_header.dart';
+import 'package:nita/widgets/reveal_on_appear.dart';
 
 /// Words tab — the family's words for Lola Anita, redesigned to match the
 /// new mockup: a serif title + italic subtitle, filter chips (Lahat /
@@ -209,6 +211,7 @@ class _WordsPageState extends State<WordsPage> {
   Widget build(BuildContext context) {
     const data = WordsController.data;
     final lang = context.watch<LanguageProvider>();
+    final locked = context.watch<GuideController?>()?.inputLocked ?? false;
 
     final quotes = _filter == null
         ? data.familyQuotes
@@ -219,6 +222,7 @@ class _WordsPageState extends State<WordsPage> {
     return CustomScrollView(
       controller: widget.controller,
       primary: false,
+      physics: locked ? const NeverScrollableScrollPhysics() : null,
       slivers: [
         SliverToBoxAdapter(
           child: Padding(
@@ -226,18 +230,26 @@ class _WordsPageState extends State<WordsPage> {
             child: Column(
               children: [
                 // ── Title (shared Family page header design) ─────────
-                PageTitleHeader(
-                  title: lang.t('nav_words'),
-                  subtitle: lang.t('words_subtitle'),
+                RevealOnAppear(
+                  id: 'words-header',
+                  index: 0,
+                  child: PageTitleHeader(
+                    title: lang.t('nav_words'),
+                    subtitle: lang.t('words_subtitle'),
+                  ),
                 ),
                 const SizedBox(height: 18),
                 // ── Filter chips ───────────────────────────────────────
-                Center(
-                  child: KeyedSubtree(
-                    key: _filterPillsKey,
-                    child: _FilterChips(
-                      active: _filter,
-                      onSelected: (group) => setState(() => _filter = group),
+                RevealOnAppear(
+                  id: 'words-filter-pills',
+                  index: 1,
+                  child: Center(
+                    child: KeyedSubtree(
+                      key: _filterPillsKey,
+                      child: _FilterChips(
+                        active: _filter,
+                        onSelected: (group) => setState(() => _filter = group),
+                      ),
                     ),
                   ),
                 ),
@@ -252,16 +264,26 @@ class _WordsPageState extends State<WordsPage> {
             delegate: SliverChildListDelegate([
               // ── Featured card (only on "Lahat") ──────────────────────
               if (_filter == null) ...[
-                _FeaturedQuoteCard(quote: data.featuredQuote),
+                RevealOnAppear(
+                  id: 'words-featured',
+                  index: 2,
+                  floatUp: true,
+                  child: _FeaturedQuoteCard(quote: data.featuredQuote),
+                ),
                 const SizedBox(height: 14),
               ],
-              ...quotes.map(
-                (q) => Padding(
-                  key: ValueKey(q.quoteKey),
+              for (var i = 0; i < quotes.length; i++)
+                Padding(
+                  key: ValueKey(quotes[i].quoteKey),
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: FamilyQuoteCard(quote: q),
+                  child: RevealOnAppear(
+                    id: 'words-quote-${quotes[i].quoteKey}',
+                    index: 3 + i,
+                    floatUp: true,
+                    animate: i < 6,
+                    child: FamilyQuoteCard(quote: quotes[i]),
+                  ),
                 ),
-              ),
               if (quotes.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 24),
