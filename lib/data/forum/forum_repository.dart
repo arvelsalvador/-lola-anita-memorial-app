@@ -363,7 +363,12 @@ class ForumRepository {
     // Save in local cache
     try {
       final prefs = await SharedPreferences.getInstance();
-      final cached = await fetchPosts();
+      final cached = await _loadLocalCache(
+        prefs,
+        await _loadUserReactions(prefs),
+        await _loadReactionCounts(prefs),
+        await _loadLocalReplies(prefs),
+      );
       final updated = [newPost, ...cached.where((p) => p.id != newPost.id)];
       await _saveLocalCache(prefs, updated);
     } catch (_) {}
@@ -423,7 +428,7 @@ class ForumRepository {
       try {
         final deviceId = await ReactionIdentity.deviceId();
         Map<String, dynamic> res;
-        try {
+        if (cleanReplyTo.isEmpty) {
           res = await client
               .from(repliesTable)
               .insert({
@@ -431,7 +436,19 @@ class ForumRepository {
                 'author_name': cleanName,
                 'message': cleanMessage,
                 'device_id': deviceId,
-                if (cleanReplyTo.isNotEmpty) 'reply_to_name': cleanReplyTo,
+              })
+              .select('id, created_at')
+              .single()
+              .timeout(AppTimeouts.remote);
+        } else try {
+          res = await client
+              .from(repliesTable)
+              .insert({
+                'post_id': postId,
+                'author_name': cleanName,
+                'message': cleanMessage,
+                'device_id': deviceId,
+                'reply_to_name': cleanReplyTo,
               })
               .select('id, created_at')
               .single()

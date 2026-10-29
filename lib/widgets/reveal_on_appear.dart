@@ -54,6 +54,7 @@ class _RevealOnAppearState extends State<RevealOnAppear>
   late final AnimationController _controller;
   late final Animation<double> _fade;
   late final Animation<Offset> _slide;
+  late final bool _animate;
 
   bool _revealed = false;
   Timer? _delayTimer;
@@ -70,6 +71,7 @@ class _RevealOnAppearState extends State<RevealOnAppear>
   @override
   void initState() {
     super.initState();
+    _animate = widget.animate;
     _controller = AnimationController(vsync: this, duration: widget.duration);
     _fade = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
     _slide = Tween<Offset>(
@@ -77,7 +79,7 @@ class _RevealOnAppearState extends State<RevealOnAppear>
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
-    if (!widget.animate) {
+    if (!_animate) {
       _revealed = true;
       _controller.value = 1.0;
     }
@@ -125,7 +127,7 @@ class _RevealOnAppearState extends State<RevealOnAppear>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    if (!widget.animate) {
+    if (!_animate) {
       return widget.child;
     }
 

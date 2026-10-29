@@ -39,7 +39,7 @@ class _CommunityForumSectionState extends State<CommunityForumSection> {
   int? _prevTotal;
   bool _disposed = false;
   // Ids that arrived live since the last pass — only these animate in.
-  Set<String> _newArrivals = {};
+  final Set<String> _newArrivals = {};
 
   // Identity memoization: one built ForumPostCard per post id. A card
   // widget is rebuilt only when its post instance changed (the
@@ -67,7 +67,8 @@ class _CommunityForumSectionState extends State<CommunityForumSection> {
       oldWidget.forumController.removeListener(_onControllerChanged);
       widget.forumController.addListener(_onControllerChanged);
       _cardCache.clear();
-      _newArrivals = const <String>{};
+      _newArrivals.clear();
+      _seenIds.clear();
       _prevTotal = null;
     }
   }
@@ -99,8 +100,10 @@ class _CommunityForumSectionState extends State<CommunityForumSection> {
     // stay bounded.
     final bool wasFirstBuild = _seenIds.isEmpty;
     final currentIds = posts.map((p) => p.id).toSet();
-    _newArrivals =
-        wasFirstBuild ? <String>{} : currentIds.difference(_seenIds);
+    if (!wasFirstBuild) {
+      _newArrivals.addAll(currentIds.difference(_seenIds));
+    }
+    _newArrivals.retainAll(currentIds);
     _seenIds.retainAll(currentIds);
     _seenIds.addAll(currentIds);
     _cardCache.removeWhere((id, _) => !currentIds.contains(id));
@@ -326,6 +329,7 @@ class _CommunityForumSectionState extends State<CommunityForumSection> {
               // Paginate: first paint builds max 20 cards, not 100.
               for (final (index, post) in posts.take(_visibleCount).indexed)
                 RevealOnAppear(
+                  key: ValueKey('reveal-${post.id}'),
                   id: 'forum-post-${post.id}',
                   index: 2 + index,
                   floatUp: true,

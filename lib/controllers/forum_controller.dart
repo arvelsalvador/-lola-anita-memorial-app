@@ -385,8 +385,16 @@ class ForumController extends ChangeNotifier {
           final marked = reply.id.startsWith('reply-')
               ? reply.copyWith(pendingSync: true)
               : reply;
+          final existingIdx =
+              target.replies.indexWhere((r) => r.id == marked.id);
+          final nextReplies = List<ForumReply>.from(target.replies);
+          if (existingIdx != -1) {
+            nextReplies[existingIdx] = marked;
+          } else {
+            nextReplies.add(marked);
+          }
           _posts[idx] = target.copyWith(
-            replies: [...target.replies, marked],
+            replies: nextReplies,
           );
           _ownReplyIds.add(reply.id);
           unawaited(OwnIds.addReply(reply.id));

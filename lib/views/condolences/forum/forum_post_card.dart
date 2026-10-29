@@ -466,12 +466,13 @@ class _ForumPostCardState extends State<ForumPostCard> {
       _composerController.clear();
       await SpamGuard.recordReply();
       if (!mounted) return;
+      _composerFocus.unfocus();
       setState(() {
         _replyTarget = null;
         _repliesExpanded = true;
         _composerOpen = false;
+        _sending = false;
       });
-      _composerFocus.unfocus();
     } catch (_) {
       if (!mounted) return;
       final lang = context.read<LanguageProvider>();
@@ -479,7 +480,7 @@ class _ForumPostCardState extends State<ForumPostCard> {
         SnackBar(content: Text(lang.t('forum_send_failed'))),
       );
     } finally {
-      if (mounted) setState(() => _sending = false);
+      if (mounted && _sending) setState(() => _sending = false);
     }
   }
 
@@ -1125,7 +1126,7 @@ class _ForumPostCardState extends State<ForumPostCard> {
                             maxLines: 3,
                             maxLength: 1000,
                             buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
-                            enabled: !_sending,
+                            readOnly: _sending,
                             onSubmitted: (_) => _handleSend(),
                             style: const TextStyle(
                               fontFamily: 'Inter',
