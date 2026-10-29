@@ -60,6 +60,15 @@ class ForumRepository {
     final userReactions = await _loadUserReactions(prefs);
     final reactionCounts = await _loadReactionCounts(prefs);
     final localReplies = await _loadLocalReplies(prefs);
+    // Snapshot the previous cache before a successful remote fetch
+    // overwrites it. Unsent (pendingSync) posts live only here until
+    // their retry succeeds, so they must survive the overwrite.
+    final cachedPosts = await _loadLocalCache(
+      prefs,
+      userReactions,
+      reactionCounts,
+      localReplies,
+    );
 
     _lastFetchSucceededRemotely = false;
     final client = SupabaseConfig.safeClient();
@@ -75,6 +84,7 @@ class ForumRepository {
 
         // Fetch replies from database if table is available
         Map<String, List<ForumReply>> dbReplies = {};
+        var dbRepliesLoaded = false;
         // Remote like counts (shared across devices). Empty when the
         // reactions table is missing or offline — local cache wins then.
         Map<String, Map<String, int>> remoteCounts = {};
@@ -144,9 +154,35 @@ class ForumRepository {
             }
             dbReplies.putIfAbsent(reply.postId, () => []).add(reply);
           }
+          dbRepliesLoaded = true;
         } catch (_) {
           // Replies table may be local or unmigrated yet
           dbReplies = localReplies;
+        }
+
+        // Drop cached temp replies whose real row already landed (e.g.
+        // an insert timed out after the server accepted it). This keeps
+        // duplicate "Unsent" replies out of the cache across restarts.
+        if (dbRepliesLoaded) {
+          var localRepliesChanged = false;
+          for (final entry in localReplies.entries) {
+            final realForPost = dbReplies[entry.key] ?? const <ForumReply>[];
+            final before = entry.value.length;
+            entry.value.removeWhere(
+              (r) =>
+                  r.pendingSync &&
+                  r.id.startsWith('reply-') &&
+                  realForPost.any(
+                    (real) =>
+                        real.authorName == r.authorName &&
+                        real.message == r.message,
+                  ),
+            );
+            if (entry.value.length != before) localRepliesChanged = true;
+          }
+          if (localRepliesChanged) {
+            await _saveLocalReplies(prefs, localReplies);
+          }
         }
 
         final List<ForumPost> realPosts = [];
@@ -200,13 +236,42 @@ class ForumRepository {
           );
         }
 
-        // Cache real posts locally
-        await _saveLocalCache(prefs, realPosts);
+        // Keep unsent posts across a successful refresh. Without this,
+        // the cache overwrite below deletes a pending post before it can
+        // be retried (especially on a fresh app start).
+        final pendingPosts = <ForumPost>[];
+        for (final p in cachedPosts) {
+          if (!p.pendingSync) continue;
+          if (realPosts.any(
+            (r) =>
+                r.authorName == p.authorName && r.message == p.message,
+          )) {
+            continue;
+          }
+          if (pendingPosts.any(
+            (pp) =>
+                pp.id == p.id ||
+                (pp.authorName == p.authorName &&
+                    pp.message == p.message),
+          )) {
+            continue;
+          }
+          pendingPosts.add(p);
+        }
+        final mergedPosts = [
+          ...pendingPosts.where(
+            (pp) => !realPosts.any((p) => p.id == pp.id),
+          ),
+          ...realPosts,
+        ];
+
+        // Cache real posts locally (plus any still-unsent posts)
+        await _saveLocalCache(prefs, mergedPosts);
         await SpamGuard.saveHiddenIds(hiddenIds);
         _lastFetchSucceededRemotely = true;
         // Filter the just-cached list too so hidden posts vanish now,
         // not only on the next launch.
-        return realPosts
+        return mergedPosts
             .where((p) => !hiddenIds.contains(p.id))
             .toList();
       } catch (e) {
@@ -217,13 +282,7 @@ class ForumRepository {
 
     // Offline / unconfigured: return cached real posts (minus hidden).
     final hiddenIds = await SpamGuard.loadHiddenIds();
-    final cached = await _loadLocalCache(
-      prefs,
-      userReactions,
-      reactionCounts,
-      localReplies,
-    );
-    return cached
+    return cachedPosts
         .where((p) => !hiddenIds.contains(p.id))
         .map(
           (p) => p.copyWith(
@@ -452,6 +511,62 @@ class ForumRepository {
       );
     } catch (e) {
       debugPrint('ForumRepository removeLocalReply skipped: $e');
+    }
+  }
+
+  /// Drops a local-only post row (temp `msg-...` id) and its local replies
+  /// from the cache after its upload succeeds. Without this, the temp copy
+  /// stays in the cache and can reappear as a duplicate "Unsent" post.
+  /// Local cache only, best-effort, never throws.
+  Future<void> removeLocalPost(String postId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final localReplies = await _loadLocalReplies(prefs);
+      localReplies.remove(postId);
+      await _saveLocalReplies(prefs, localReplies);
+      final cached = await _loadLocalCache(
+        prefs,
+        await _loadUserReactions(prefs),
+        await _loadReactionCounts(prefs),
+        localReplies,
+      );
+      await _saveLocalCache(
+        prefs,
+        cached.where((p) => p.id != postId).toList(),
+      );
+    } catch (e) {
+      debugPrint('ForumRepository removeLocalPost skipped: $e');
+    }
+  }
+
+  /// After a pending post gets its real id: move its still-unsent
+  /// replies from the temp id bucket to the real id bucket, then drop the
+  /// temp post from the cache. Keeps a failed reply retry recoverable on
+  /// the next launch instead of losing it with the temp parent.
+  Future<void> finalizeLocalPost(String tempId, String realId) async {
+    if (tempId == realId) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final localReplies = await _loadLocalReplies(prefs);
+      final moving = localReplies.remove(tempId);
+      if (moving != null && moving.isNotEmpty) {
+        localReplies.putIfAbsent(realId, () => []).addAll(
+              moving.map((r) => r.copyWith(postId: realId)),
+            );
+      }
+      await _saveLocalReplies(prefs, localReplies);
+      final cached = await _loadLocalCache(
+        prefs,
+        await _loadUserReactions(prefs),
+        await _loadReactionCounts(prefs),
+        localReplies,
+      );
+      await _saveLocalCache(
+        prefs,
+        cached.where((p) => p.id != tempId).toList(),
+      );
+    } catch (e) {
+      debugPrint('ForumRepository finalizeLocalPost skipped: $e');
     }
   }
 

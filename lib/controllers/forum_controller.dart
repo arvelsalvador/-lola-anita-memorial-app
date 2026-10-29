@@ -681,6 +681,10 @@ class ForumController extends ChangeNotifier {
         debugPrint(
           'ForumController pending post still unsent (${post.id}).',
         );
+        // createPost minted a fresh temp id and cached it. Keep the
+        // original pending row as the single copy instead of stacking
+        // duplicate "Unsent" posts on every failed retry.
+        unawaited(_repository.removeLocalPost(saved.id));
         return;
       }
       final idx = _posts.indexWhere((p) => p.id == post.id);
@@ -696,6 +700,10 @@ class ForumController extends ChangeNotifier {
         unawaited(OwnIds.migratePost(tempId, saved.id));
       }
       notifyListeners();
+      // The temp copy is still in the cache from the failed first
+      // attempt. Remove it so a later refresh cannot show a duplicate
+      // "Unsent" post next to the delivered one.
+      await _repository.finalizeLocalPost(tempId, saved.id);
     } catch (e) {
       debugPrint('ForumController pending post retry skipped: $e');
     }
@@ -716,6 +724,9 @@ class ForumController extends ChangeNotifier {
         debugPrint(
           'ForumController pending reply still unsent (${reply.id}).',
         );
+        // addReply cached a fresh temp reply. Keep the original pending
+        // row as the single copy instead of stacking duplicates.
+        unawaited(_repository.removeLocalReply(saved.id));
         return;
       }
       final postIdx = _posts.indexWhere((p) => p.id == postId);
@@ -1038,6 +1049,9 @@ class ForumController extends ChangeNotifier {
           _ownPostIds.add(post.id);
           unawaited(OwnIds.migratePost(tempId, post.id));
         }
+        // The real row is live; drop the local temp copy so it cannot
+        // come back as a duplicate "Unsent" post after a refresh.
+        unawaited(_repository.finalizeLocalPost(tempId, post.id));
       } else {
         _posts = [post, ..._posts];
       }
