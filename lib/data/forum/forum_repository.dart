@@ -37,6 +37,12 @@ class ForumRepository {
   static String _tempId(String prefix) =>
       '$prefix-${DateTime.now().millisecondsSinceEpoch}-${_tempSeq++}';
 
+  static bool _lastFetchSucceededRemotely = false;
+
+  /// True when the most recent [fetchPosts] call loaded live rows from
+  /// Supabase rather than falling back to the local cache.
+  bool get lastFetchSucceededRemotely => _lastFetchSucceededRemotely;
+
   static const String _cachedPostsKey = 'memorial_db_posts_cache_v1';
   static const String _userReactionsKey = 'memorial_user_reactions_v1';
   static const String _reactionsMapKey = 'memorial_reactions_counts_v1';
@@ -55,6 +61,7 @@ class ForumRepository {
     final reactionCounts = await _loadReactionCounts(prefs);
     final localReplies = await _loadLocalReplies(prefs);
 
+    _lastFetchSucceededRemotely = false;
     final client = SupabaseConfig.safeClient();
     if (client != null) {
       try {
@@ -196,12 +203,14 @@ class ForumRepository {
         // Cache real posts locally
         await _saveLocalCache(prefs, realPosts);
         await SpamGuard.saveHiddenIds(hiddenIds);
+        _lastFetchSucceededRemotely = true;
         // Filter the just-cached list too so hidden posts vanish now,
         // not only on the next launch.
         return realPosts
             .where((p) => !hiddenIds.contains(p.id))
             .toList();
       } catch (e) {
+        _lastFetchSucceededRemotely = false;
         debugPrint('ForumRepository Supabase fetch skipped: $e');
       }
     }

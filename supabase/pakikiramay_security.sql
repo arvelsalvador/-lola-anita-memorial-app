@@ -1028,6 +1028,32 @@ end;
 $$;
 
 -- ============================================================================
+-- 8. Enable Realtime publication on public forum tables (idempotent)
+-- ============================================================================
+do $$
+declare
+  t text;
+  rt_tables constant text[] := array[
+    'pakikiramay_messages',
+    'pakikiramay_replies',
+    'pakikiramay_reactions'
+  ];
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    foreach t in array rt_tables loop
+      if not exists (
+        select 1 from pg_publication_tables
+        where pubname = 'supabase_realtime'
+          and schemaname = 'public'
+          and tablename = t
+      ) then
+        execute format('alter publication supabase_realtime add table public.%I', t);
+      end if;
+    end loop;
+  end if;
+end $$;
+
+-- ============================================================================
 -- Done. Reminder: change the family PIN with
 --   update public.app_admin_secret set pin_hash = crypt('888888', gen_salt('bf'));
 -- ============================================================================

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'package:nita/controllers/forum_controller.dart';
 import 'package:nita/core/constants/app_constants.dart';
+import 'package:nita/core/constants/supabase_config.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/models/forum_post_model.dart';
 import 'package:nita/views/condolences/forum/create_post_dialog.dart';
@@ -223,9 +224,10 @@ class _CommunityForumSectionState extends State<CommunityForumSection> {
               child: _ForumHeader(
                 title: lang.t('forum_title'),
                 subtitle: lang.t('forum_subtitle'),
-                live: controller.realtimeConnected,
+                live: controller.isOnline,
                 buttonKey: widget.forumHeaderKey,
-                onRetry: () {
+                onRetry: () async {
+                  await SupabaseConfig.ensureInitialized();
                   controller.loadPosts();
                   controller.subscribeRealtime().catchError((_) {});
                 },
@@ -271,8 +273,9 @@ class _CommunityForumSectionState extends State<CommunityForumSection> {
                     ),
                     const SizedBox(height: 14),
                     OutlinedButton.icon(
-                      onPressed: () {
+                      onPressed: () async {
                         HapticFeedback.lightImpact().catchError((_) {});
+                        await SupabaseConfig.ensureInitialized();
                         controller.loadPosts();
                         controller.subscribeRealtime().catchError((_) {});
                       },

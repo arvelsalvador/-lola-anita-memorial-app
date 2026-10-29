@@ -59,7 +59,7 @@ class AdminCredential {
     // unmigrated databases). If the server is configured but not yet
     // initialized, fail closed rather than silently drifting from the
     // server-side verification path.
-    var verified = !SupabaseConfig.isConfigured;
+    var verified = SupabaseConfig.safeClient() == null;
     final client = SupabaseConfig.safeClient();
     if (client != null) {
       try {
@@ -82,7 +82,7 @@ class AdminCredential {
             'saved: $e');
         return false;
       }
-    } else if (SupabaseConfig.isConfigured) {
+    } else if (SupabaseConfig.isConfigured && SupabaseConfig.isInitialized) {
       debugPrint(
           'AdminCredential: configured Supabase is not initialized; refusing '
           'to silently save a PIN that cannot be verified by the server.');

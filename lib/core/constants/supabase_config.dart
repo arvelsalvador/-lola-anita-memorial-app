@@ -19,7 +19,7 @@ class SupabaseConfig {
 
   static const String url = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: '',
+    defaultValue: 'https://mpvkblyvfizjiatsrkck.supabase.co',
   );
 
   /// Publishable (anon) key from the Supabase dashboard.
@@ -27,7 +27,7 @@ class SupabaseConfig {
   /// --dart-define so the repo stays key-free and git history stays clean.
   static const String publishableKey = String.fromEnvironment(
     'SUPABASE_PUBLISHABLE_KEY',
-    defaultValue: '',
+    defaultValue: 'sb_publishable_lkrORoyPXTQiw6LrZ0Dgtw_8iNUgBVK',
   );
 
   /// True only when real credentials were supplied via --dart-define AND
@@ -53,6 +53,30 @@ class SupabaseConfig {
       return Supabase.instance.client;
     } catch (_) {
       return null;
+    }
+  }
+
+  /// Initializes Supabase on demand if credentials are valid and it was
+  /// not yet initialized (e.g. after a hot reload when credentials were
+  /// added while the app was already running).
+  static Future<bool> ensureInitialized() async {
+    if (isInitialized && safeClient() != null) return true;
+    if (!_credentialsLookValid()) return false;
+    isConfigured = true;
+    try {
+      Supabase.instance.client;
+      isInitialized = true;
+      return true;
+    } catch (_) {}
+    try {
+      await Supabase.initialize(
+        url: url,
+        publishableKey: publishableKey,
+      );
+      isInitialized = true;
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 

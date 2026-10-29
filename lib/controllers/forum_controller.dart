@@ -40,6 +40,7 @@ class ForumController extends ChangeNotifier {
   RealtimeChannel? _channel;
   bool _subscribing = false;
   bool _realtimeConnected = false;
+  bool _remoteConnected = false;
   // Anonymous owner id of this phone's likes (loaded lazily).
   String _deviceId = '';
   // Display name from the visitor gate (loaded lazily).
@@ -78,6 +79,7 @@ class ForumController extends ChangeNotifier {
   bool get loading => _loading;
   bool get loadError => _loadError;
   bool get realtimeConnected => _realtimeConnected;
+  bool get isOnline => _remoteConnected || _realtimeConnected;
 
   /// Display names of who liked [targetId] (post or reply id).
   /// Merges remote names with this device's local like so the sheet never
@@ -298,6 +300,7 @@ class ForumController extends ChangeNotifier {
     try {
       final fetched = await _repository.fetchPosts();
       if (_disposed) return;
+      _remoteConnected = _repository.lastFetchSucceededRemotely;
       // Fix #3: merge unsent (pendingSync) posts/replies back in — a
       // successful fetch alone would wipe them silently.
       _posts = ForumPendingSync.merge(_posts, fetched);
@@ -310,6 +313,7 @@ class ForumController extends ChangeNotifier {
       unawaited(_retryPendingSyncUploads());
     } catch (e) {
       debugPrint('ForumController.loadPosts error: $e');
+      _remoteConnected = false;
       if (!_disposed && _posts.isEmpty) {
         _loadError = true;
       }
@@ -338,6 +342,8 @@ class ForumController extends ChangeNotifier {
         // unsent so refreshes keep it and retry the upload.
         if (post.id.startsWith('msg-')) {
           _posts[0] = post.copyWith(pendingSync: true);
+        } else {
+          _remoteConnected = true;
         }
         _ownPostIds.add(post.id);
         unawaited(OwnIds.addPost(post.id));
@@ -368,6 +374,9 @@ class ForumController extends ChangeNotifier {
       );
 
       if (reply != null && !_disposed) {
+        if (!reply.id.startsWith('reply-')) {
+          _remoteConnected = true;
+        }
         final idx = _posts.indexWhere((p) => p.id == postId);
         if (idx != -1) {
           final target = _posts[idx];
@@ -842,7 +851,12 @@ class ForumController extends ChangeNotifier {
   /// calls are no-ops while subscribed. Never throws — failures leave
   /// [realtimeConnected] false and the one-shot cache keeps working.
   Future<void> subscribeRealtime() async {
-    if (_disposed || _channel != null || _subscribing) return;
+    if (_disposed || _subscribing) return;
+    if (_channel != null) {
+      if (_realtimeConnected) return;
+      await unsubscribeRealtime();
+      if (_disposed) return;
+    }
     if (!SupabaseConfig.isConfigured) return;
     final client = SupabaseConfig.safeClient();
     if (client == null) return;
@@ -935,6 +949,16 @@ class ForumController extends ChangeNotifier {
           .subscribe((status, error) {
         if (_disposed) return;
         _realtimeConnected = status == RealtimeSubscribeStatus.subscribed;
+        if (_realtimeConnected) {
+          _remoteConnected = true;
+        } else if (status == RealtimeSubscribeStatus.channelError ||
+            status == RealtimeSubscribeStatus.timedOut ||
+            status == RealtimeSubscribeStatus.closed) {
+          if (identical(_channel, channel)) {
+            _channel = null;
+          }
+          unawaited(client.removeChannel(channel).catchError((_) => ''));
+        }
         if (error != null) {
           debugPrint('ForumController realtime status error: $error');
         }
@@ -1220,7 +1244,7 @@ class ForumController extends ChangeNotifier {
       if (targetId.startsWith('msg-') || targetId.startsWith('reply-')) {
         return true;
       }
-      if (!SupabaseConfig.isConfigured) return true;
+      if (SupabaseConfig.safeClient() == null) return true;
       final reactorName = await _localDisplayName();
       if (_disposed) return true;
       final ok = liked

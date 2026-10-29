@@ -8,7 +8,8 @@
       "name": "nita (Windows)",
       "request": "launch",
       "type": "dart",
-      "deviceId": "windows"
+      "deviceId": "windows",
+      "toolArgs": ["--dart-define-from-file=env.json"]
     },
     {
       // Connects to the real Supabase project. Copy env.example.json to
