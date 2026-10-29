@@ -35,7 +35,9 @@ class LanguageProvider extends ChangeNotifier {
   /// value = keep the current default; a read failure never throws.
   Future<void> _restoreSavedLanguage() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await SharedPreferences.getInstance().timeout(
+        const Duration(seconds: 3),
+      );
       final restored = switch (prefs.getString(savedLanguageKey)) {
         'en' => AppLanguage.english,
         'tl' => AppLanguage.tagalog,

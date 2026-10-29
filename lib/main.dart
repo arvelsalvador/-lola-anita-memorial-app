@@ -13,7 +13,7 @@ void main() async {
   // Desktop video backend: official video_player has no Windows/Linux
   // implementation, so fvp (FFmpeg/libmdk) fills in there only — Android,
   // iOS, macOS and web keep their official implementations.
-  fvp.registerWith(
+  if (!kIsWeb) fvp.registerWith(
     options: {
       'platforms': ['windows', 'linux'],
       // Requires fvp >= 0.39.1 on Windows: 0.38.x crashed the native

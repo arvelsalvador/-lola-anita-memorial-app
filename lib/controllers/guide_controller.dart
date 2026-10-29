@@ -92,7 +92,7 @@ class GuideController extends ChangeNotifier {
   /// the UI builds.
   static Future<GuideController> create() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await SharedPreferences.getInstance().timeout(const Duration(seconds: 3)); // in-app browsers can stall storage
       final guideEnabled = prefs.getBool(keyGuideEnabled) ?? true;
       final seenList = prefs.getStringList(keySeenGuides) ?? <String>[];
 

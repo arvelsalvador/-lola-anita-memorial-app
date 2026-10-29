@@ -81,6 +81,7 @@ jobs:
           set +e
           flutter build web --release \
             --pwa-strategy=none \
+            --no-web-resources-cdn \
             --base-href "/${{ github.event.repository.name }}/" \
             --dart-define=SUPABASE_URL="$SUPABASE_URL" \
             --dart-define=SUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" 2>&1 | tee "$RUNNER_TEMP/build.log"

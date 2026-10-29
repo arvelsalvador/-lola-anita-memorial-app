@@ -18,17 +18,19 @@ class VisitorRepository {
   static const _kName = 'visitor_name';
   static const _kAddress = 'visitor_address';
   static const _kSavedAt = 'visitor_saved_at';
+  static const _kTimeout = Duration(seconds: 3);
 
   /// True when this device already completed the gate once.
   Future<bool> hasVisitor() async {
-    final prefs = await SharedPreferences.getInstance();
+    // Bounded: some in-app browsers stall local storage indefinitely.
+    final prefs = await SharedPreferences.getInstance().timeout(_kTimeout);
     final name = prefs.getString(_kName)?.trim() ?? '';
     final address = prefs.getString(_kAddress)?.trim() ?? '';
     return name.isNotEmpty && address.isNotEmpty;
   }
 
   Future<String?> localName() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences.getInstance().timeout(_kTimeout);
     return prefs.getString(_kName);
   }
 
@@ -59,10 +61,16 @@ class VisitorRepository {
     final cleanName = name.trim();
     final cleanAddress = address.trim();
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_kName, cleanName);
-    await prefs.setString(_kAddress, cleanAddress);
-    await prefs.setString(_kSavedAt, DateTime.now().toIso8601String());
+    // Never block the gate on storage: if it is unavailable the visitor is
+    // still let in for this session (just not remembered next time).
+    try {
+      final prefs = await SharedPreferences.getInstance().timeout(_kTimeout);
+      await prefs.setString(_kName, cleanName).timeout(_kTimeout);
+      await prefs.setString(_kAddress, cleanAddress).timeout(_kTimeout);
+      await prefs
+          .setString(_kSavedAt, DateTime.now().toIso8601String())
+          .timeout(_kTimeout);
+    } catch (_) {}
   }
 
   /// Uploads the visitor row to Supabase. Waits for the app's shared
