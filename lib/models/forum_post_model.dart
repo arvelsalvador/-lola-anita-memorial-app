@@ -72,8 +72,9 @@ class ForumReply {
   };
 
   factory ForumReply.fromJson(Map<String, dynamic> json) {
+    final id = json['id'] as String? ?? UniqueKey().toString();
     return ForumReply(
-      id: json['id'] as String? ?? UniqueKey().toString(),
+      id: id,
       postId: json['post_id'] as String? ?? '',
       authorName: json['author_name'] as String? ?? 'Anonymous',
       message: json['message'] as String? ?? '',
@@ -83,7 +84,8 @@ class ForumReply {
       reactions:
           _parseReactions(json['reactions'] as Map<String, dynamic>?),
       replyToName: json['reply_to_name'] as String? ?? '',
-      pendingSync: json['pending_sync'] as bool? ?? false,
+      pendingSync:
+          (json['pending_sync'] as bool? ?? false) || id.startsWith('reply-'),
     );
   }
 }
@@ -156,15 +158,17 @@ class ForumPost {
         .map((r) => ForumReply.fromJson(r as Map<String, dynamic>))
         .toList();
 
+    final id = json['id']?.toString() ?? UniqueKey().toString();
     return ForumPost(
-      id: json['id']?.toString() ?? UniqueKey().toString(),
+      id: id,
       authorName: json['name'] as String? ?? json['author_name'] as String? ?? 'Anonymous',
       message: json['message'] as String? ?? '',
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'] as String) ?? DateTime.now()
           : DateTime.now(),
       reactions: parsedReactions,
-      pendingSync: json['pending_sync'] as bool? ?? false,
+      pendingSync:
+          (json['pending_sync'] as bool? ?? false) || id.startsWith('msg-'),
       replies: parsedReplies,
     );
   }

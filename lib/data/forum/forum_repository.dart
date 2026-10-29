@@ -297,6 +297,10 @@ class ForumRepository {
       }
     }
 
+    if (newPost.id.startsWith('msg-')) {
+      newPost = newPost.copyWith(pendingSync: true);
+    }
+
     // Save in local cache
     try {
       final prefs = await SharedPreferences.getInstance();
