@@ -1053,6 +1053,15 @@ begin
   end if;
 end $$;
 
+-- Ensure PostgREST defaults to `public` first (not `graphql_public`).
+do $$
+begin
+  execute 'alter role authenticator set pgrst.db_schemas = ''public, graphql_public''';
+  perform pg_notify('pgrst', 'reload config');
+exception when others then
+  null;
+end $$;
+
 -- ============================================================================
 -- Done. Reminder: change the family PIN with
 --   update public.app_admin_secret set pin_hash = crypt('888888', gen_salt('bf'));

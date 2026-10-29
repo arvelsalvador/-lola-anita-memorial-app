@@ -46,11 +46,18 @@ class SupabaseConfig {
   /// before the singleton is ready.
   static bool isInitialized = false;
 
+  static const Map<String, String> defaultHeaders = {
+    'Accept-Profile': 'public',
+    'Content-Profile': 'public',
+  };
+
   /// Returns the live client when initialization has succeeded, otherwise null.
   static SupabaseClient? safeClient() {
     if (!isConfigured || !isInitialized) return null;
     try {
-      return Supabase.instance.client;
+      final client = Supabase.instance.client;
+      client.rest.headers.addAll(defaultHeaders);
+      return client;
     } catch (_) {
       return null;
     }
@@ -64,7 +71,8 @@ class SupabaseConfig {
     if (!_credentialsLookValid()) return false;
     isConfigured = true;
     try {
-      Supabase.instance.client;
+      final client = Supabase.instance.client;
+      client.rest.headers.addAll(defaultHeaders);
       isInitialized = true;
       return true;
     } catch (_) {}
@@ -72,6 +80,8 @@ class SupabaseConfig {
       await Supabase.initialize(
         url: url,
         publishableKey: publishableKey,
+        postgrestOptions: const PostgrestClientOptions(schema: 'public'),
+        headers: defaultHeaders,
       );
       isInitialized = true;
       return true;

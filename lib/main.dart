@@ -34,6 +34,8 @@ void main() async {
       await Supabase.initialize(
         url: SupabaseConfig.url,
         publishableKey: SupabaseConfig.publishableKey,
+        postgrestOptions: const PostgrestClientOptions(schema: 'public'),
+        headers: SupabaseConfig.defaultHeaders,
       ).timeout(AppTimeouts.startup);
       SupabaseConfig.isInitialized = true;
       debugPrint(
