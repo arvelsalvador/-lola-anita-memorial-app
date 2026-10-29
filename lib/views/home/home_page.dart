@@ -385,7 +385,7 @@ class _HomeShellState extends State<HomeShell> {
 
   void _scrollStoryBy(double delta) {
     final controller = _storyController;
-    if (!controller.hasClients) return;\r
+    if (!controller.hasClients) return;
     final position = controller.position;
     final target = (position.pixels + delta).clamp(
       position.minScrollExtent,
