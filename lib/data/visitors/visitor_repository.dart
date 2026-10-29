@@ -50,12 +50,11 @@ class VisitorRepository {
     await prefs.remove(_kSavedAt);
   }
 
-  /// Saves locally (fast, always) then tries Supabase in background.
-  /// Returns true when the remote insert succeeded.
-  Future<bool> saveVisitor({
+  /// Saves the visitor on-device only. Fast and always succeeds, so the
+  /// gate can let the visitor in immediately without waiting for network.
+  Future<void> saveVisitorLocal({
     required String name,
     required String address,
-    String lang = 'tl',
   }) async {
     final cleanName = name.trim();
     final cleanAddress = address.trim();
@@ -64,15 +63,30 @@ class VisitorRepository {
     await prefs.setString(_kName, cleanName);
     await prefs.setString(_kAddress, cleanAddress);
     await prefs.setString(_kSavedAt, DateTime.now().toIso8601String());
+  }
 
+  /// Uploads the visitor row to Supabase. Waits for the app's shared
+  /// background initialization (started in `main()`) instead of forcing a
+  /// second one. Never throws; returns true when the insert succeeded.
+  Future<bool> syncVisitor({
+    required String name,
+    required String address,
+    String lang = 'tl',
+  }) async {
+    if (!SupabaseConfig.isConfigured) return false;
+    final ready = await SupabaseConfig.ensureInitialized();
+    if (!ready) return false;
     final client = SupabaseConfig.safeClient();
     if (client == null) return false;
     try {
-      await client.from('visitors').insert({
-        'name': cleanName,
-        'address': cleanAddress,
-        'lang': lang,
-      }).timeout(AppTimeouts.remote);
+      await client
+          .from(table)
+          .insert({
+            'name': name.trim(),
+            'address': address.trim(),
+            'lang': lang,
+          })
+          .timeout(AppTimeouts.remote);
       return true;
     } catch (e) {
       // Offline / RLS / table-missing / Data API disabled: entry already
@@ -86,6 +100,19 @@ class VisitorRepository {
       );
       return false;
     }
+  }
+
+  /// Local save + best-effort remote sync in one await. Kept for callers
+  /// and tests that do not need the split fast path; the splash gate uses
+  /// [saveVisitorLocal] + [syncVisitor] so entry never waits on network.
+  /// Returns true when the remote insert succeeded.
+  Future<bool> saveVisitor({
+    required String name,
+    required String address,
+    String lang = 'tl',
+  }) async {
+    await saveVisitorLocal(name: name, address: address);
+    return syncVisitor(name: name, address: address, lang: lang);
   }
 
   static const String table = 'visitors';
@@ -254,4 +281,3 @@ class VisitorRepository {
     }
   }
 }
-

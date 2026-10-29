@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import 'package:nita/app.dart';
+import 'package:nita/core/constants/supabase_config.dart';
 import 'package:nita/views/settings/settings_page.dart';
 import 'package:nita/views/splash/splash_page.dart';
 
@@ -17,6 +18,9 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({'guide_seen_v4': true});
+    // Keep the gate's background visitor sync offline in tests.
+    SupabaseConfig.isConfigured = false;
+    SupabaseConfig.isInitialized = false;
   });
 
   Future<void> passGate(WidgetTester tester) async {

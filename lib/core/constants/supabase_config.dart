@@ -12,7 +12,10 @@
 
 library;
 
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'package:nita/core/constants/app_timeouts.dart';
 
 class SupabaseConfig {
   SupabaseConfig._();
@@ -35,10 +38,11 @@ class SupabaseConfig {
   /// mistake of passing `--dart-define=SUPABASE_URL=your_url` literally
   /// (which yields PostgREST 404 for every table, as seen in debug logs).
   ///
-  /// Mutable — deliberately NOT a getter over the credentials: main()
-  /// flips it to false when Supabase.initialize throws or times out so
-  /// every repository's existing `isConfigured` guard cleanly degrades
-  /// to offline/local-only mode instead of throwing per call.
+  /// Mutable — deliberately NOT a getter over the credentials: the shared
+  /// background initializer flips it to false when Supabase.initialize
+  /// throws or times out so every repository's existing `isConfigured`
+  /// guard cleanly degrades to offline/local-only mode instead of throwing
+  /// per call.
   static bool isConfigured = _credentialsLookValid();
 
   /// True only after `Supabase.initialize()` has succeeded. This prevents
@@ -63,13 +67,43 @@ class SupabaseConfig {
     }
   }
 
+  /// The one initialization attempt for this app session. Concurrent
+  /// callers (startup, visitor sync, any repository) share this future
+  /// instead of racing to initialize the singleton twice.
+  static Future<bool>? _initFuture;
+
+  /// Starts Supabase initialization without blocking the caller. Call this
+  /// once from `main()` right before `runApp`; the first frame no longer
+  /// waits for the backend (up to [AppTimeouts.startup]).
+  ///
+  /// Repositories call [ensureInitialized] before touching the client, so
+  /// they wait for this same attempt instead of starting another one.
+  static Future<bool> initializeInBackground() {
+    if (isInitialized && safeClient() != null) {
+      return Future<bool>.value(true);
+    }
+    return _initFuture ??= _initialize();
+  }
+
   /// Initializes Supabase on demand if credentials are valid and it was
   /// not yet initialized (e.g. after a hot reload when credentials were
   /// added while the app was already running).
-  static Future<bool> ensureInitialized() async {
-    if (isInitialized && safeClient() != null) return true;
-    if (!_credentialsLookValid()) return false;
+  ///
+  /// Shares [initializeInBackground]'s future, so this never starts a
+  /// second `Supabase.initialize` while the first is still running.
+  static Future<bool> ensureInitialized() => initializeInBackground();
+
+  static Future<bool> _initialize() async {
+    if (!_credentialsLookValid()) {
+      debugPrint(
+        'Supabase unconfigured — running local-only. '
+        'To sync: flutter run --dart-define=SUPABASE_URL=https://REF.supabase.co '
+        '--dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_...',
+      );
+      return false;
+    }
     isConfigured = true;
+    // Hot reload / re-entry: the singleton may already be alive.
     try {
       final client = Supabase.instance.client;
       client.rest.headers.addAll(defaultHeaders);
@@ -82,10 +116,17 @@ class SupabaseConfig {
         publishableKey: publishableKey,
         postgrestOptions: const PostgrestClientOptions(schema: 'public'),
         headers: defaultHeaders,
-      );
+      ).timeout(AppTimeouts.startup);
       isInitialized = true;
+      debugPrint('Supabase init completed ($redactedUrl)');
       return true;
-    } catch (_) {
+    } catch (e) {
+      isInitialized = false;
+      // Init failed (bad URL / network / timeout): degrade cleanly to
+      // offline mode. Every repository checks isConfigured before touching
+      // the client, so flipping it false keeps the app usable.
+      isConfigured = false;
+      debugPrint('Supabase init skipped ($redactedUrl $e)');
       return false;
     }
   }

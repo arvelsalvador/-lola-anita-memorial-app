@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import 'package:nita/app.dart';
+import 'package:nita/core/constants/supabase_config.dart';
 import 'package:nita/views/family/family_page.dart';
 import 'package:nita/views/home/home_page.dart';
 import 'package:nita/views/settings/settings_page.dart';
@@ -30,6 +31,10 @@ void main() {
       'gallery_guide_seen_v2': true,
       'family_guide_seen_v2': true,
     });
+    // Widget tests stay offline: the gate's background visitor sync must
+    // not start a real Supabase client.
+    SupabaseConfig.isConfigured = false;
+    SupabaseConfig.isInitialized = false;
   });
 
   // Nav taps must be scoped to the nav bar so the Family page's own title

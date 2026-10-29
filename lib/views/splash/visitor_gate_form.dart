@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -9,8 +11,8 @@ import 'package:nita/widgets/ornament_divider.dart';
 
 /// Required visitor gate shown over the splash: name + full address.
 ///
-/// Saves locally first (remember-me), syncs to Supabase in background,
-/// then calls [onEntered]. Never blocks on network — offline still enters.
+/// Saves locally first (remember-me), calls [onEntered], then syncs to
+/// Supabase in the background. Never blocks on network — offline still enters.
 class VisitorGateForm extends StatefulWidget {
   final VoidCallback onEntered;
   final VisitorRepository repository;
@@ -77,20 +79,35 @@ class _VisitorGateFormState extends State<VisitorGateForm> {
     }
     setState(() => _sending = true);
     FocusManager.instance.primaryFocus?.unfocus();
+    final name = _nameController.text;
+    final address = _addressController.text;
     final langCode = _langCode(context.read<LanguageProvider>().language);
     // Remember the language choice on-device (fire-and-forget, never
     // throws — see LanguageProvider.saveLanguageCode). The remote
     // visitors row only feeds reports; restore must work offline too.
-    LanguageProvider.saveLanguageCode(langCode);
-    // Local save always succeeds; remote sync never throws.
-    await widget.repository.saveVisitor(
-      name: _nameController.text,
-      address: _addressController.text,
-      lang: langCode,
-    );
+    unawaited(LanguageProvider.saveLanguageCode(langCode));
+    // Only the on-device write gates entry. It is a local storage call,
+    // so the guide dialog appears immediately instead of waiting up to
+    // 8 seconds for the Supabase insert.
+    try {
+      await widget.repository.saveVisitorLocal(name: name, address: address);
+    } catch (e) {
+      // Storage unreadable: still let the visitor in. They may be asked
+      // for their name again next launch, but the memorial stays usable.
+      debugPrint('VisitorGateForm: local save skipped ($e)');
+    }
     if (!mounted) return;
     setState(() => _sending = false);
     widget.onEntered();
+    // Upload the visitor row in the background. Never throws, never
+    // blocks the UI; it waits for the shared Supabase initialization.
+    unawaited(
+      widget.repository.syncVisitor(
+        name: name,
+        address: address,
+        lang: langCode,
+      ),
+    );
   }
 
   @override

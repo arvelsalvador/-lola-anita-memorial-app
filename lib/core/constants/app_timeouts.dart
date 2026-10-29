@@ -9,7 +9,7 @@
 /// - [manifest] (10s): asset-manifest reads (gallery, startup).
 /// - [quick] (5s): small secondary fetches (replies fallback).
 /// - [local] (3s): local-only reads (SharedPreferences via repo).
-/// - [startup] (10s): Supabase.initialize in main().
+/// - [startup] (10s): background Supabase.initialize (never blocks runApp).
 ///
 /// UI durations (slideshow 5s, splash 12s, lockouts, cooldowns) are
 /// NOT here on purpose — those are UX timing, not network timeouts.

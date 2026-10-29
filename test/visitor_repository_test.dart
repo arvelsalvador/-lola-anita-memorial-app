@@ -1,11 +1,15 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:nita/core/constants/supabase_config.dart';
 import 'package:nita/data/visitors/visitor_repository.dart';
 
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+    // Keep tests offline: syncVisitor must not reach the real backend.
+    SupabaseConfig.isConfigured = false;
+    SupabaseConfig.isInitialized = false;
   });
 
   test('fresh device has no visitor', () async {
@@ -13,12 +17,9 @@ void main() {
     expect(await repo.hasVisitor(), isFalse);
   });
 
-  test('saveVisitor remembers, clearVisitor forgets', () async {
+  test('saveVisitorLocal remembers without touching the network', () async {
     const repo = VisitorRepository();
-
-    // Supabase is unconfigured in tests, so remote save is skipped —
-    // local remember-me is what matters here.
-    await repo.saveVisitor(
+    await repo.saveVisitorLocal(
       name: 'Test Visitor',
       address: 'Purok 3, Mercedes, Camarines Norte',
     );
@@ -27,6 +28,29 @@ void main() {
 
     await repo.clearVisitor();
     expect(await repo.hasVisitor(), isFalse);
+  });
+
+  test('syncVisitor returns false offline, never throws', () async {
+    const repo = VisitorRepository();
+    expect(
+      await repo.syncVisitor(
+        name: 'Test Visitor',
+        address: 'Purok 3, Mercedes, Camarines Norte',
+      ),
+      isFalse,
+    );
+  });
+
+  test('saveVisitor still saves locally when remote is unavailable', () async {
+    const repo = VisitorRepository();
+    expect(
+      await repo.saveVisitor(
+        name: 'Test Visitor',
+        address: 'Purok 3, Mercedes, Camarines Norte',
+      ),
+      isFalse,
+    );
+    expect(await repo.hasVisitor(), isTrue);
   });
 
   test('fetchVisitorCount/fetchVisitorNames return null offline, never throw',
