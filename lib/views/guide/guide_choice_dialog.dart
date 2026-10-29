@@ -17,11 +17,10 @@ Future<bool> showGuideChoiceDialog(BuildContext context) async {
     barrierLabel: 'Guide choice',
     transitionDuration: const Duration(milliseconds: 250),
     transitionBuilder: (context, anim1, anim2, child) {
-      final curved = CurvedAnimation(parent: anim1, curve: Curves.easeOutBack);
       return FadeTransition(
         opacity: anim1,
         child: ScaleTransition(
-          scale: Tween<double>(begin: 0.92, end: 1.0).animate(curved),
+          scale: anim1.drive(const _DialogScaleTween()),
           child: child,
         ),
       );
@@ -32,8 +31,32 @@ Future<bool> showGuideChoiceDialog(BuildContext context) async {
   return result ?? false;
 }
 
-class _GuideChoiceDialogWidget extends StatelessWidget {
+class _DialogScaleTween extends Animatable<double> {
+  const _DialogScaleTween();
+
+  @override
+  double transform(double t) {
+    final curved = Curves.easeOutBack.transform(t);
+    return 0.92 + (1.0 - 0.92) * curved;
+  }
+}
+
+class _GuideChoiceDialogWidget extends StatefulWidget {
   const _GuideChoiceDialogWidget();
+
+  @override
+  State<_GuideChoiceDialogWidget> createState() =>
+      _GuideChoiceDialogWidgetState();
+}
+
+class _GuideChoiceDialogWidgetState extends State<_GuideChoiceDialogWidget> {
+  bool _closing = false;
+
+  void _close(bool wantsGuide) {
+    if (_closing || !mounted) return;
+    _closing = true;
+    Navigator.of(context).pop(wantsGuide);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +64,7 @@ class _GuideChoiceDialogWidget extends StatelessWidget {
     final media = MediaQuery.sizeOf(context);
     final isCompact = media.width < 400;
 
-    return PopScope(
+    return PopScope<bool>(
       canPop: false,
       child: Center(
         child: Material(
@@ -170,8 +193,7 @@ class _GuideChoiceDialogWidget extends StatelessWidget {
                                   width: double.infinity,
                                   height: isCompact ? 42 : 46,
                                   child: ElevatedButton(
-                                    onPressed: () =>
-                                        Navigator.of(context).pop(true),
+                                    onPressed: () => _close(true),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFF6B4536),
                                       foregroundColor: Colors.white,
@@ -216,8 +238,7 @@ class _GuideChoiceDialogWidget extends StatelessWidget {
                                 // Secondary text button
                                 Center(
                                   child: TextButton(
-                                    onPressed: () =>
-                                        Navigator.of(context).pop(false),
+                                    onPressed: () => _close(false),
                                     style: TextButton.styleFrom(
                                       foregroundColor: const Color(0xFF756257),
                                       padding: const EdgeInsets.symmetric(
@@ -253,7 +274,7 @@ class _GuideChoiceDialogWidget extends StatelessWidget {
                       child: Material(
                         color: Colors.transparent,
                         child: InkWell(
-                          onTap: () => Navigator.of(context).pop(false),
+                          onTap: () => _close(false),
                           borderRadius: BorderRadius.circular(16),
                           child: Container(
                             width: 30,

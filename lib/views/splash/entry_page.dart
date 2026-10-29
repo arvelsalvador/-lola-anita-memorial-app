@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:nita/controllers/guide_controller.dart';
 import 'package:nita/core/constants/app_constants.dart';
 import 'package:nita/core/utils/guide_art_precache.dart';
+import 'package:nita/core/utils/navigation.dart';
 import 'package:nita/views/guide/guide_choice_dialog.dart';
 import 'package:nita/views/home/home_page.dart';
 import 'package:nita/views/splash/visitor_gate_form.dart';
@@ -47,12 +48,12 @@ class _EntryPageState extends State<EntryPage> {
     if (!mounted) return;
 
     // Both buttons close popup and go to Home with a fade transition (~400ms)
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 400),
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            FadeTransition(opacity: animation, child: const HomePage()),
+    Navigator.of(context).pushAndRemoveUntil(
+      fadeRoute(
+        const HomePage(),
+        duration: const Duration(milliseconds: 400),
       ),
+      (route) => false,
     );
   }
 

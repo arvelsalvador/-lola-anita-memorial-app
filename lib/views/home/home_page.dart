@@ -79,7 +79,6 @@ class _HomePageState extends State<HomePage> {
   bool _gateChecked = false;
   bool _redirectingToSplash = false;
 
-
   @override
   void initState() {
     super.initState();
@@ -89,9 +88,16 @@ class _HomePageState extends State<HomePage> {
 
   /// Bounces fresh devices (deep link or refresh that skipped splash) to
   /// the splash gate. Mirrors splash's philosophy: unreadable local prefs
-  /// count as "not remembered", so the visitor is greeted at the door â€”
+  /// count as "not remembered", so the visitor is greeted at the door —
   /// the gate itself never blocks (the form always lets them in).
   Future<void> _checkVisitorGate() async {
+    final enteredInSession =
+        context.read<GuideController?>()?.hasEnteredInfo ?? false;
+    if (enteredInSession) {
+      _gateChecked = true;
+      return;
+    }
+
     bool remembered = false;
 
     try {
@@ -100,14 +106,17 @@ class _HomePageState extends State<HomePage> {
       remembered = false;
     }
     if (!mounted || _redirectingToSplash) return;
-    if (!remembered) {
+    final hasEntered =
+        (context.read<GuideController?>()?.hasEnteredInfo ?? false) ||
+        remembered;
+    if (!hasEntered) {
       _redirectingToSplash = true;
       final currentRoute = ModalRoute.of(context)?.settings.name;
       if (currentRoute != AppRoutes.splash) {
         // Replace the entire stack, not just the top route: a deep link
         // starts on '/' (splash) with '/home' pushed above it, so popping
         // first would leave two splash routes behind the gate. One splash,
-        // nothing underneath â€” the splash is always the start of the flow.
+        // nothing underneath — the splash is always the start of the flow.
         Navigator.of(
           context,
         ).pushNamedAndRemoveUntil(AppRoutes.splash, (route) => false);
@@ -185,7 +194,7 @@ class _HomeShellState extends State<HomeShell> {
   // The Story tab's live scroll offset, mirrored here by the controller
   // listener in initState. The hero's height is derived from it inside a
   // ValueListenableBuilder, so the photo header tracks the finger 1:1 as
-  // the content scrolls â€” and grows back smoothly on the way up â€” without
+  // the content scrolls — and grows back smoothly on the way up — without
   // rebuilding the rest of the shell on every scroll tick.
   final ValueNotifier<double> _storyOffset = ValueNotifier<double>(0);
 
@@ -204,7 +213,7 @@ class _HomeShellState extends State<HomeShell> {
 
   // Drives a quick fade on the tab body whenever the selected tab changes,
   // so switching tabs reads as a soft cross-fade instead of an instant swap.
-  // (The IndexedStack switch itself is still instant â€” this just masks it.)
+  // (The IndexedStack switch itself is still instant — this just masks it.)
   double _contentOpacity = 1;
   Duration _contentFadeDuration = const Duration(milliseconds: 200);
 
@@ -233,7 +242,7 @@ class _HomeShellState extends State<HomeShell> {
   void initState() {
     super.initState();
     _controllers = List.generate(5, (_) => ScrollController());
-    // Named listener so it can be removed in dispose â€” an anonymous
+    // Named listener so it can be removed in dispose — an anonymous
     // closure here would leak the ScrollController subscription.
     _controllers[0].addListener(_mirrorStoryOffset);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -257,7 +266,7 @@ class _HomeShellState extends State<HomeShell> {
   // Built fresh on every build() instead of cached once in initState, so
   // that if the parent ever swaps in new controller instances, the tab
   // bodies always point at the current ones rather than the ones captured
-  // on first mount. This is cheap â€” these are thin wrapper widgets, and
+  // on first mount. This is cheap — these are thin wrapper widgets, and
   // IndexedStack preserves each tab's scroll position by matching widget
   // type/position, not by list identity, so rebuilding the list is safe.
   List<Widget> _buildBodies() {
@@ -376,7 +385,7 @@ class _HomeShellState extends State<HomeShell> {
 
   void _scrollStoryBy(double delta) {
     final controller = _storyController;
-    if (!controller.hasClients) return;
+    if (!controller.hasClients) return;\r
     final position = controller.position;
     final target = (position.pixels + delta).clamp(
       position.minScrollExtent,
@@ -427,7 +436,7 @@ class _HomeShellState extends State<HomeShell> {
       final tabId = _tabIdFor(widget.selectedTab);
       // Duck the opacity with zero duration (an instant drop, not a fade),
       // then switch to an animated duration for the rise once the new
-      // tab's scroll position has been reset â€” two different durations so
+      // tab's scroll position has been reset — two different durations so
       // the drop can't visually cancel out the rise before it starts.
       setState(() {
         _contentFadeDuration = Duration.zero;
@@ -441,7 +450,7 @@ class _HomeShellState extends State<HomeShell> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         // Guide bookkeeping notifies its listeners, so it must run after the
-        // build phase â€” notifying during this widget's update marks provider
+        // build phase — notifying during this widget's update marks provider
         // dependents dirty mid-build.
         context.read<GuideController>()
           ..setCurrentTab(tabId)
@@ -462,8 +471,8 @@ class _HomeShellState extends State<HomeShell> {
         });
       });
       // Release the animated transition once it has had time to finish, so
-      // the hero returns to finger-tracking. A timer â€” rather than scroll
-      // notifications â€” avoids jumpTo's own notifications clearing the flag
+      // the hero returns to finger-tracking. A timer — rather than scroll
+      // notifications — avoids jumpTo's own notifications clearing the flag
       // before the expand animation even starts. The timer is tracked and
       // canceled on dispose/re-schedule so it never fires into a dead state.
       _heroTabTimer?.cancel();
@@ -517,161 +526,164 @@ class _HomeShellState extends State<HomeShell> {
 
     final shell = Scaffold(
       backgroundColor: AppColors.cream,
-      // The assistive touch floats over the whole body â€” top bar, hero,
-      // and content alike â€” so it can be parked anywhere on screen.
+      // The assistive touch floats over the whole body — top bar, hero,
+      // and content alike — so it can be parked anywhere on screen.
       body: AbuloyTouchScope(
         child: Stack(
           children: [
             Column(
               children: [
                 if (!onCondolencesTab) topBar,
-            // The memorial hero belongs to the home page only â€” on the other
-            // tabs (gallery, family, words, condolences) the pages show their
-            // own headers instead. On the Story tab its height is derived
-            // straight from the scroll offset, so the photo collapses and
-            // re-expands in lockstep with the finger. Tab switches play a
-            // short animated transition instead (see _heroTabAnimating).
-            ValueListenableBuilder<double>(
-              valueListenable: _storyOffset,
-              builder: (context, storyOffset, _) {
-                final heroHeight = onStoryTab
-                    ? (expandedHeight - storyOffset).clamp(0.0, expandedHeight)
-                    : 0.0;
-                final heroContent = Listener(
-                  onPointerSignal: _onHeroPointerSignal,
-                  child: GestureDetector(
-                    // Opaque so even the transparent margins around the
-                    // portrait accept the drag. The portrait's tap-to-gallery
-                    // still wins on a tap â€” the drag recognizer only claims
-                    // the gesture once the finger actually moves.
-                    behavior: HitTestBehavior.opaque,
-                    onVerticalDragStart: _onHeroDragStart,
-                    onVerticalDragUpdate: _onHeroDragUpdate,
-                    onVerticalDragEnd: _onHeroDragEnd,
-                    child: OverflowBox(
-                      alignment: Alignment.topCenter,
-                      maxHeight: expandedHeight,
-                      child: AnimatedOpacity(
-                        opacity: onStoryTab ? 1 : 0,
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeOut,
-                        child: TickerMode(
-                          // The hero sits above the IndexedStack and is only
-                          // visible on the Story tab. Hidden behind opacity 0
-                          // it would still run its infinite animations (the
-                          // portrait's glow pulse in home_effects.dart and the
-                          // curved-header shimmer in home_hero_header.dart),
-                          // so mute its tickers while another tab is active.
-                          enabled: onStoryTab,
-                          child: _heroChild,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-                return ClipRect(
-                  child: _heroTabAnimating
-                      ? AnimatedContainer(
-                          key: const ValueKey('hero-collapse'),
-                          duration: const Duration(milliseconds: 280),
-                          curve: Curves.easeOutCubic,
-                          height: heroHeight,
-                          color: AppColors.warmDark,
-                          child: heroContent,
-                        )
-                      : Container(
-                          key: const ValueKey('hero-collapse'),
-                          height: heroHeight,
-                          color: AppColors.warmDark,
-                          child: heroContent,
-                        ),
-                );
-              },
-            ),
-            Expanded(
-              child: Stack(
-                children: [
-                  // NestedScrollView is gone â€” nothing here needs outer/inner
-                  // sliver coordination anymore, since the hero isn't a sliver.
-                  SafeArea(
-                    top: false,
-                    child: Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: AppColors.cream,
-                        borderRadius: onCondolencesTab
-                            ? BorderRadius.zero
-                            : const BorderRadius.vertical(
-                                top: Radius.circular(26),
-                              ),
-                      ),
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: Responsive.contentMaxWidth(context),
-                          ),
+                // The memorial hero belongs to the home page only — on the other
+                // tabs (gallery, family, words, condolences) the pages show their
+                // own headers instead. On the Story tab its height is derived
+                // straight from the scroll offset, so the photo collapses and
+                // re-expands in lockstep with the finger. Tab switches play a
+                // short animated transition instead (see _heroTabAnimating).
+                ValueListenableBuilder<double>(
+                  valueListenable: _storyOffset,
+                  builder: (context, storyOffset, _) {
+                    final heroHeight = onStoryTab
+                        ? (expandedHeight - storyOffset).clamp(
+                            0.0,
+                            expandedHeight,
+                          )
+                        : 0.0;
+                    final heroContent = Listener(
+                      onPointerSignal: _onHeroPointerSignal,
+                      child: GestureDetector(
+                        // Opaque so even the transparent margins around the
+                        // portrait accept the drag. The portrait's tap-to-gallery
+                        // still wins on a tap — the drag recognizer only claims
+                        // the gesture once the finger actually moves.
+                        behavior: HitTestBehavior.opaque,
+                        onVerticalDragStart: _onHeroDragStart,
+                        onVerticalDragUpdate: _onHeroDragUpdate,
+                        onVerticalDragEnd: _onHeroDragEnd,
+                        child: OverflowBox(
+                          alignment: Alignment.topCenter,
+                          maxHeight: expandedHeight,
                           child: AnimatedOpacity(
-                            opacity: _contentOpacity,
-                            duration: _contentFadeDuration,
+                            opacity: onStoryTab ? 1 : 0,
+                            duration: const Duration(milliseconds: 200),
                             curve: Curves.easeOut,
-                            child: IndexedStack(
-                              index: widget.selectedTab,
-                              children: [
-                                for (int i = 0; i < bodies.length; i++)
-                                  // IndexedStack keeps every tab mounted, so
-                                  // hidden tabs' infinite animations (the
-                                  // story scroll-reveals, the gallery's
-                                  // animation helpers, and even the
-                                  // condolence candle's flame flicker) would
-                                  // keep burning frames forever. TickerMode
-                                  // mutes every vsync-based ticker below it
-                                  // while its tab is not the active one;
-                                  // muted tickers simply stop and resume
-                                  // when re-enabled.
-                                  TickerMode(
-                                    key: ValueKey('tab-ticker-$i'),
-                                    enabled: i == widget.selectedTab,
-                                    child: bodies[i],
-                                  ),
-                              ],
+                            child: TickerMode(
+                              // The hero sits above the IndexedStack and is only
+                              // visible on the Story tab. Hidden behind opacity 0
+                              // it would still run its infinite animations (the
+                              // portrait's glow pulse in home_effects.dart and the
+                              // curved-header shimmer in home_hero_header.dart),
+                              // so mute its tickers while another tab is active.
+                              enabled: onStoryTab,
+                              child: _heroChild,
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
-
-                  // Floating bottom navigation.
-                  Positioned(
-                    left: 20,
-                    right: 20,
-                    bottom: MediaQuery.paddingOf(context).bottom + 16,
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 500),
-                        child: AppBottomNav(
-                          selectedIndex: widget.selectedTab,
-                          onTap: widget.onTabChanged,
+                    );
+                    return ClipRect(
+                      child: _heroTabAnimating
+                          ? AnimatedContainer(
+                              key: const ValueKey('hero-collapse'),
+                              duration: const Duration(milliseconds: 280),
+                              curve: Curves.easeOutCubic,
+                              height: heroHeight,
+                              color: AppColors.warmDark,
+                              child: heroContent,
+                            )
+                          : Container(
+                              key: const ValueKey('hero-collapse'),
+                              height: heroHeight,
+                              color: AppColors.warmDark,
+                              child: heroContent,
+                            ),
+                    );
+                  },
+                ),
+                Expanded(
+                  child: Stack(
+                    children: [
+                      // NestedScrollView is gone — nothing here needs outer/inner
+                      // sliver coordination anymore, since the hero isn't a sliver.
+                      SafeArea(
+                        top: false,
+                        child: Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: AppColors.cream,
+                            borderRadius: onCondolencesTab
+                                ? BorderRadius.zero
+                                : const BorderRadius.vertical(
+                                    top: Radius.circular(26),
+                                  ),
+                          ),
+                          child: Center(
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth: Responsive.contentMaxWidth(context),
+                              ),
+                              child: AnimatedOpacity(
+                                opacity: _contentOpacity,
+                                duration: _contentFadeDuration,
+                                curve: Curves.easeOut,
+                                child: IndexedStack(
+                                  index: widget.selectedTab,
+                                  children: [
+                                    for (int i = 0; i < bodies.length; i++)
+                                      // IndexedStack keeps every tab mounted, so
+                                      // hidden tabs' infinite animations (the
+                                      // story scroll-reveals, the gallery's
+                                      // animation helpers, and even the
+                                      // condolence candle's flame flicker) would
+                                      // keep burning frames forever. TickerMode
+                                      // mutes every vsync-based ticker below it
+                                      // while its tab is not the active one;
+                                      // muted tickers simply stop and resume
+                                      // when re-enabled.
+                                      TickerMode(
+                                        key: ValueKey('tab-ticker-$i'),
+                                        enabled: i == widget.selectedTab,
+                                        child: bodies[i],
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+
+                      // Floating bottom navigation.
+                      Positioned(
+                        left: 20,
+                        right: 20,
+                        bottom: MediaQuery.paddingOf(context).bottom + 16,
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 500),
+                            child: AppBottomNav(
+                              selectedIndex: widget.selectedTab,
+                              onTap: widget.onTabChanged,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
+            if (onCondolencesTab)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: topBar,
+              ),
           ],
         ),
-        if (onCondolencesTab)
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: topBar,
-          ),
-      ],
-    ),
-  ),
-);
+      ),
+    );
 
     return PopScope(
       canPop: !locked,
@@ -753,7 +765,7 @@ class _TopBarState extends State<_TopBar> {
       final full = await _visitorRepo.localName();
       first = VisitorRepository.firstName(full);
     } catch (_) {
-      // Prefs unreadable â€” stay brand-only. Never blocks the bar.
+      // Prefs unreadable — stay brand-only. Never blocks the bar.
       first = '';
     }
     if (!mounted) return;
