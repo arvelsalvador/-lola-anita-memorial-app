@@ -97,6 +97,20 @@ void main() {
           replies: replies,
         );
 
+    ForumReply reply({
+      required String id,
+      String message = 'hello',
+      bool pending = false,
+    }) =>
+        ForumReply(
+          id: id,
+          postId: 'real-1',
+          authorName: 'A',
+          message: message,
+          createdAt: DateTime(2026, 1, 2),
+          pendingSync: pending,
+        );
+
     test('empty previous returns fetched as-is', () {
       final fetched = [post(id: '1')];
       expect(ForumPendingSync.merge([], fetched), fetched);
@@ -113,6 +127,26 @@ void main() {
       );
       final merged = ForumPendingSync.merge([temp], [landed]);
       expect(merged.map((p) => p.id), ['real-9']);
+    });
+
+    test('drops a cached temp reply once the real reply landed', () {
+      final oldPost = post(
+        id: 'real-1',
+        replies: [reply(id: 'reply-1', pending: true)],
+      );
+      // The repository cache re-materialized the temp reply without its
+      // pending mark, next to the real row that already landed.
+      final fetchedPost = post(
+        id: 'real-1',
+        replies: [
+          reply(id: 'reply-1'),
+          reply(id: 'real-r'),
+        ],
+      );
+
+      final merged = ForumPendingSync.merge([oldPost], [fetchedPost]);
+
+      expect(merged.single.replies.map((r) => r.id), ['real-r']);
     });
   });
 }

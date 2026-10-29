@@ -419,6 +419,42 @@ class ForumRepository {
     return newReply;
   }
 
+  /// Drops a local-only reply row (temp `reply-...` id) from the local
+  /// replies store and the cached feed after its upload succeeds. Without
+  /// this, the temp copy can reappear as a duplicate "Unsent" row on the
+  /// next refresh. Local cache only, best-effort, never throws.
+  Future<void> removeLocalReply(String replyId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final localReplies = await _loadLocalReplies(prefs);
+      var changed = false;
+      for (final entry in localReplies.entries) {
+        final before = entry.value.length;
+        entry.value.removeWhere((r) => r.id == replyId);
+        if (entry.value.length != before) changed = true;
+      }
+      if (changed) await _saveLocalReplies(prefs, localReplies);
+      final cached = await _loadLocalCache(
+        prefs,
+        await _loadUserReactions(prefs),
+        await _loadReactionCounts(prefs),
+        localReplies,
+      );
+      await _saveLocalCache(
+        prefs,
+        cached
+            .map(
+              (p) => p.copyWith(
+                replies: p.replies.where((r) => r.id != replyId).toList(),
+              ),
+            )
+            .toList(),
+      );
+    } catch (e) {
+      debugPrint('ForumRepository removeLocalReply skipped: $e');
+    }
+  }
+
   /// Toggles the heart Like for a post OR a reply — both are keyed by
   /// their unique id in the same local stores.
   Future<void> toggleReaction({

@@ -640,6 +640,22 @@ class ForumController extends ChangeNotifier {
       try {
         if (post.pendingSync) {
           await _retryPendingPost(post);
+          // The parent may have just received its real id. Send the
+          // reply under it in the same tap instead of making the user
+          // tap "retry" a second time.
+          final refreshedIdx = _posts.indexWhere(
+            (p) => p.replies.any((r) => r.id == reply.id),
+          );
+          if (refreshedIdx != -1) {
+            final refreshed = _posts[refreshedIdx];
+            final idx =
+                refreshed.replies.indexWhere((r) => r.id == reply.id);
+            if (!refreshed.pendingSync &&
+                idx != -1 &&
+                refreshed.replies[idx].pendingSync) {
+              await _retryPendingReply(refreshed.id, refreshed.replies[idx]);
+            }
+          }
         } else {
           await _retryPendingReply(post.id, reply);
         }
@@ -720,6 +736,10 @@ class ForumController extends ChangeNotifier {
         unawaited(OwnIds.migrateReply(tempId, saved.id));
       }
       notifyListeners();
+      // The temp copy is still in the local cache from the failed first
+      // attempt. Remove it now, otherwise a later refresh re-adds it as a
+      // duplicate "Unsent" row next to the delivered reply.
+      await _repository.removeLocalReply(tempId);
     } catch (e) {
       debugPrint('ForumController pending reply retry skipped: $e');
     }
@@ -1055,6 +1075,10 @@ class ForumController extends ChangeNotifier {
           _ownReplyIds.add(reply.id);
           unawaited(OwnIds.migrateReply(tempId, reply.id));
         }
+        // The real row is live, so the local temp copy is no longer
+        // needed; leaving it behind would show a duplicate "Unsent" row
+        // after the next refresh.
+        unawaited(_repository.removeLocalReply(tempId));
       } else {
         updated.add(reply);
         updated.sort((a, b) => a.createdAt.compareTo(b.createdAt));

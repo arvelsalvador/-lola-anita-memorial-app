@@ -71,6 +71,22 @@ class ForumPendingSync {
         replies.add(r);
         changed = true;
       }
+      // A temp reply that landed remotely may still sit in the cache
+      // marked pending. Drop it when the real row is present so the feed
+      // never shows both the delivered reply and a duplicate "Unsent" one.
+      final beforeGhostCleanup = replies.length;
+      replies.removeWhere(
+        (r) =>
+            r.pendingSync &&
+            r.id.startsWith('reply-') &&
+            replies.any(
+              (real) =>
+                  !real.id.startsWith('reply-') &&
+                  real.authorName == r.authorName &&
+                  real.message == r.message,
+            ),
+      );
+      if (replies.length != beforeGhostCleanup) changed = true;
       if (!changed) return p;
       replies.sort((a, b) => a.createdAt.compareTo(b.createdAt));
       return p.copyWith(replies: replies);

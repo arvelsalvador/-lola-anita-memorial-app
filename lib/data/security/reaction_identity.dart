@@ -20,8 +20,14 @@ class ReactionIdentity {
     var id = prefs.getString(_key) ?? '';
     if (id.isEmpty) {
       final r = Random.secure();
+      // Do NOT use `1 << 32` here: dart2js compiles that shift to 0,
+      // so nextInt(0) throws on Flutter web and every forum write falls
+      // back to a local "Unsent" row. Two 31-bit draws are safe on both
+      // web and the Dart VM.
+      final suffix = r.nextInt(0x7fffffff).toRadixString(36) +
+          r.nextInt(0x7fffffff).toRadixString(36);
       id = 'dev-${DateTime.now().millisecondsSinceEpoch.toRadixString(36)}'
-          '-${r.nextInt(1 << 32).toRadixString(36)}';
+          '-$suffix';
       await prefs.setString(_key, id);
     }
     _cached = id;

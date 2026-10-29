@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Release builds need this too: debug/profile manifests add it
+         automatically, but without it a release APK cannot reach
+         Supabase and every post/reply falls back to "Unsent". -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="nita"
         android:name="${applicationName}"
