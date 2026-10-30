@@ -1,0 +1,100 @@
+# Applies any pending SQL files in supabase/migrations/ to the live database.
+#
+# Run it manually any time:
+#   Actions -> "Apply database migrations" -> Run workflow
+
+name: Apply database migrations
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-migrations
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Check SUPABASE_DB_URL secret
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::error::SUPABASE_DB_URL is empty or was not found. Add it in Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          case "$SUPABASE_DB_URL" in
+            *$'\n'*)
+              echo "::error::SUPABASE_DB_URL contains a newline — paste only the single-line postgresql:// URI."
+              exit 1
+              ;;
+            *YOUR-PASSWORD*|*\[YOUR-PASSWORD\]*)
+              echo "::error::SUPABASE_DB_URL still contains the YOUR-PASSWORD placeholder."
+              exit 1
+              ;;
+          esac
+          echo "SUPABASE_DB_URL is present (length=${#SUPABASE_DB_URL}, value hidden)."
+
+      - name: Push pending migrations
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          supabase db push --db-url "$SUPABASE_DB_URL"
+
+      - name: Verify live database health
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "::warning::SUPABASE_URL or SUPABASE_PUBLISHABLE_KEY not set; skipping REST health check."
+            exit 0
+          fi
+
+          base="${SUPABASE_URL%/}/rest/v1"
+
+          echo "Checking pakikiramay_messages read access..."
+          messages_resp=$(curl --silent --show-error --fail-with-body \
+            --retry 3 --retry-delay 5 --max-time 30 \
+            "${base}/pakikiramay_messages?select=id,name,message,approved,created_at&limit=1" \
+            -H "apikey: $SUPABASE_PUBLISHABLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_PUBLISHABLE_KEY" \
+            -H "Accept-Profile: public")
+
+          case "$messages_resp" in
+            \[*\]) echo "pakikiramay_messages OK." ;;
+            *)
+              echo "::error::Unexpected response reading pakikiramay_messages: ${messages_resp}"
+              exit 1
+              ;;
+          esac
+
+          echo "Checking pakikiramay_replies.reply_to_name column..."
+          replies_resp=$(curl --silent --show-error --fail-with-body \
+            --retry 3 --retry-delay 5 --max-time 30 \
+            "${base}/pakikiramay_replies?select=id,post_id,author_name,message,reply_to_name,created_at&limit=1" \
+            -H "apikey: $SUPABASE_PUBLISHABLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_PUBLISHABLE_KEY" \
+            -H "Accept-Profile: public")
+
+          case "$replies_resp" in
+            \[*\]) echo "pakikiramay_replies (including reply_to_name) OK." ;;
+            *)
+              echo "::error::Unexpected response reading pakikiramay_replies.reply_to_name: ${replies_resp}"
+              exit 1
+              ;;
+          esac
+
+          echo "Database health check passed."
+
