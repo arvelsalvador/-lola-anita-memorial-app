@@ -111,17 +111,24 @@ class _HomePageState extends State<HomePage> {
         remembered;
     if (!hasEntered) {
       _redirectingToSplash = true;
-      final currentRoute = ModalRoute.of(context)?.settings.name;
-      if (currentRoute != AppRoutes.splash) {
-        // Replace the entire stack, not just the top route: a deep link
-        // starts on '/' (splash) with '/home' pushed above it, so popping
-        // first would leave two splash routes behind the gate. One splash,
-        // nothing underneath — the splash is always the start of the flow.
-        Navigator.of(
-          context,
-        ).pushNamedAndRemoveUntil(AppRoutes.splash, (route) => false);
-      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final currentRoute = ModalRoute.of(context)?.settings.name;
+        if (currentRoute != AppRoutes.splash) {
+          // Replace the entire stack, not just the top route: a deep link
+          // starts on '/' (splash) with '/home' pushed above it, so popping
+          // first would leave two splash routes behind the gate. One splash,
+          // nothing underneath — the splash is always the start of the flow.
+          Navigator.of(
+            context,
+          ).pushNamedAndRemoveUntil(AppRoutes.splash, (route) => false);
+        }
+      });
       return;
+    }
+    final guideController = context.read<GuideController?>();
+    if (guideController != null && !guideController.hasEnteredInfo) {
+      guideController.setHasEnteredInfo(true);
     }
     setState(() => _gateChecked = true);
     // Guide auto-start is managed by GuideController in HomeShell.

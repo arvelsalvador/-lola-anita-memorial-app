@@ -179,6 +179,9 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     _navigated = true;
     final guideController = context.read<GuideController>();
     final hasEntered = guideController.hasEnteredInfo || _hasVisitor;
+    if (hasEntered && !guideController.hasEnteredInfo) {
+      guideController.setHasEnteredInfo(true);
+    }
     final Widget target = hasEntered ? const HomePage() : const EntryPage();
 
     Navigator.of(context).pushReplacement(

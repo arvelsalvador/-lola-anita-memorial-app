@@ -187,17 +187,10 @@
 
       var hint = document.getElementById('app-loader-hint');
       var hidden = false;
-      var poll = 0;
-
-      function appHasRendered() {
-        // Flutter inserts one of these once its engine has created the view.
-        return !!(document.querySelector('flt-glass-pane, flutter-view'));
-      }
 
       function hideLoader() {
         if (hidden) return;
         hidden = true;
-        window.clearInterval(poll);
         // Let the engine paint its first frame behind the overlay, so the
         // dark splash fades in without a flash of empty page.
         window.requestAnimationFrame(function () {
@@ -210,40 +203,119 @@
         });
       }
 
-      var observer = new MutationObserver(function () {
-        if (!appHasRendered()) return;
-        observer.disconnect();
-        hideLoader();
-      });
-      observer.observe(document.documentElement, {
-        childList: true,
-        subtree: true,
-      });
+      // Wait for Flutter to actually render its first frame (not just insert
+      // an empty <flutter-view> container before Dart main() finishes).
+      window.addEventListener('flutter-first-frame', hideLoader, { once: true });
 
-      poll = window.setInterval(function () {
-        if (appHasRendered()) hideLoader();
-      }, 250);
-
-      // If the app never appears, explain instead of spinning forever.
+      // If the app never appears, explain and offer a clean cache reset.
       window.setTimeout(function () {
         if (!hidden && hint) {
           hint.textContent =
             'Still loading. A slow connection can take up to a minute. ' +
-            'If this stays blank, enable JavaScript or try another browser.';
+            'Tap here to refresh if this takes too long.';
+          hint.style.cursor = 'pointer';
+          hint.style.textDecoration = 'underline';
+          hint.onclick = function () {
+            if (window.__hardReloadMemorial) {
+              window.__hardReloadMemorial();
+            } else {
+              window.location.reload();
+            }
+          };
         }
-      }, 12000);
+      }, 10000);
     })();
   </script>
 
   <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function(registrations) {
-        for (var registration of registrations) {
-          registration.unregister();
+    (function () {
+      window.__hardReloadMemorial = function () {
+        var tasks = [];
+        if ('serviceWorker' in navigator) {
+          tasks.push(
+            navigator.serviceWorker.getRegistrations().then(function (regs) {
+              return Promise.all(
+                regs.map(function (r) {
+                  return r.unregister();
+                })
+              );
+            }).catch(function () {})
+          );
         }
-      });
-    }
+        if ('caches' in window) {
+          tasks.push(
+            caches.keys().then(function (keys) {
+              return Promise.all(
+                keys.map(function (k) {
+                  return caches.delete(k);
+                })
+              );
+            }).catch(function () {})
+          );
+        }
+        Promise.all(tasks).finally(function () {
+          window.location.reload();
+        });
+      };
+
+      function bootFlutter() {
+        if (window.__flutterBooted) return;
+        window.__flutterBooted = true;
+        var s = document.createElement('script');
+        s.src = 'flutter_bootstrap.js';
+        s.async = true;
+        document.body.appendChild(s);
+      }
+
+      var cleanup = [];
+      if ('serviceWorker' in navigator) {
+        cleanup.push(
+          navigator.serviceWorker
+            .getRegistrations()
+            .then(function (registrations) {
+              return Promise.all(
+                registrations.map(function (r) {
+                  return r.unregister();
+                })
+              );
+            })
+            .catch(function () {})
+        );
+        // Prevent flutter_bootstrap.js from seeing an existing registration and
+        // attempting to re-register/wait for flutter_service_worker.js on
+        // repeat visits in the same browser profile.
+        try {
+          navigator.serviceWorker.getRegistration = function () {
+            return Promise.resolve(undefined);
+          };
+        } catch (_) {}
+      }
+
+      if ('caches' in window) {
+        cleanup.push(
+          caches
+            .keys()
+            .then(function (keys) {
+              return Promise.all(
+                keys.map(function (k) {
+                  return caches.delete(k);
+                })
+              );
+            })
+            .catch(function () {})
+        );
+      }
+
+      if (cleanup.length === 0) {
+        bootFlutter();
+      } else {
+        var fallback = window.setTimeout(bootFlutter, 600);
+        Promise.all(cleanup).finally(function () {
+          window.clearTimeout(fallback);
+          bootFlutter();
+        });
+      }
+    })();
   </script>
-  <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

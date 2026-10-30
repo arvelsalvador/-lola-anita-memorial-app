@@ -79,7 +79,9 @@ class _SplashVideoBackdropState extends State<SplashVideoBackdrop>
       // Timeout so a wedged native decoder can't hold the controller open
       // forever; the painted fallback simply stays on screen.
       await controller.initialize().timeout(AppTimeouts.mediaInit);
+      if (_disposed) return;
       await controller.setLooping(true);
+      if (_disposed) return;
       await controller.setVolume(0);
       if (_disposed) return;
       // Reduced motion: hold the first frame as a still.

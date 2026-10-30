@@ -30,7 +30,9 @@ void main() async {
   // by the backend (previously up to 10s before runApp). Repositories await
   // this same shared future before using the client; if it fails, the app
   // degrades cleanly to local-only mode.
-  unawaited(SupabaseConfig.initializeInBackground());
   final guideController = await GuideController.create();
   runApp(LolaApp(guideController: guideController));
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(SupabaseConfig.initializeInBackground());
+  });
 }
