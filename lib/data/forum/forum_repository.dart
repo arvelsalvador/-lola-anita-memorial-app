@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:nita/core/constants/app_timeouts.dart';
 import 'package:nita/core/constants/supabase_config.dart';
@@ -48,10 +49,73 @@ class ForumRepository {
   static const String _reactionsMapKey = 'memorial_reactions_counts_v1';
   static const String _repliesKey = 'memorial_local_replies_v1';
 
+  /// PostgREST caps one response at 1000 rows unless the project raises it;
+  /// reply fetches page through so older threads never disappear silently.
+  static const int _replyPageSize = 1000;
+
   static const String messagesTable = 'pakikiramay_messages';
   static const String repliesTable = 'pakikiramay_replies';
   static const String reactionsTable = 'pakikiramay_reactions';
   static const String reportsTable = 'pakikiramay_reports';
+
+  /// Returns the last saved feed immediately without touching the network.
+  /// Startup uses this so mourners see cached messages while Supabase is
+  /// still initializing instead of an empty board.
+  Future<List<ForumPost>> fetchCachedPosts() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cached = await _loadLocalCache(
+      prefs,
+      await _loadUserReactions(prefs),
+      await _loadReactionCounts(prefs),
+      await _loadLocalReplies(prefs),
+    );
+    final hiddenIds = await SpamGuard.loadHiddenIds();
+    return cached
+        .where((p) => !hiddenIds.contains(p.id))
+        .map(
+          (p) => p.copyWith(
+            replies:
+                p.replies.where((r) => !hiddenIds.contains(r.id)).toList(),
+          ),
+        )
+        .toList();
+  }
+
+  /// Fetches every reply in pages of [_replyPageSize]. Tries the optional
+  /// `reply_to_name` column first, then retries without it on databases
+  /// that have not run the migration yet.
+  Future<List<dynamic>> _fetchReplyRows(SupabaseClient client) async {
+    Future<List<dynamic>> page(String columns, int from) async {
+      final rows = await client
+          .from(repliesTable)
+          .select(columns)
+          .order('created_at', ascending: true)
+          .range(from, from + _replyPageSize - 1)
+          .timeout(AppTimeouts.quick);
+      return rows as List;
+    }
+
+    for (final columns in const [
+      'id, post_id, author_name, message, created_at, reply_to_name',
+      'id, post_id, author_name, message, created_at',
+    ]) {
+      try {
+        final all = <dynamic>[];
+        var from = 0;
+        while (true) {
+          final rows = await page(columns, from);
+          all.addAll(rows);
+          if (rows.length < _replyPageSize) break;
+          from += _replyPageSize;
+        }
+        return all;
+      } catch (_) {
+        // `reply_to_name` may be missing on an un-migrated database; the
+        // next selection retries without it.
+      }
+    }
+    throw StateError('reply fetch failed');
+  }
 
   /// Fetches real messages directly from Supabase.
   /// Falls back to local cache if offline or unconfigured.
@@ -74,10 +138,13 @@ class ForumRepository {
     final client = SupabaseConfig.safeClient();
     if (client != null) {
       try {
-        // Fetch messages from the database (newest first)
+        // Fetch messages from the database (newest first). The explicit
+        // `approved` filter keeps unapproved rows out even if the RLS
+        // policy on a partially migrated project is too permissive.
         final rows = await client
             .from(messagesTable)
             .select('id, name, message, created_at')
+            .eq('approved', true)
             .order('created_at', ascending: false)
             .limit(100)
             .timeout(AppTimeouts.remote);
@@ -103,22 +170,9 @@ class ForumRepository {
         }
         try {
           // Prefer the reply_to_name column; fall back when the DB
-          // hasn't been migrated yet (old deployments).
-          List replyRows;
-          try {
-            replyRows = await client
-                .from(repliesTable)
-                .select(
-                    'id, post_id, author_name, message, created_at, reply_to_name')
-                .order('created_at', ascending: true)
-                .timeout(AppTimeouts.quick) as List;
-          } catch (_) {
-            replyRows = await client
-                .from(repliesTable)
-                .select('id, post_id, author_name, message, created_at')
-                .order('created_at', ascending: true)
-                .timeout(AppTimeouts.quick) as List;
-          }
+          // hasn't been migrated yet (old deployments). Both paths page
+          // through every reply instead of relying on PostgREST's cap.
+          final replyRows = await _fetchReplyRows(client);
 
           for (final r in replyRows) {
             final replyId = r['id']?.toString() ?? '';
@@ -160,23 +214,28 @@ class ForumRepository {
           dbReplies = localReplies;
         }
 
-        // Drop cached temp replies whose real row already landed (e.g.
-        // an insert timed out after the server accepted it). This keeps
-        // duplicate "Unsent" replies out of the cache across restarts.
+        // Prune the local reply store after an authoritative remote read:
+        // - a temp reply whose real row already landed is a duplicate;
+        // - a real-id reply that no longer exists remotely was deleted on
+        //   another device and must not be resurrected from the cache.
         if (dbRepliesLoaded) {
+          final remoteReplyIds = <String>{
+            for (final list in dbReplies.values)
+              for (final reply in list) reply.id,
+          };
           var localRepliesChanged = false;
           for (final entry in localReplies.entries) {
             final realForPost = dbReplies[entry.key] ?? const <ForumReply>[];
             final before = entry.value.length;
             entry.value.removeWhere(
-              (r) =>
-                  r.pendingSync &&
-                  r.id.startsWith('reply-') &&
-                  realForPost.any(
-                    (real) =>
-                        real.authorName == r.authorName &&
-                        real.message == r.message,
-                  ),
+              (r) => r.id.startsWith('reply-')
+                  ? r.pendingSync &&
+                      realForPost.any(
+                        (real) =>
+                            real.authorName == r.authorName &&
+                            real.message == r.message,
+                      )
+                  : !remoteReplyIds.contains(r.id),
             );
             if (entry.value.length != before) localRepliesChanged = true;
           }
@@ -495,18 +554,21 @@ class ForumRepository {
     return newReply;
   }
 
-  /// Drops a local-only reply row (temp `reply-...` id) from the local
-  /// replies store and the cached feed after its upload succeeds. Without
-  /// this, the temp copy can reappear as a duplicate "Unsent" row on the
-  /// next refresh. Local cache only, best-effort, never throws.
-  Future<void> removeLocalReply(String replyId) async {
+  /// Drops [targetId] (a post OR reply id) from the local reply store and
+  /// the cached feed. Used after a successful delete and for Realtime
+  /// DELETE events, so a deleted row cannot reappear from the offline cache.
+  /// Local cache only, best-effort, never throws.
+  Future<void> removeLocalTarget(String targetId) async {
+    if (targetId.isEmpty) return;
     try {
       final prefs = await SharedPreferences.getInstance();
       final localReplies = await _loadLocalReplies(prefs);
       var changed = false;
+      // A post id also owns a bucket of replies in this store.
+      if (localReplies.remove(targetId) != null) changed = true;
       for (final entry in localReplies.entries) {
         final before = entry.value.length;
-        entry.value.removeWhere((r) => r.id == replyId);
+        entry.value.removeWhere((r) => r.id == targetId);
         if (entry.value.length != before) changed = true;
       }
       if (changed) await _saveLocalReplies(prefs, localReplies);
@@ -519,42 +581,25 @@ class ForumRepository {
       await _saveLocalCache(
         prefs,
         cached
+            .where((p) => p.id != targetId)
             .map(
               (p) => p.copyWith(
-                replies: p.replies.where((r) => r.id != replyId).toList(),
+                replies: p.replies.where((r) => r.id != targetId).toList(),
               ),
             )
             .toList(),
       );
     } catch (e) {
-      debugPrint('ForumRepository removeLocalReply skipped: $e');
+      debugPrint('ForumRepository removeLocalTarget skipped: $e');
     }
   }
 
-  /// Drops a local-only post row (temp `msg-...` id) and its local replies
-  /// from the cache after its upload succeeds. Without this, the temp copy
-  /// stays in the cache and can reappear as a duplicate "Unsent" post.
-  /// Local cache only, best-effort, never throws.
-  Future<void> removeLocalPost(String postId) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final localReplies = await _loadLocalReplies(prefs);
-      localReplies.remove(postId);
-      await _saveLocalReplies(prefs, localReplies);
-      final cached = await _loadLocalCache(
-        prefs,
-        await _loadUserReactions(prefs),
-        await _loadReactionCounts(prefs),
-        localReplies,
-      );
-      await _saveLocalCache(
-        prefs,
-        cached.where((p) => p.id != postId).toList(),
-      );
-    } catch (e) {
-      debugPrint('ForumRepository removeLocalPost skipped: $e');
-    }
-  }
+  /// Drops a reply row from the local stores. Kept as a named alias for
+  /// call sites that specifically remove a reply.
+  Future<void> removeLocalReply(String replyId) => removeLocalTarget(replyId);
+
+  /// Drops a post row (and its reply bucket) from the local cache.
+  Future<void> removeLocalPost(String postId) => removeLocalTarget(postId);
 
   /// After a pending post gets its real id: move its still-unsent
   /// replies from the temp id bucket to the real id bucket, then drop the
@@ -1425,6 +1470,9 @@ class ForumRepository {
   /// Parses a Supabase Realtime INSERT payload row into a [ForumPost].
   /// Returns null when the row is not a displayable message.
   ForumPost? parsePostRecord(Map<String, dynamic> record) {
+    // Rows awaiting moderation never render, even if a permissive Realtime
+    // policy or a partially migrated project delivers them.
+    if (record['approved'] == false) return null;
     final id = record['id']?.toString() ?? '';
     final message = (record['message'] as String? ?? '').trim();
     if (id.isEmpty || message.isEmpty) return null;

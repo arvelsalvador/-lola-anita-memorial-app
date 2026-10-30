@@ -26,13 +26,12 @@ void main() async {
   if (kDebugMode) {
     LanguageProvider.debugCheckTranslationKeysMatch();
   }
-  // Start Supabase in the background so the first frame is never blocked
-  // by the backend (previously up to 10s before runApp). Repositories await
-  // this same shared future before using the client; if it fails, the app
-  // degrades cleanly to local-only mode.
+  // Start Supabase before the first frame so the forum's startup can wait
+  // for this same shared attempt. runApp is still immediate: the first
+  // frame never waits for the backend, but the client is usually ready by
+  // the time the forum mounts. Failures degrade to local-only mode and can
+  // be retried later.
+  unawaited(SupabaseConfig.initializeInBackground());
   final guideController = await GuideController.create();
   runApp(LolaApp(guideController: guideController));
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    unawaited(SupabaseConfig.initializeInBackground());
-  });
 }

@@ -27,9 +27,12 @@ class ForumController extends ChangeNotifier {
 
   ForumController({ForumRepository repository = const ForumRepository()})
       : _repository = repository {
-    loadPosts();
-    // Fire-and-forget: never blocks construction or tests.
-    unawaited(subscribeRealtime());
+    // Local-first boot: cached posts render immediately, then the shared
+    // Supabase startup attempt is awaited before the remote refresh and
+    // Realtime subscription. Previously these two calls ran once during
+    // construction, often before Supabase finished initializing, so the
+    // forum silently stayed on cached data and never received live rows.
+    unawaited(startOnline());
     unawaited(_loadOwnIds());
   }
 
@@ -40,7 +43,13 @@ class ForumController extends ChangeNotifier {
   RealtimeChannel? _channel;
   bool _subscribing = false;
   bool _realtimeConnected = false;
+  bool _realtimeDropped = false;
   bool _remoteConnected = false;
+  // One-time boot and reconnect/backoff state.
+  bool _started = false;
+  bool _retryInFlight = false;
+  Timer? _reconnectTimer;
+  int _reconnectAttempt = 0;
   // Anonymous owner id of this phone's likes (loaded lazily).
   String _deviceId = '';
   // Display name from the visitor gate (loaded lazily).
@@ -290,6 +299,121 @@ class ForumController extends ChangeNotifier {
     if (changed && !_disposed) notifyListeners();
   }
 
+  /// Handles a row deleted elsewhere: remove it from the screen and from
+  /// the offline cache so it cannot come back after a restart.
+  void _handleRemoteDelete(String id) {
+    if (_disposed || id.isEmpty) return;
+    _removeTargetLocally(id);
+    unawaited(_repository.removeLocalTarget(id));
+  }
+
+  /// Local-first boot: show the saved feed immediately, then wait for the
+  /// app-wide Supabase initialization, refresh from the server, and open
+  /// Realtime. Idempotent; safe to call from a widget mount.
+  Future<void> startOnline() async {
+    if (_disposed || _started) return;
+    _started = true;
+    _loading = true;
+    notifyListeners();
+
+    await _loadCachedPosts();
+    if (_disposed) return;
+    // Claim legacy posts/replies that match this device's gate name even
+    // when the network is still unavailable (same backfill the remote
+    // load runs).
+    unawaited(_adoptOwnByGateName());
+    _loading = false;
+    notifyListeners();
+
+    // No shared attempt means this process never started Supabase (for
+    // example, widget tests or a deliberately local-only build). Stay on
+    // the cache instead of opening a network connection on our own.
+    final init = SupabaseConfig.initializationFuture;
+    if (init == null) {
+      // The app did try at startup and the attempt already failed before
+      // this controller existed: keep retrying in the background.
+      if (SupabaseConfig.initializationAttempted &&
+          SupabaseConfig.hasCredentials) {
+        _scheduleReconnect();
+      }
+      return;
+    }
+    final ok = await init;
+    if (_disposed) return;
+    if (!ok || SupabaseConfig.safeClient() == null) {
+      _scheduleReconnect();
+      return;
+    }
+    await loadPosts();
+    if (_disposed) return;
+    await subscribeRealtime();
+  }
+
+  Future<void> _loadCachedPosts() async {
+    try {
+      final cached = await _repository.fetchCachedPosts();
+      if (_disposed || cached.isEmpty) return;
+      _posts = _posts.isEmpty
+          ? cached
+          : ForumPendingSync.merge(cached, _posts);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('ForumController cached boot skipped: $e');
+    }
+  }
+
+  /// Retries initialization, reloads the feed, and reopens Realtime.
+  /// Used by the Retry button, pull-to-refresh, app resume, and the
+  /// automatic reconnect backoff. Never throws.
+  Future<void> retryOnline() async {
+    if (_disposed || _retryInFlight) return;
+    _retryInFlight = true;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    try {
+      if (SupabaseConfig.hasCredentials) {
+        final ok = await SupabaseConfig.ensureInitialized();
+        if (_disposed) return;
+        if (!ok) {
+          await loadPosts();
+          _scheduleReconnect();
+          return;
+        }
+      }
+      if (SupabaseConfig.safeClient() == null) {
+        _scheduleReconnect();
+        return;
+      }
+      await loadPosts();
+      if (_disposed) return;
+      await subscribeRealtime();
+    } finally {
+      _retryInFlight = false;
+    }
+  }
+
+  /// Exponential backoff for a failed init or a dropped Realtime channel:
+  /// 2s, 4s, 8s, 16s, 32s, then every 60s. Cancelled as soon as a fetch or
+  /// subscription succeeds.
+  void _scheduleReconnect() {
+    if (_disposed || _reconnectTimer != null) return;
+    if (!SupabaseConfig.hasCredentials) return;
+    final seconds = _reconnectAttempt >= 5 ? 60 : 1 << (_reconnectAttempt + 1);
+    _reconnectAttempt++;
+    debugPrint('ForumController reconnecting in ${seconds}s');
+    _reconnectTimer = Timer(Duration(seconds: seconds), () {
+      _reconnectTimer = null;
+      if (_disposed) return;
+      // A retry already in flight will re-check the connection itself; ask
+      // for another slot instead of silently dropping this one.
+      if (_retryInFlight) {
+        _scheduleReconnect();
+        return;
+      }
+      unawaited(retryOnline());
+    });
+  }
+
   /// Loads real posts from the database / local cache.
   Future<void> loadPosts() async {
     if (_loading || _disposed) return;
@@ -301,6 +425,12 @@ class ForumController extends ChangeNotifier {
       final fetched = await _repository.fetchPosts();
       if (_disposed) return;
       _remoteConnected = _repository.lastFetchSucceededRemotely;
+      if (_remoteConnected) {
+        // A successful authoritative fetch is proof the network recovered.
+        _reconnectAttempt = 0;
+        _reconnectTimer?.cancel();
+        _reconnectTimer = null;
+      }
       // Fix #3: merge unsent (pendingSync) posts/replies back in — a
       // successful fetch alone would wipe them silently.
       _posts = ForumPendingSync.merge(_posts, fetched);
@@ -524,6 +654,8 @@ class ForumController extends ChangeNotifier {
           unawaited(OwnIds.removeReply(r.id));
         }
         unawaited(OwnIds.removePost(postId));
+        // Keep the offline cache in sync with the confirmed delete.
+        unawaited(_repository.removeLocalTarget(postId));
       } else {
         _posts = [removed, ..._posts];
         notifyListeners();
@@ -563,6 +695,8 @@ class ForumController extends ChangeNotifier {
       if (ok) {
         _ownReplyIds.remove(replyId);
         unawaited(OwnIds.removeReply(replyId));
+        // Keep the offline cache in sync with the confirmed delete.
+        unawaited(_repository.removeLocalTarget(replyId));
       } else {
         final i = _posts.indexWhere((p) => p.id == postId);
         if (i != -1) {
@@ -896,9 +1030,15 @@ class ForumController extends ChangeNotifier {
       await unsubscribeRealtime();
       if (_disposed) return;
     }
-    if (!SupabaseConfig.isConfigured) return;
+    if (!SupabaseConfig.isConfigured) {
+      _scheduleReconnect();
+      return;
+    }
     final client = SupabaseConfig.safeClient();
-    if (client == null) return;
+    if (client == null) {
+      _scheduleReconnect();
+      return;
+    }
     _subscribing = true;
     try {
       _deviceId = await ReactionIdentity.deviceId();
@@ -936,8 +1076,9 @@ class ForumController extends ChangeNotifier {
             schema: 'public',
             table: ForumRepository.messagesTable,
             callback: (payload) {
-              final id = payload.oldRecord['id']?.toString() ?? '';
-              if (id.isNotEmpty) _removeTargetLocally(id);
+              _handleRemoteDelete(
+                payload.oldRecord['id']?.toString() ?? '',
+              );
             },
           )
           .onPostgresChanges(
@@ -945,8 +1086,9 @@ class ForumController extends ChangeNotifier {
             schema: 'public',
             table: ForumRepository.repliesTable,
             callback: (payload) {
-              final id = payload.oldRecord['id']?.toString() ?? '';
-              if (id.isNotEmpty) _removeTargetLocally(id);
+              _handleRemoteDelete(
+                payload.oldRecord['id']?.toString() ?? '',
+              );
             },
           )
           .onPostgresChanges(
@@ -975,14 +1117,19 @@ class ForumController extends ChangeNotifier {
             callback: (payload) {
               final parsed =
                   _repository.parseReactionRecord(payload.oldRecord);
-              if (parsed != null) {
-                if (_isOwnReactionEcho(parsed.deviceId)) {
-                  unawaited(_reconcileReaction(
-                      parsed.targetId, parsed.reactionType));
-                  return;
-                }
-                _applyReactionDelta(parsed.targetId, parsed.reactionType, -1);
+              if (parsed == null) {
+                // Until `replica identity full` is applied, DELETE payloads
+                // carry only the primary key. Refresh instead of guessing
+                // which heart changed.
+                unawaited(loadPosts());
+                return;
               }
+              if (_isOwnReactionEcho(parsed.deviceId)) {
+                unawaited(_reconcileReaction(
+                    parsed.targetId, parsed.reactionType));
+                return;
+              }
+              _applyReactionDelta(parsed.targetId, parsed.reactionType, -1);
             },
           )
           .subscribe((status, error) {
@@ -990,13 +1137,23 @@ class ForumController extends ChangeNotifier {
         _realtimeConnected = status == RealtimeSubscribeStatus.subscribed;
         if (_realtimeConnected) {
           _remoteConnected = true;
+          _reconnectAttempt = 0;
+          _reconnectTimer?.cancel();
+          _reconnectTimer = null;
+          // Caught up after a drop: fetch anything missed while offline.
+          if (_realtimeDropped) {
+            _realtimeDropped = false;
+            unawaited(loadPosts());
+          }
         } else if (status == RealtimeSubscribeStatus.channelError ||
             status == RealtimeSubscribeStatus.timedOut ||
             status == RealtimeSubscribeStatus.closed) {
+          _realtimeDropped = true;
           if (identical(_channel, channel)) {
             _channel = null;
           }
           unawaited(client.removeChannel(channel).catchError((_) => ''));
+          _scheduleReconnect();
         }
         if (error != null) {
           debugPrint('ForumController realtime status error: $error');
@@ -1007,6 +1164,7 @@ class ForumController extends ChangeNotifier {
     } catch (e) {
       debugPrint('ForumController.subscribeRealtime skipped: $e');
       _realtimeConnected = false;
+      _scheduleReconnect();
       if (!_disposed) notifyListeners();
     } finally {
       _subscribing = false;
@@ -1018,6 +1176,7 @@ class ForumController extends ChangeNotifier {
     final channel = _channel;
     _channel = null;
     _realtimeConnected = false;
+    _realtimeDropped = false;
     if (channel == null) return;
     try {
       final client = SupabaseConfig.safeClient();
@@ -1116,8 +1275,14 @@ class ForumController extends ChangeNotifier {
     if (_disposed) return;
     try {
       final id = record['id']?.toString() ?? '';
+      if (id.isEmpty) return;
+      // A moderation hide/delete arrives as an UPDATE with approved=false.
+      if (record['approved'] == false) {
+        _handleRemoteDelete(id);
+        return;
+      }
       final message = (record['message'] as String? ?? '').trim();
-      if (id.isEmpty || message.isEmpty) return;
+      if (message.isEmpty) return;
       final idx = _posts.indexWhere((p) => p.id == id);
       if (idx == -1) return;
       if (_posts[idx].message == message) return;
@@ -1392,11 +1557,16 @@ class ForumController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
     final channel = _channel;
     _channel = null;
     if (channel != null) {
       try {
-        Supabase.instance.client.removeChannel(channel);
+        final client = SupabaseConfig.safeClient();
+        if (client != null) {
+          unawaited(client.removeChannel(channel).catchError((_) => ''));
+        }
       } catch (_) {}
     }
     super.dispose();

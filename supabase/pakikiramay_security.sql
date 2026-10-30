@@ -1030,6 +1030,14 @@ $$;
 -- ============================================================================
 -- 8. Enable Realtime publication on public forum tables (idempotent)
 -- ============================================================================
+-- Realtime DELETE events only contain primary-key columns by default. The
+-- app needs `target_id` + `reaction_type` + `device_id` from a reaction
+-- delete to decrement the right heart, and `post_id` from a reply delete to
+-- prune the right thread, so publish whole old rows for these tables.
+alter table public.pakikiramay_messages replica identity full;
+alter table public.pakikiramay_replies replica identity full;
+alter table public.pakikiramay_reactions replica identity full;
+
 do $$
 declare
   t text;

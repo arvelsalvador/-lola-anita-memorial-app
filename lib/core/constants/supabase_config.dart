@@ -12,6 +12,8 @@
 
 library;
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -69,8 +71,28 @@ class SupabaseConfig {
 
   /// The one initialization attempt for this app session. Concurrent
   /// callers (startup, visitor sync, any repository) share this future
-  /// instead of racing to initialize the singleton twice.
+  /// instead of racing to initialize the singleton twice. Cleared again
+  /// when an attempt fails so a later retry can make a fresh attempt.
   static Future<bool>? _initFuture;
+
+  /// True when the build carries usable Supabase credentials, regardless of
+  /// whether initialization has succeeded yet. Lets startup code tell
+  /// "offline by configuration" apart from "offline because the network
+  /// attempt failed and is worth retrying".
+  static bool get hasCredentials => _credentialsLookValid();
+
+  /// The shared startup attempt, or null when none is running. The forum
+  /// uses this to wait for the app-wide initialization instead of starting
+  /// its own or silently falling back to cache-only mode.
+  static Future<bool>? get initializationFuture => _initFuture;
+
+  static bool _initializationAttempted = false;
+
+  /// True once startup called [initializeInBackground], even if that
+  /// attempt later failed and was cleared. Distinguishes a real app that
+  /// should keep retrying from a test/local-only process that never wanted
+  /// the network at all.
+  static bool get initializationAttempted => _initializationAttempted;
 
   /// Starts Supabase initialization without blocking the caller. Call this
   /// once from `main()` right before `runApp`; the first frame no longer
@@ -79,10 +101,23 @@ class SupabaseConfig {
   /// Repositories call [ensureInitialized] before touching the client, so
   /// they wait for this same attempt instead of starting another one.
   static Future<bool> initializeInBackground() {
+    _initializationAttempted = true;
     if (isInitialized && safeClient() != null) {
       return Future<bool>.value(true);
     }
-    return _initFuture ??= _initialize();
+    final existing = _initFuture;
+    if (existing != null) return existing;
+    final future = _initialize();
+    _initFuture = future;
+    // Never cache a failed attempt for the whole session: startup, a Retry
+    // button, app resume, or the forum's reconnect backoff get a fresh
+    // chance instead of instantly returning the old false forever.
+    unawaited(future.then((ok) {
+      if (!ok && identical(_initFuture, future)) {
+        _initFuture = null;
+      }
+    }));
+    return future;
   }
 
   /// Initializes Supabase on demand if credentials are valid and it was

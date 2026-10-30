@@ -329,10 +329,7 @@ class _CondolencesPageState extends State<CondolencesPage> {
   /// Pull-to-refresh / refresh-button path: reloads the forum feed and
   /// re-opens realtime so elderly users can force the latest messages.
   Future<void> _handleRefresh() async {
-    await _forumController.loadPosts();
-    try {
-      await _forumController.subscribeRealtime();
-    } catch (_) {}
+    await _forumController.retryOnline();
   }
 
   @override

@@ -1,10 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'package:nita/controllers/forum_controller.dart';
 import 'package:nita/core/constants/app_constants.dart';
-import 'package:nita/core/constants/supabase_config.dart';
 import 'package:nita/core/localization/language_provider.dart';
 import 'package:nita/models/forum_post_model.dart';
 import 'package:nita/views/condolences/forum/create_post_dialog.dart';
@@ -32,7 +33,8 @@ class CommunityForumSection extends StatefulWidget {
   State<CommunityForumSection> createState() => _CommunityForumSectionState();
 }
 
-class _CommunityForumSectionState extends State<CommunityForumSection> {
+class _CommunityForumSectionState extends State<CommunityForumSection>
+    with WidgetsBindingObserver {
   static const int _pageSize = 20;
   int _visibleCount = _pageSize;
   final Set<String> _seenIds = {};
@@ -53,11 +55,24 @@ class _CommunityForumSectionState extends State<CommunityForumSection> {
   @override
   void initState() {
     super.initState();
-    // Fire-and-forget: no-op when offline or already subscribed.
-    widget.forumController.subscribeRealtime().catchError((_) {});
+    WidgetsBinding.instance.addObserver(this);
+    // Boot is idempotent: if the controller already started (the normal
+    // case) this is a no-op; it also keeps a directly-mounted section
+    // working in tests.
+    unawaited(widget.forumController.startOnline());
     // Pagination window / seen-id bookkeeping runs here, outside build
     // (fix: these were mutated during build without setState).
     widget.forumController.addListener(_onControllerChanged);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed && !_disposed) {
+      // Coming back from the background: retry initialization / Realtime
+      // and pull anything posted while the app was asleep.
+      unawaited(widget.forumController.retryOnline());
+    }
   }
 
   @override
@@ -66,6 +81,7 @@ class _CommunityForumSectionState extends State<CommunityForumSection> {
     if (!identical(widget.forumController, oldWidget.forumController)) {
       oldWidget.forumController.removeListener(_onControllerChanged);
       widget.forumController.addListener(_onControllerChanged);
+      unawaited(widget.forumController.startOnline());
       _cardCache.clear();
       _newArrivals.clear();
       _seenIds.clear();
@@ -76,6 +92,7 @@ class _CommunityForumSectionState extends State<CommunityForumSection> {
   @override
   void dispose() {
     _disposed = true;
+    WidgetsBinding.instance.removeObserver(this);
     widget.forumController.removeListener(_onControllerChanged);
     super.dispose();
   }
@@ -230,9 +247,7 @@ class _CommunityForumSectionState extends State<CommunityForumSection> {
                 live: controller.isOnline,
                 buttonKey: widget.forumHeaderKey,
                 onRetry: () async {
-                  await SupabaseConfig.ensureInitialized();
-                  controller.loadPosts();
-                  controller.subscribeRealtime().catchError((_) {});
+                  await controller.retryOnline();
                 },
                 onShareTap: () {
                   CreatePostDialog.show(context, controller: controller);
@@ -278,9 +293,7 @@ class _CommunityForumSectionState extends State<CommunityForumSection> {
                     OutlinedButton.icon(
                       onPressed: () async {
                         HapticFeedback.lightImpact().catchError((_) {});
-                        await SupabaseConfig.ensureInitialized();
-                        controller.loadPosts();
-                        controller.subscribeRealtime().catchError((_) {});
+                        await controller.retryOnline();
                       },
                       icon: const Icon(Icons.refresh_rounded, size: 16),
                       label: Text(
