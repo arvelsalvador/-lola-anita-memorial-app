@@ -35,6 +35,7 @@ import 'package:nita/widgets/ornament_divider.dart';
 import 'package:nita/widgets/ornamental_card.dart';
 import 'package:nita/widgets/reveal_on_appear.dart';
 import 'package:nita/widgets/section_label.dart';
+import 'package:nita/widgets/install_app_dialog.dart';
 import 'package:nita/data/visitors/visitor_repository.dart';
 
 import 'package:nita/views/guide/guide_page.dart';
@@ -131,6 +132,8 @@ class _HomePageState extends State<HomePage> {
       guideController.setHasEnteredInfo(true);
     }
     setState(() => _gateChecked = true);
+    // Offer the browser install prompt once Home is actually visible.
+    unawaited(showInstallPromptIfEligible(context));
     // Guide auto-start is managed by GuideController in HomeShell.
   }
 
