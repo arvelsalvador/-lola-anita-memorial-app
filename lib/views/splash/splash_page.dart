@@ -20,16 +20,16 @@ import 'package:nita/widgets/ornament_divider.dart';
 import 'package:nita/widgets/pulsing_diamond.dart';
 import 'package:nita/widgets/splash_video_backdrop.dart';
 
-/// Splash screen shown on app launch. Always the first screen: it waits for
-/// a tap, then shows the visitor form (name + address) for a new device, or
-/// opens [AppRoutes.home] directly for a remembered one. Nothing happens on
-/// its own.
+/// Splash screen shown on app launch. Always the first screen: after
+/// [_autoAdvanceDelay] it advances on its own to the visitor form (name +
+/// address) for a new device, or opens [AppRoutes.home] directly for a
+/// remembered one. No tap is required.
 ///
 /// The first screen speaks the memorial's own language: the dark warm
 /// ground and brand bar, a muted looping video clip behind everything, the
 /// arched "In Loving Memory" header over the framed portrait, her name in
 /// Playfair Display, the years in tracked gold, the quote in Playfair
-/// italic, and a lone gold diamond as the "touch to enter" hint — all
+/// italic, and a lone gold diamond as a quiet ornament — all
 /// ornament drawn from the design system (glow, hairlines, diamonds), never
 /// petals or stars.
 ///
@@ -45,6 +45,7 @@ class SplashPage extends StatefulWidget {
 
 class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   static const _sequenceDuration = Duration(milliseconds: 2000);
+  static const _autoAdvanceDelay = Duration(seconds: 3);
   static const _ambienceCycleDuration = Duration(seconds: 12);
   static const _portraitSize = 104.0;
 
@@ -125,7 +126,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     } else {
       _sequenceCtrl.forward();
     }
-    _checkVisitor();
+    _autoAdvance();
 
     // Warm the guide artwork while the visitor is still on the splash, so the
     // choice dialog and the guide can paint the mascot on their first frame
@@ -136,9 +137,18 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     });
   }
 
-  /// Remember-me: returning devices go straight to home on tap; new
-  /// visitors get the form after the tap. The splash never advances on its
-  /// own — it waits for a tap (or the form's submit).
+  /// Waits for both the [_autoAdvanceDelay] and the remember-me check, then
+  /// leaves the splash automatically.
+  Future<void> _autoAdvance() async {
+    await Future.wait([
+      Future<void>.delayed(_autoAdvanceDelay),
+      _checkVisitor(),
+    ]);
+    _proceed();
+  }
+
+  /// Remember-me: returning devices go straight to home; new visitors get
+  /// the form.
   Future<void> _checkVisitor() async {
     bool hasVisitor = false;
     try {
@@ -159,9 +169,6 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
       _hasVisitor = hasVisitor;
     });
     debugPrint('SplashGate: hasVisitor=$hasVisitor');
-    // A tap landed while the check was still running: now that we know
-    // which path applies, take it (home for a remembered visitor, form
-    // for a new one — the latter appears via [showGate]).
   }
 
   /// Called by [SplashVideoBackdrop] once the clip's first frame is ready.
@@ -170,11 +177,9 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     setState(() => _videoReady = true);
   }
 
-  /// Splash tap: the visitor's first interaction. Remembered devices enter
-  /// straight away; everyone else gets the name/address form. If the local
-  /// prefs check is still in flight, the tap is recorded and the check
-  /// decides which path to take when it resolves.
-  void _onSplashTapped() {
+  /// Leaves the splash: remembered devices enter straight away; everyone
+  /// else gets the name/address form.
+  void _proceed() {
     if (!mounted || _navigated) return;
     _navigated = true;
     final guideController = context.read<GuideController>();
@@ -223,9 +228,9 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
-    // The form is a second step: it only exists after the splash is tapped
+    // The form is a second step: it only appears after the splash advances
     // (and only once the local remember-me check has resolved). Returning
-    // devices go straight to home instead (see _onSplashTapped).
+    // devices go straight to home instead (see _proceed).
     const grandmother = HomeController.grandmother;
 
     return Scaffold(
@@ -238,12 +243,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
           Expanded(
             child: Semantics(
               label: lang.t('app_title'),
-              button: true,
-              hint: lang.t('splash_tap_continue'),
-              child: GestureDetector(
-                onTap: _onSplashTapped,
-                behavior: HitTestBehavior.opaque,
-                child: Stack(
+              child: Stack(
                   children: [
                     // Painted night-vigil backdrop — the ground, and the
                     // fallback whenever the clip is unavailable.
@@ -303,9 +303,6 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
                                 years:
                                     '${grandmother.birthYear}  •  ${grandmother.passingYear}',
                                 quote: lang.t('splash_quote'),
-                                // While the gate is up, tapping does nothing —
-                                // the form is the only way in.
-                                tapHint: lang.t('splash_tap_continue'),
                               ),
                             ),
                           ),
@@ -314,7 +311,6 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
                     ),
                   ],
                 ),
-              ),
             ),
           ),
         ],
@@ -336,7 +332,6 @@ class _SplashContent extends StatelessWidget {
     required this.name,
     required this.years,
     required this.quote,
-    required this.tapHint,
   });
 
   final AnimationController sequenceCtrl;
@@ -350,7 +345,6 @@ class _SplashContent extends StatelessWidget {
   final String name;
   final String years;
   final String quote;
-  final String tapHint;
 
   // Playfair Display is the display voice; the serif fallback keeps the
   // words visible on platforms without the bundled face.
@@ -440,14 +434,7 @@ class _SplashContent extends StatelessWidget {
           animation: sequenceCtrl,
           builder: (context, child) =>
               Opacity(opacity: tapOpacity.value, child: child),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _BreathingTapHint(text: tapHint),
-              const SizedBox(height: 12),
-              const PulsingDiamond(),
-            ],
-          ),
+          child: const PulsingDiamond(),
         ),
       ],
     );
@@ -519,99 +506,4 @@ class _NightVigilBackgroundPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _NightVigilBackgroundPainter oldDelegate) =>
       oldDelegate.progress != progress;
-}
-
-/// The "touch to enter" hint, breathing slowly so it reads as an invitation
-/// rather than a caption over the moving clip.
-///
-/// One controller drives three properties together — gold alpha, a soft glow
-/// and a slight swell — so the whole hint pulses as a single heartbeat. The
-/// cycle is kept close to [PulsingDiamond]'s below it so the two read as one
-/// beat rather than two competing rhythms.
-///
-/// Reduced motion holds the hint at its peak glow: fully legible, still gold,
-/// just not moving.
-class _BreathingTapHint extends StatefulWidget {
-  const _BreathingTapHint({required this.text});
-
-  final String text;
-
-  /// Rest and peak values for the breath. Rest stays well above invisible so
-  /// the hint never fully disappears between beats.
-  static const _restAlpha = 0.40;
-  static const _peakAlpha = 1.0;
-
-  @override
-  State<_BreathingTapHint> createState() => _BreathingTapHintState();
-}
-
-class _BreathingTapHintState extends State<_BreathingTapHint>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1400),
-  );
-
-  /// Eased 0..1 breath, shared by alpha, glow and scale.
-  late final Animation<double> _breath = CurvedAnimation(
-    parent: _ctrl,
-    curve: Curves.easeInOut,
-  );
-
-  @override
-  void initState() {
-    super.initState();
-    if (animationsDisabled()) {
-      // Static peak: legible gold, no loop.
-      _ctrl.value = 1.0;
-    } else {
-      _ctrl.repeat(reverse: true);
-    }
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // Nothing to hint at while the gate form owns the screen.
-    if (widget.text.isEmpty) return const SizedBox.shrink();
-
-    return AnimatedBuilder(
-      animation: _breath,
-      builder: (context, child) {
-        final t = _breath.value;
-        final alpha =
-            _BreathingTapHint._restAlpha +
-            (_BreathingTapHint._peakAlpha - _BreathingTapHint._restAlpha) * t;
-        final glow = 0.15 + 0.30 * t;
-        return Transform.scale(
-          scale: 1.0 + 0.06 * t,
-          child: Text(
-            widget.text,
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 11,
-              color: AppColors.gold.withValues(alpha: alpha),
-              letterSpacing: 3,
-              fontWeight: FontWeight.w300,
-              shadows: [
-                Shadow(
-                  color: AppColors.gold.withValues(alpha: glow),
-                  blurRadius: 5 + 7 * t,
-                ),
-                Shadow(
-                  color: AppColors.paleGold.withValues(alpha: glow * 0.7),
-                  blurRadius: 10 + 12 * t,
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
 }
