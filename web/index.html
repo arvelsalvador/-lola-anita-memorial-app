@@ -55,6 +55,18 @@
   <title>In Loving Memory — Anita Daiz Lumbao</title>
   <link rel="manifest" href="manifest.json">
 
+  <!--
+    Chrome and Edge announce installability with this event. Flutter starts a
+    moment later, so keep the event on the page until the in-app dialog asks.
+  -->
+  <script>
+    window.__lolaInstallPrompt = null;
+    window.addEventListener('beforeinstallprompt', function (event) {
+      event.preventDefault();
+      window.__lolaInstallPrompt = event;
+    });
+  </script>
+
   <!-- First-paint loading screen: shown until Flutter inserts its view.
        Keeps a slow connection from looking like a blank/broken page. -->
   <style>
